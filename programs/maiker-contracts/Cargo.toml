@@ -16,8 +16,8 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.29.0"
-anchor-spl = "0.29.0"
-dlmm = { git = "https://github.com/MeteoraAg/dlmm-sdk/", package = "lb_clmm", rev = "c0be81cd9983ace2bc1b9fd15319e42a09561b78", features = [
+anchor-lang = { version = "0.28.0", features = ["init-if-needed", "event-cpi"] }
+anchor-spl = { version = "0.28.0" }
+lb_clmm = { path = "../../packages/lb_clmm", features = [
     "cpi",
 ] }
