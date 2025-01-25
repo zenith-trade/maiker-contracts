@@ -1,0 +1,23 @@
+[package]
+name = "maiker-contracts"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "maiker_contracts"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"
+dlmm = { git = "https://github.com/MeteoraAg/dlmm-sdk/", package = "lb_clmm", rev = "c0be81cd9983ace2bc1b9fd15319e42a09561b78", features = [
+    "cpi",
+] }
