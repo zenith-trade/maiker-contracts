@@ -56,7 +56,7 @@
   dependencies:
     buffer "~6.0.3"
 
-"@solana/web3.js@^1.68.0":
+"@solana/web3.js@^1.68.0", "@solana/web3.js@^1.98.0":
   version "1.98.0"
   resolved "https://registry.yarnpkg.com/@solana/web3.js/-/web3.js-1.98.0.tgz#21ecfe8198c10831df6f0cfde7f68370d0405917"
   integrity sha512-nz3Q5OeyGFpFCR+erX2f6JPt3sKhzhYcSycBCSPkWjzSVDh/Rr1FqTVMRe58FKO16/ivTUcuJjeS5MyBvpkbzA==
@@ -163,6 +163,11 @@ agentkeepalive@^4.5.0:
   integrity sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ==
   dependencies:
     humanize-ms "^1.2.1"
+
+anchor-bankrun@^0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/anchor-bankrun/-/anchor-bankrun-0.5.0.tgz#62b5905f6f0ed3799d4a37e6be045887c13d4f33"
+  integrity sha512-cNTRv7pN9dy+kiyJ3UlNVTg9hAXhY2HtNVNXJbP/2BkS9nOdLV0qKWhgW8UR9Go0gYuEOLKuPzrGL4HFAZPsVw==
 
 ansi-colors@4.1.1:
   version "4.1.1"
