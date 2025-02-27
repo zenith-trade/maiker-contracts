@@ -11,14 +11,17 @@ This document outlines the requirements for a Solana-based smart contract system
 #### StrategyConfig
 - **Purpose**: Defines a liquidity strategy and manages its assets
 - **Fields**:
+  - `creator`: Creator of the strategy
   - `x_mint`: Token X mint address
   - `y_mint`: Token Y mint address
   - `x_vault`: Associated Token Account for token X
   - `y_vault`: Associated Token Account for token Y
   - `strategy_shares`: Total shares issued for this strategy
-  - `owner`: Authority that can execute admin operations
-  - `strategy_type`: Defines the risk profile (aggressive, low-risk, etc.)
-  - `lb_pair`: Reference to the Meteora liquidity pair
+  - `fee_shares_pending`: Shares allocated to fees but not yet claimed
+  - `position_count`: Number of active positions
+  - `positions`: Array of position public keys
+  - `last_rebalance_time`: Timestamp of the last rebalance
+  - `bump`: PDA bump
 
 #### UserPosition
 - **Purpose**: Tracks a user's share in a strategy
@@ -26,28 +29,18 @@ This document outlines the requirements for a Solana-based smart contract system
   - `user`: User's wallet address
   - `strategy`: Reference to the StrategyConfig
   - `strategy_share`: User's share of the strategy position
-  - `deposit_timestamp`: When the user deposited
+  - `last_share_value`: Last share value when user deposited/withdrew
   - `last_update_timestamp`: Last time the position was updated
+  - `bump`: PDA bump
 
 #### GlobalConfig
 - **Purpose**: Stores protocol-wide settings and access control
 - **Fields**:
   - `admin`: Primary admin with full control
-  - `operators`: Array of addresses with specific permissions
   - `performance_fee_bps`: Performance fee in basis points
   - `withdrawal_fee_bps`: Optional withdrawal fee in basis points
   - `treasury`: Address where fees are sent
-  - `paused`: Emergency pause flag
-  - `high_water_mark_enabled`: Whether to use high-water mark for fee calculation
-
-#### PerformanceMetrics
-- **Purpose**: Tracks performance data for fee calculation
-- **Fields**:
-  - `strategy`: Reference to the StrategyConfig
-  - `last_fee_collection_timestamp`: When fees were last collected
-  - `high_water_mark`: Highest value per share historically (fixed-point, 6 decimals)
-  - `total_fees_collected_x`: Total token X fees collected
-  - `total_fees_collected_y`: Total token Y fees collected
+  - `bump`: PDA bump
 
 ### Instructions
 
@@ -58,128 +51,137 @@ This document outlines the requirements for a Solana-based smart contract system
 
 2. **Deposit**
    - User deposits token X and token Y into strategy vaults
+   - Calculates current share value
+   - For existing users, collects performance fees if applicable
    - Updates user's strategy shares and total strategy shares
+   - Updates user's last_share_value to current share value
    - Creates UserPosition PDA if it doesn't exist
 
 3. **Withdraw**
+   - Calculates current share value
+   - Collects performance fees if applicable
    - User withdraws their share of tokens from strategy vaults
    - Updates user's strategy shares and total strategy shares
    - May close UserPosition PDA if fully withdrawn
 
-#### Admin Instructions (Called by Risk Engine)
-1. **InitializePositionCpi**
-   - Creates a new position in the Meteora DLMM
+#### Admin Instructions (Position Management)
+1. **AddLiquidity**
+   - Adds liquidity to a Meteora position
    - Uses funds from strategy vaults
+   - Updates position tracking in strategy config
 
-2. **AddLiquidityByWeightCpi**
-   - Adds liquidity to an existing Meteora position
-   - Uses funds from strategy vaults
-
-3. **RemoveAllLiquidityCpi**
-   - Removes all liquidity from a Meteora position
+2. **RemoveLiquidity**
+   - Removes liquidity from a Meteora position
    - Returns funds to strategy vaults
+   - Updates position tracking in strategy config
 
-4. **ClaimFeeCpi**
+3. **ClaimFee**
    - Claims accumulated fees from a Meteora position
    - Returns fees to strategy vaults
 
-5. **ClosePositionCpi**
+4. **ClosePosition**
    - Closes a Meteora position
-   - Cleans up position accounts
+   - Removes position from tracking array in strategy config
 
 #### Admin Instructions (Protocol Management)
 1. **UpdateGlobalConfig**
    - Updates protocol-wide settings
    - Can only be called by admin
 
-2. **CollectPerformanceFees**
-   - Calculates and collects performance fees
-   - Updates high-water mark when new all-time-high value per share is reached
-   - Transfers fees to treasury
-   - Only collects fees on gains above the previous high water mark
-   - Proportionally takes fees in both token X and token Y
+2. **ClaimFees**
+   - Claims accumulated performance fees
+   - Converts fee shares to tokens
+   - Transfers tokens to treasury
+   - Reduces fee_shares_pending and strategy_shares
 
-3. **EmergencyPause**
-   - Pauses specific or all protocol operations
-   - Can only be called by admin
+### Performance Fee Implementation
+
+The protocol implements a capital-efficient, two-phase performance fee system:
+
+#### Phase 1: Fee Accrual
+- Performance fees are calculated when users deposit or withdraw
+- Fees are collected as shares based on user-specific performance gains
+- Fee shares are tracked in `fee_shares_pending` but remain deployed in the strategy
+- This allows fees to continue generating returns until claimed
+
+#### Phase 2: Fee Claiming
+- Admin can claim accumulated fees via the `claim_fees` instruction
+- Fees can be claimed in full or partially
+- When claimed, tokens are transferred to the treasury
+- Both `fee_shares_pending` and `strategy_shares` are reduced accordingly
 
 ### Operational Flows
 
 #### Initial Position Creation
-1. CreatePosition
-2. AddLiquidityByWeight
+1. Admin creates a new position in Meteora
+2. Position public key is stored in the strategy's positions array
 
 #### Fee Autocompounding
-1. ClaimFee
-2. AddLiquidityByWeight
+1. Admin claims fees from Meteora positions
+2. Fees remain in strategy vaults for redeployment
 
-#### Full Rebalance (Same Position)
-1. ClaimFee (for both tokens)
-2. RemoveAllLiquidity
-3. AddLiquidityByWeight
-
-#### Full Rebalance (New Position)
-1. ClaimFee (for both tokens)
-2. RemoveAllLiquidity
-3. ClosePosition
-4. CreatePosition
-5. AddLiquidityByWeight
+#### Rebalancing
+1. Admin claims fees from Meteora positions
+2. Admin removes liquidity from positions as needed
+3. Admin adds liquidity to new or existing positions
+4. Strategy's positions array is updated accordingly
 
 ## Risk Management
 
-The system will support multiple strategy configurations with different risk profiles:
-- Aggressive strategies (e.g., narrow price ranges)
-- Low-risk strategies (e.g., wider price ranges)
+The system supports flexible position management:
+- Admin can create multiple positions with different bin ranges
+- Positions can be adjusted based on market conditions
+- Rebalancing can be performed at admin's discretion
 
 ## Technical Integration
 
-The program will integrate with Meteora's DLMM protocol via CPI calls to their program. The necessary Meteora instructions are imported from the `lb_clmm` package.
+The program integrates with Meteora's DLMM protocol via CPI calls to their program. The necessary Meteora instructions are imported from the `lb_clmm` package.
 
 ## Security Considerations
 
-- Only authorized risk engine can execute admin instructions
+- Only authorized admin can execute admin instructions
 - User funds are protected through proper PDA derivation and ownership checks
-- Strategy shares calculations must be precise to ensure fair distribution of returns
+- Strategy shares calculations use checked arithmetic to prevent overflow errors
+- User-specific performance fee tracking ensures fair fee collection
+- Capital-efficient fee accrual keeps fees productive until claimed
 - Proper error handling for all CPI calls to Meteora
-- Role-based access control for different admin functions
-- High-water mark mechanism to prevent charging fees on recovered losses, ensuring fees are only collected on new profits
-- Fixed-point math for precise fee calculations without floating point errors
-- Proportional fee collection to maintain strategy token ratios
-- Emergency pause functionality for critical situations
 
 ## Events
 
-The program will emit the following events to facilitate off-chain tracking:
+The program emits the following events to facilitate off-chain tracking:
 
 ### User Events
 - **StrategyCreated**: When a new strategy is created
 - **UserDeposited**: When a user deposits into a strategy
 - **UserWithdrew**: When a user withdraws from a strategy
-- **SharesUpdated**: When a user's shares are updated
 
 ### Admin Events
-- **PositionCreated**: When a new Meteora position is created
-- **PositionClosed**: When a Meteora position is closed
-- **LiquidityAdded**: When liquidity is added to a position
-- **LiquidityRemoved**: When liquidity is removed from a position
-- **FeeClaimed**: When fees are claimed from a position
-- **PerformanceFeeCollected**: When performance fees are collected, including fee amounts, new high water mark, and strategy value
-- **ConfigUpdated**: When global config is updated
-- **EmergencyAction**: When emergency functions are called
+- **FeesClaimed**: When performance fees are claimed, including fee shares and token amounts
+- **GlobalConfigUpdated**: When global config is updated
+
+### CPI Events
+- Events related to position management in Meteora
 
 ## Future Enhancements
 
-- Support for multiple LB pairs per strategy and multiple positions per LB pair:
-  - Each strategy can manage multiple LB pairs with different allocation weights
-  - Each LB pair can have multiple active positions with different bin ranges
-  - Position tracking system to monitor all active positions
-  - Rebalancing capabilities between different LB pairs and positions
+- **Periodic Fee Collection**:
+  - Implement a mechanism to collect fees from all users periodically
+  - Ensures fair fee collection for both active and passive users
+  - Prevents autocompounding advantage for long-term holders
 
-- Auto-rebalancing based on price movement thresholds
+- **Enhanced Position Management**:
+  - Automated rebalancing based on price thresholds
+  - Dynamic bin range adjustment based on volatility
 
-- Fee autocompounding:
-  - Automatic fee collection from all positions
-  - Reinvestment of fees according to current allocation strategy
-  - Batch operations to optimize gas costs
+- **Analytics and Reporting**:
+  - Off-chain indexing for position performance tracking
+  - User dashboard for visualizing strategy performance
+  - Admin dashboard for monitoring and managing positions
 
-- Strategy performance analytics 
+- **Multi-Strategy Support**:
+  - Allow users to allocate funds across multiple strategies
+  - Risk-based strategy categorization
+
+- **Oracle Integration**:
+  - Price-aware share value calculation
+  - More accurate performance tracking 
