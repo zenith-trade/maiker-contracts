@@ -19,4 +19,7 @@ pub enum MaikerError {
 
     #[msg("No fees to withdraw")]
     NoFeesToWithdraw,
+
+    #[msg("Max positions reached")]
+    MaxPositionsReached,
 }

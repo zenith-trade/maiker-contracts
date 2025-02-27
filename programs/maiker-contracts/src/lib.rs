@@ -1,10 +1,11 @@
+use anchor_lang::prelude::*;
+use lb_clmm::instructions::deposit::LiquidityParameterByWeight;
+
 pub mod constants;
 pub mod error;
 pub mod events;
 pub mod instructions;
 pub mod state;
-
-use anchor_lang::prelude::*;
 
 pub use constants::*;
 pub use error::*;
@@ -65,12 +66,15 @@ pub mod maiker_contracts {
     // TODO: Claim Performance Fee on User Position -> Only required for users that infrequently deposit/withdraw funds so we don't leak auto-compound fees
 
     // CPI instructions
-    pub fn add_liquidity(ctx: Context<AddLiquidity>) -> Result<()> {
-        instructions::add_liquidity_handler(ctx)
+    pub fn add_liquidity(
+        ctx: Context<AddLiquidity>,
+        liquidity_parameter: LiquidityParameterByWeight,
+    ) -> Result<()> {
+        instructions::add_liquidity_handler(ctx, liquidity_parameter)
     }
 
     pub fn remove_liquidity(ctx: Context<RemoveLiquidity>) -> Result<()> {
-        instructions::remove_liquidity_handler(ctx)
+        instructions::remove_all_liquidity_handler(ctx)
     }
 
     pub fn claim_fee(ctx: Context<ClaimFee>) -> Result<()> {
@@ -79,5 +83,13 @@ pub mod maiker_contracts {
 
     pub fn close_position(ctx: Context<ClosePosition>) -> Result<()> {
         instructions::close_position_handler(ctx)
+    }
+
+    pub fn initialize_position(
+        ctx: Context<InitializePosition>,
+        lower_bin_id: i32,
+        width: i32,
+    ) -> Result<()> {
+        instructions::initialize_position_handler(ctx, lower_bin_id, width)
     }
 }
