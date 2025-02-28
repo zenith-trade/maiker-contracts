@@ -109,7 +109,8 @@ export const getOrCreateATAInstruction = async (
   } catch (e) {
     if (
       e instanceof TokenAccountNotFoundError ||
-      e instanceof TokenInvalidAccountOwnerError
+      e instanceof TokenInvalidAccountOwnerError ||
+      e.message.includes("Could not find")
     ) {
       const ix = createAssociatedTokenAccountIdempotentInstruction(
         payer,

@@ -1,6 +1,9 @@
 use crate::{state::*, StrategyCreated, ANCHOR_DISCRIMINATOR, MAX_POSITIONS};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, TokenAccount};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{Mint, Token, TokenAccount},
+};
 
 #[derive(Accounts)]
 pub struct CreateStrategy<'info> {
@@ -11,14 +14,14 @@ pub struct CreateStrategy<'info> {
     pub y_mint: Account<'info, Mint>,
 
     #[account(
-        constraint = x_vault.mint == x_mint.key(),
-        constraint = x_vault.owner == strategy.key()
+        associated_token::mint = x_mint,
+        associated_token::authority = strategy,
     )]
     pub x_vault: Account<'info, TokenAccount>,
 
     #[account(
-        constraint = y_vault.mint == y_mint.key(),
-        constraint = y_vault.owner == strategy.key()
+        associated_token::mint = y_mint,
+        associated_token::authority = strategy,
     )]
     pub y_vault: Account<'info, TokenAccount>,
 
@@ -31,6 +34,8 @@ pub struct CreateStrategy<'info> {
     )]
     pub strategy: Account<'info, StrategyConfig>,
 
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -39,7 +44,6 @@ pub fn create_strategy_handler(ctx: Context<CreateStrategy>) -> Result<()> {
     let clock = Clock::get()?;
 
     let strategy_bump = *ctx.bumps.get("strategy").unwrap();
-    let metrics_bump = *ctx.bumps.get("performance_metrics").unwrap();
 
     // Initialize strategy
     strategy.creator = ctx.accounts.creator.key();

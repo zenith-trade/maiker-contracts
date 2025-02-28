@@ -112,12 +112,6 @@ export async function simulateAndGetTxWithCUs(
       tx,
     };
   }
-  if (params.dumpTx) {
-    // console.log(`===== Simulating The following transaction =====`);
-    const serializedTx = base64.encode(Buffer.from(tx.serialize()));
-    // console.log(serializedTx);
-    // console.log(`================================================`);
-  }
 
   let resp;
   try {

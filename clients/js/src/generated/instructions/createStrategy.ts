@@ -11,6 +11,8 @@ export interface CreateStrategyAccounts {
   xVault: PublicKey
   yVault: PublicKey
   strategy: PublicKey
+  tokenProgram: PublicKey
+  associatedTokenProgram: PublicKey
   systemProgram: PublicKey
 }
 
@@ -25,6 +27,12 @@ export function createStrategy(
     { pubkey: accounts.xVault, isSigner: false, isWritable: false },
     { pubkey: accounts.yVault, isSigner: false, isWritable: false },
     { pubkey: accounts.strategy, isSigner: false, isWritable: true },
+    { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
+    {
+      pubkey: accounts.associatedTokenProgram,
+      isSigner: false,
+      isWritable: false,
+    },
     { pubkey: accounts.systemProgram, isSigner: false, isWritable: false },
   ]
   const identifier = Buffer.from([152, 160, 107, 148, 245, 190, 127, 224])
