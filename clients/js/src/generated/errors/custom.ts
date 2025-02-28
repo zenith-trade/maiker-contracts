@@ -1,0 +1,106 @@
+export type CustomError =
+  | ArithmeticOverflow
+  | NotAuthorized
+  | InvalidFee
+  | NoShares
+  | InvalidWithdrawalAmount
+  | NoFeesToWithdraw
+  | MaxPositionsReached
+
+export class ArithmeticOverflow extends Error {
+  static readonly code = 6000
+  readonly code = 6000
+  readonly name = "ArithmeticOverflow"
+  readonly msg = "Arithmetic overflow"
+
+  constructor(readonly logs?: string[]) {
+    super("6000: Arithmetic overflow")
+  }
+}
+
+export class NotAuthorized extends Error {
+  static readonly code = 6001
+  readonly code = 6001
+  readonly name = "NotAuthorized"
+  readonly msg = "Not authorized to perform this action"
+
+  constructor(readonly logs?: string[]) {
+    super("6001: Not authorized to perform this action")
+  }
+}
+
+export class InvalidFee extends Error {
+  static readonly code = 6002
+  readonly code = 6002
+  readonly name = "InvalidFee"
+  readonly msg = "Invalid fee (performance fee max 30%, withdrawal fee max 5%)"
+
+  constructor(readonly logs?: string[]) {
+    super("6002: Invalid fee (performance fee max 30%, withdrawal fee max 5%)")
+  }
+}
+
+export class NoShares extends Error {
+  static readonly code = 6003
+  readonly code = 6003
+  readonly name = "NoShares"
+  readonly msg = "No shares in strategy"
+
+  constructor(readonly logs?: string[]) {
+    super("6003: No shares in strategy")
+  }
+}
+
+export class InvalidWithdrawalAmount extends Error {
+  static readonly code = 6004
+  readonly code = 6004
+  readonly name = "InvalidWithdrawalAmount"
+  readonly msg = "Invalid withdrawal amount"
+
+  constructor(readonly logs?: string[]) {
+    super("6004: Invalid withdrawal amount")
+  }
+}
+
+export class NoFeesToWithdraw extends Error {
+  static readonly code = 6005
+  readonly code = 6005
+  readonly name = "NoFeesToWithdraw"
+  readonly msg = "No fees to withdraw"
+
+  constructor(readonly logs?: string[]) {
+    super("6005: No fees to withdraw")
+  }
+}
+
+export class MaxPositionsReached extends Error {
+  static readonly code = 6006
+  readonly code = 6006
+  readonly name = "MaxPositionsReached"
+  readonly msg = "Max positions reached"
+
+  constructor(readonly logs?: string[]) {
+    super("6006: Max positions reached")
+  }
+}
+
+export function fromCode(code: number, logs?: string[]): CustomError | null {
+  switch (code) {
+    case 6000:
+      return new ArithmeticOverflow(logs)
+    case 6001:
+      return new NotAuthorized(logs)
+    case 6002:
+      return new InvalidFee(logs)
+    case 6003:
+      return new NoShares(logs)
+    case 6004:
+      return new InvalidWithdrawalAmount(logs)
+    case 6005:
+      return new NoFeesToWithdraw(logs)
+    case 6006:
+      return new MaxPositionsReached(logs)
+  }
+
+  return null
+}

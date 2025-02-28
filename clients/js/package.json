@@ -1,0 +1,42 @@
+{
+  "name": "@builderz/maiker-contracts",
+  "version": "0.0.1",
+  "description": "Maiker Contracts",
+  "main": "dist/src/index.js",
+  "types": "dist/types/src/index.d.ts",
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "lint": "eslint --ext js,ts,tsx src",
+    "lint:fix": "eslint --fix --ext js,ts,tsx src",
+    "format": "prettier --check \"src/**/*.{js,ts,jsx,tsx}\"",
+    "format:fix": "prettier --write \"src/**/*.{js,ts,jsx,tsx}\""
+  },
+  "files": [
+    "/dist/src",
+    "/dist/types/src/**/*.d.ts"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "homepage": "builderz.dev",
+  "repository": "https://github.com/builderz-labs",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@coral-xyz/borsh": "^0.30.1",
+    "@solana/web3.js": "^1.95.8",
+    "bn.js": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.46.1",
+    "eslint": "^8.0.1",
+    "eslint-config-airbnb-typescript": "^17.0.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "^2.5.1",
+    "typescript": "^5.7.2"
+  }
+}

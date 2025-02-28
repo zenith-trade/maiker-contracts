@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use lb_clmm::instructions::deposit::LiquidityParameterByWeight;
 
 pub mod constants;
 pub mod error;
