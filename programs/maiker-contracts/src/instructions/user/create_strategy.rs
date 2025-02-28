@@ -1,4 +1,4 @@
-use crate::{state::*, StrategyCreated, MAX_POSITIONS};
+use crate::{state::*, StrategyCreated, ANCHOR_DISCRIMINATOR, MAX_POSITIONS};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, TokenAccount};
 
@@ -25,7 +25,7 @@ pub struct CreateStrategy<'info> {
     #[account(
         init,
         payer = creator,
-        space = StrategyConfig::INIT_SPACE,
+        space = ANCHOR_DISCRIMINATOR + StrategyConfig::INIT_SPACE,
         seeds = [StrategyConfig::SEED_PREFIX.as_bytes(), creator.key().as_ref()],
         bump
     )]

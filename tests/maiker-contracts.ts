@@ -2,15 +2,20 @@ import * as anchor from "@coral-xyz/anchor";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import { MaikerContracts } from "../target/types/maiker_contracts";
 import { before, describe, test, it } from "node:test";
-import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction } from "@solana/web3.js";
 import { BanksClient } from "solana-bankrun";
-import path from "node:path";
+import { AccountLayout } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
+import { initialize, PROGRAM_ID } from "../clients/js/src";
+import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 
 const INITIAL_SOL = 5000 * LAMPORTS_PER_SOL;
+const USE_BANKRUN = true;
+
 
 const RPC_URL = "http://localhost:8899";
+const connection = new Connection(RPC_URL);
 
 /// --- KEYPAIRS
 const master = Keypair.generate()
@@ -76,20 +81,75 @@ const loadProviders = async () => {
   // const connection = conn;
 };
 
+async function processTransaction(tx: VersionedTransaction) {
+  if (USE_BANKRUN) {
+    const res = await bankrunProvider.context.banksClient.processTransaction(tx);
+    return res
+  } else {
+    return await connection.sendTransaction(tx);
+  }
+}
+
+const getBalance = async (pubkey: PublicKey) => {
+  if (USE_BANKRUN) {
+    const balance = await bankrunProvider.context.banksClient.getBalance(pubkey);
+    return balance;
+  } else {
+    const balance = await connection.getBalance(pubkey);
+    return balance;
+  }
+};
+
+const getTokenAcc = async (pubkey: PublicKey) => {
+  if (USE_BANKRUN) {
+    const accInfo = await bankrunProvider.context.banksClient.getAccount(pubkey);
+    const tokenAcc = AccountLayout.decode(accInfo?.data || Buffer.from([]));
+    return tokenAcc;
+  } else {
+    const accInfo = await connection.getAccountInfo(
+      pubkey
+    );
+    const tokenAcc = AccountLayout.decode(accInfo.data || Buffer.from([]));
+    return tokenAcc;
+  }
+};
+
 describe("maiker-contracts", () => {
   before(async () => {
     await loadProviders();
   });
 
-  // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.AnchorProvider.env());
-
-  const program = anchor.workspace.MaikerContracts as Program<MaikerContracts>;
+  // // Configure the client to use the local cluster.
+  // anchor.setProvider(anchor.AnchorProvider.env());
+  // const program = anchor.workspace.MaikerContracts as Program<MaikerContracts>;
 
   test("Is initialized!", async () => {
-    console.log("bankrunProvider: ", bankrunProvider);
+    const globalConfig = PublicKey.findProgramAddressSync(
+      [Buffer.from("global-config")],
+      PROGRAM_ID
+    )[0];
 
-    // const tx = await program.methods.initialize().rpc();
-    // console.log("Your transaction signature", tx);
+    const initializeIx = initialize(
+      {
+        performanceFeeBps: 0,
+        withdrawalFeeBps: 0,
+      },
+      {
+        admin: master.publicKey,
+        globalConfig: globalConfig,
+        systemProgram: SystemProgram.programId,
+      },
+    );
+
+    const blockhash = await bankrunProvider.context.banksClient.getLatestBlockhash();
+    const builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: master.publicKey,
+      lookupTableAccounts: [],
+      ixs: [initializeIx],
+      recentBlockhash: blockhash[0],
+    });
+
+    await processTransaction(builtTx.tx);
   });
 });

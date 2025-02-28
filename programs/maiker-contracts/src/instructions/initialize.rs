@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::state::*;
 use anchor_lang::prelude::*;
 
@@ -9,7 +10,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = admin,
-        space = GlobalConfig::INIT_SPACE,
+        space = ANCHOR_DISCRIMINATOR + GlobalConfig::INIT_SPACE,
         seeds = [GlobalConfig::SEED_PREFIX.as_bytes()],
         bump
     )]

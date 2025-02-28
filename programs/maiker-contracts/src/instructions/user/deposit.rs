@@ -1,4 +1,4 @@
-use crate::{error::MaikerError, state::*, UserDeposited};
+use crate::{error::MaikerError, state::*, UserDeposited, ANCHOR_DISCRIMINATOR};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
@@ -13,7 +13,7 @@ pub struct Deposit<'info> {
     #[account(
         init_if_needed,
         payer = user,
-        space = UserPosition::INIT_SPACE,
+        space = ANCHOR_DISCRIMINATOR + UserPosition::INIT_SPACE,
         seeds = [b"user_position", user.key().as_ref(), strategy.key().as_ref()],
         bump
     )]
