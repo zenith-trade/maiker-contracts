@@ -9,9 +9,8 @@ export interface ProcessWithdrawalAccounts {
   strategy: PublicKey
   globalConfig: PublicKey
   pendingWithdrawal: PublicKey
-  userTokenX: PublicKey
   strategyVaultX: PublicKey
-  treasuryX: PublicKey
+  userTokenX: PublicKey
   tokenProgram: PublicKey
   systemProgram: PublicKey
 }
@@ -25,9 +24,8 @@ export function processWithdrawal(
     { pubkey: accounts.strategy, isSigner: false, isWritable: true },
     { pubkey: accounts.globalConfig, isSigner: false, isWritable: false },
     { pubkey: accounts.pendingWithdrawal, isSigner: false, isWritable: true },
-    { pubkey: accounts.userTokenX, isSigner: false, isWritable: true },
     { pubkey: accounts.strategyVaultX, isSigner: false, isWritable: true },
-    { pubkey: accounts.treasuryX, isSigner: false, isWritable: true },
+    { pubkey: accounts.userTokenX, isSigner: false, isWritable: true },
     { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
     { pubkey: accounts.systemProgram, isSigner: false, isWritable: false },
   ]

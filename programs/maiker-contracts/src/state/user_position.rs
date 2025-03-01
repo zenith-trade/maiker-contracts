@@ -1,4 +1,4 @@
-use crate::MaikerError;
+use crate::{MaikerError, SHARE_PRECISION};
 use anchor_lang::prelude::*;
 
 #[account]
@@ -35,14 +35,13 @@ impl UserPosition {
         self.user = user;
         self.strategy = strategy;
         self.strategy_share = shares;
-        self.last_share_value = 1_000_000; // Initial share value is 1.0
+        self.last_share_value = SHARE_PRECISION; // Initial share value is 1.0
         self.last_update_timestamp = current_timestamp;
         self.bump = bump;
     }
 
-    /// Calculate performance fee if the share value has increased
-    /// Returns the performance fee shares to be deducted
-    pub fn calculate_performance_fee(
+    /// Calculate performance fee if the share value has increased. Returns the performance fee shares to be deducted
+    pub fn calculate_performance_fee_shares(
         &self,
         current_share_value: u64,
         performance_fee_bps: u16,
@@ -74,9 +73,8 @@ impl UserPosition {
         Ok(performance_fee_shares) // TODO: Check if this is correct. This may be on the value not on the shares itself
     }
 
-    /// Calculate withdrawal fees
-    /// Returns the withdrawal fee shares to be deducted
-    pub fn calculate_withdrawal_fees(
+    /// Calculate withdrawal fees. Returns the withdrawal fee shares to be deducted
+    pub fn calculate_withdrawal_fee_shares(
         &self,
         shares_amount: u64,
         withdrawal_fee_bps: u16,

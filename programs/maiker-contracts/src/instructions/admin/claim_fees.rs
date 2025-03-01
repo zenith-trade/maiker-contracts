@@ -1,4 +1,4 @@
-use crate::{state::*, MaikerError};
+use crate::{state::*, ClaimFeeSharesEvent, MaikerError};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
@@ -20,29 +20,17 @@ pub struct ClaimFees<'info> {
 
     #[account(
         mut,
-        constraint = strategy_vault_x.key() == strategy.x_vault
+        token::mint = strategy.x_mint,
+        token::authority = strategy.key(),
     )]
     pub strategy_vault_x: Account<'info, TokenAccount>,
 
     #[account(
         mut,
-        constraint = strategy_vault_y.key() == strategy.y_vault
-    )]
-    pub strategy_vault_y: Account<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        constraint = treasury_x.mint == strategy.x_mint,
-        constraint = treasury_x.owner == global_config.treasury
+        token::mint = strategy.x_mint,
+        token::authority = global_config.treasury,
     )]
     pub treasury_x: Account<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        constraint = treasury_y.mint == strategy.y_mint,
-        constraint = treasury_y.owner == global_config.treasury
-    )]
-    pub treasury_y: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -52,92 +40,51 @@ pub fn claim_fees_handler(ctx: Context<ClaimFees>, shares_to_claim: Option<u64>)
     let clock = Clock::get()?;
 
     // Check if there are any pending fees
-    require!(
-        strategy.fee_shares_pending > 0,
-        MaikerError::NoFeesToWithdraw
-    );
+    require!(strategy.fee_shares > 0, MaikerError::NoFeesToWithdraw);
 
     // Determine how many shares to withdraw
-    let shares_to_claim = shares_to_claim.unwrap_or(strategy.fee_shares_pending);
+    let shares_to_claim = shares_to_claim.unwrap_or(strategy.fee_shares);
 
     // Ensure we're not trying to withdraw more than available
     require!(
-        shares_to_claim <= strategy.fee_shares_pending,
+        shares_to_claim <= strategy.fee_shares,
         MaikerError::InvalidWithdrawalAmount
     );
 
-    // Calculate token amounts based on fee shares
-    let fee_token_x = shares_to_claim
-        .checked_mul(ctx.accounts.strategy_vault_x.amount)
-        .ok_or(MaikerError::ArithmeticOverflow)?
-        .checked_div(strategy.strategy_shares)
-        .ok_or(MaikerError::ArithmeticOverflow)?;
+    // Calculate total strategy value and current share value
+    let total_strategy_value =
+        strategy.calculate_total_strategy_value(ctx.accounts.strategy_vault_x.amount)?;
 
-    let fee_token_y = shares_to_claim
-        .checked_mul(ctx.accounts.strategy_vault_y.amount)
-        .ok_or(MaikerError::ArithmeticOverflow)?
-        .checked_div(strategy.strategy_shares)
-        .ok_or(MaikerError::ArithmeticOverflow)?;
+    let current_share_value = strategy.calculate_share_value(total_strategy_value)?;
+
+    let token_amount =
+        strategy.calculate_withdrawal_amount(shares_to_claim, current_share_value)?;
 
     // Transfer tokens to treasury
-    if fee_token_x > 0 {
-        token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.strategy_vault_x.to_account_info(),
-                    to: ctx.accounts.treasury_x.to_account_info(),
-                    authority: strategy.to_account_info(),
-                },
-                &[&strategy.get_pda_signer()],
-            ),
-            fee_token_x,
-        )?;
-    }
+    token::transfer(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.strategy_vault_x.to_account_info(),
+                to: ctx.accounts.treasury_x.to_account_info(),
+                authority: strategy.to_account_info(),
+            },
+            &[&strategy.get_pda_signer()],
+        ),
+        token_amount,
+    )?;
 
-    if fee_token_y > 0 {
-        token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.strategy_vault_y.to_account_info(),
-                    to: ctx.accounts.treasury_y.to_account_info(),
-                    authority: strategy.to_account_info(),
-                },
-                &[&strategy.get_pda_signer()],
-            ),
-            fee_token_y,
-        )?;
-    }
-
-    // Update strategy shares and pending fee shares
-    strategy.strategy_shares = strategy
-        .strategy_shares
-        .checked_sub(shares_to_claim)
-        .ok_or(MaikerError::ArithmeticOverflow)?;
-
-    strategy.fee_shares_pending = strategy
-        .fee_shares_pending
-        .checked_sub(shares_to_claim)
-        .ok_or(MaikerError::ArithmeticOverflow)?;
+    // Burn shares
+    strategy.burn_shares(shares_to_claim)?;
+    strategy.burn_fee_shares(shares_to_claim)?;
 
     // Emit event
-    emit!(FeesClaimed {
+    emit!(ClaimFeeSharesEvent {
         strategy: strategy.key(),
         fee_shares: shares_to_claim,
-        fee_token_x,
-        fee_token_y,
+        token_amount,
         timestamp: clock.unix_timestamp,
     });
 
     Ok(())
-}
-
-#[event]
-pub struct FeesClaimed {
-    pub strategy: Pubkey,
-    pub fee_shares: u64,
-    pub fee_token_x: u64,
-    pub fee_token_y: u64,
-    pub timestamp: i64,
 }

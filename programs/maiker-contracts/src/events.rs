@@ -54,4 +54,12 @@ pub struct UpdateGlobalConfigEvent {
     pub timestamp: i64,
 }
 
+#[event]
+pub struct ClaimFeeSharesEvent {
+    pub strategy: Pubkey,
+    pub fee_shares: u64,
+    pub token_amount: u64,
+    pub timestamp: i64,
+}
+
 // CPI Events

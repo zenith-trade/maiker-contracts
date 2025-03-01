@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{MaikerError, MAX_POSITIONS};
+use crate::{MaikerError, MAX_POSITIONS, SHARE_PRECISION};
 
 #[account]
 #[derive(InitSpace)]
@@ -15,7 +15,7 @@ pub struct StrategyConfig {
     pub strategy_shares: u64,
 
     // Fee Shares
-    pub fee_shares_pending: u64,
+    pub fee_shares: u64,
 
     // Direct position tracking
     // Potentially later require PDA per position to track position value accurately
@@ -56,13 +56,49 @@ impl StrategyConfig {
         self.x_vault = x_vault;
         self.y_vault = y_vault;
         self.strategy_shares = 0;
-        self.fee_shares_pending = 0;
+        self.fee_shares = 0;
         self.position_count = 0;
         self.positions = [Pubkey::default(); MAX_POSITIONS];
         self.positions_values = [0; MAX_POSITIONS];
         self.last_position_update = [0; MAX_POSITIONS];
         self.last_rebalance_time = 0;
         self.bump = bump;
+    }
+
+    pub fn mint_shares(&mut self, amount: u64) -> Result<()> {
+        self.strategy_shares = self
+            .strategy_shares
+            .checked_add(amount)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        Ok(())
+    }
+
+    pub fn burn_shares(&mut self, amount: u64) -> Result<()> {
+        self.strategy_shares = self
+            .strategy_shares
+            .checked_sub(amount)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        Ok(())
+    }
+
+    pub fn add_fee_shares(&mut self, amount: u64) -> Result<()> {
+        self.fee_shares = self
+            .fee_shares
+            .checked_add(amount)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        Ok(())
+    }
+
+    pub fn burn_fee_shares(&mut self, amount: u64) -> Result<()> {
+        self.fee_shares = self
+            .fee_shares
+            .checked_sub(amount)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        Ok(())
     }
 
     pub fn update_position_value(
@@ -81,7 +117,6 @@ impl StrategyConfig {
     }
 
     /// Validates that all active positions have their values updated in the current slot
-    /// Returns an error if any position has a stale value
     pub fn validate_position_values_freshness(&self, current_timestamp: i64) -> Result<()> {
         for i in 0..self.position_count as usize {
             let position_pubkey = self.positions[i];
@@ -102,7 +137,7 @@ impl StrategyConfig {
     }
 
     /// Calculate the total value of all positions in the strategy
-    pub fn get_total_positions_value(&self) -> Result<u64> {
+    fn get_total_positions_value(&self) -> Result<u64> {
         let mut total_value: u64 = 0;
 
         for i in 0..self.position_count as usize {
@@ -135,11 +170,11 @@ impl StrategyConfig {
     /// Calculate the current share value based on total strategy value and total shares
     pub fn calculate_share_value(&self, total_strategy_value: u64) -> Result<u64> {
         if self.strategy_shares == 0 {
-            return Ok(1_000_000); // Default to 1.0 if no shares exist
+            return Ok(SHARE_PRECISION); // Default to 1.0 if no shares exist
         }
 
         let share_value = (total_strategy_value as u128)
-            .checked_mul(1_000_000)
+            .checked_mul(SHARE_PRECISION as u128)
             .ok_or(MaikerError::ArithmeticOverflow)?
             .checked_div(self.strategy_shares as u128)
             .ok_or(MaikerError::ArithmeticOverflow)? as u64;
@@ -153,8 +188,9 @@ impl StrategyConfig {
         deposit_value: u64,
         current_share_value: u64,
     ) -> Result<u64> {
+        // Formula: new_shares = (deposit_value * SHARE_PRECISION) / current_share_value
         let new_shares = deposit_value
-            .checked_mul(1_000_000)
+            .checked_mul(SHARE_PRECISION)
             .ok_or(MaikerError::ArithmeticOverflow)?
             .checked_div(current_share_value)
             .ok_or(MaikerError::ArithmeticOverflow)?;
@@ -162,23 +198,18 @@ impl StrategyConfig {
         Ok(new_shares)
     }
 
-    /// Calculate token amount to return for a withdrawal based on share ratio
+    /// Calculate token amount to return for a withdrawal
     pub fn calculate_withdrawal_amount(
         &self,
         shares_amount: u64,
-        vault_x_amount: u64,
+        current_share_value: u64,
     ) -> Result<u64> {
-        let user_share_ratio = (shares_amount as u128)
-            .checked_mul(1_000_000)
+        // Formula: token_amount = (shares_amount * current_share_value) / SHARE_PRECISION
+        let token_amount = (shares_amount as u128)
+            .checked_mul(current_share_value as u128)
             .ok_or(MaikerError::ArithmeticOverflow)?
-            .checked_div(self.strategy_shares as u128)
+            .checked_div(SHARE_PRECISION as u128)
             .ok_or(MaikerError::ArithmeticOverflow)? as u64;
-
-        let token_amount = vault_x_amount
-            .checked_mul(user_share_ratio)
-            .ok_or(MaikerError::ArithmeticOverflow)?
-            .checked_div(1_000_000)
-            .ok_or(MaikerError::ArithmeticOverflow)?;
 
         Ok(token_amount)
     }

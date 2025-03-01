@@ -1,3 +1,5 @@
+use std::future::pending;
+
 use crate::{state::*, MaikerError, ProcessWithdrawEvent};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
@@ -28,23 +30,17 @@ pub struct ProcessWithdrawal<'info> {
 
     #[account(
         mut,
-        constraint = user_token_x.mint == strategy.x_mint,
-        constraint = user_token_x.owner == user.key()
-    )]
-    pub user_token_x: Account<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        constraint = strategy_vault_x.key() == strategy.x_vault
+        token::mint = strategy.x_mint,
+        token::authority = strategy.key(),
     )]
     pub strategy_vault_x: Account<'info, TokenAccount>,
 
     #[account(
         mut,
-        constraint = treasury_x.mint == strategy.x_mint,
-        constraint = treasury_x.owner == global_config.treasury
+        token::mint = strategy.x_mint,
+        token::authority = pending_withdrawal.user,
     )]
-    pub treasury_x: Account<'info, TokenAccount>,
+    pub user_token_x: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -83,12 +79,6 @@ pub fn process_withdrawal_handler(ctx: Context<ProcessWithdrawal>) -> Result<()>
             token_amount,
         )?;
     }
-
-    // Update strategy shares
-    strategy.strategy_shares = strategy
-        .strategy_shares
-        .checked_sub(pending_withdrawal.shares_amount)
-        .ok_or(MaikerError::ArithmeticOverflow)?;
 
     // Emit event
     emit!(ProcessWithdrawEvent {

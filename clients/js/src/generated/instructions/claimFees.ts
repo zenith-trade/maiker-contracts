@@ -13,9 +13,7 @@ export interface ClaimFeesAccounts {
   globalConfig: PublicKey
   strategy: PublicKey
   strategyVaultX: PublicKey
-  strategyVaultY: PublicKey
   treasuryX: PublicKey
-  treasuryY: PublicKey
   tokenProgram: PublicKey
 }
 
@@ -31,9 +29,7 @@ export function claimFees(
     { pubkey: accounts.globalConfig, isSigner: false, isWritable: false },
     { pubkey: accounts.strategy, isSigner: false, isWritable: true },
     { pubkey: accounts.strategyVaultX, isSigner: false, isWritable: true },
-    { pubkey: accounts.strategyVaultY, isSigner: false, isWritable: true },
     { pubkey: accounts.treasuryX, isSigner: false, isWritable: true },
-    { pubkey: accounts.treasuryY, isSigner: false, isWritable: true },
     { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
   ]
   const identifier = Buffer.from([82, 251, 233, 156, 12, 52, 184, 202])

@@ -38,6 +38,6 @@ pub enum MaikerError {
     #[msg("Invalid withdrawal interval (minimum 5 minutes)")]
     InvalidWithdrawalInterval,
 
-    #[msg("Withdrawal not ready yet, please wait for the next withdrawal window")]
+    #[msg("Withdrawal is not ready yet")]
     WithdrawalNotReady,
 }

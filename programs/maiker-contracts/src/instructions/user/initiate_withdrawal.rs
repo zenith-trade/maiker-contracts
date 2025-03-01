@@ -8,13 +8,13 @@ pub struct InitiateWithdrawal<'info> {
     pub user: Signer<'info>,
 
     #[account(mut)]
-    pub strategy: Account<'info, StrategyConfig>,
+    pub strategy: Box<Account<'info, StrategyConfig>>,
 
     #[account(
         seeds = [GlobalConfig::SEED_PREFIX.as_bytes()],
         bump = global_config.bump,
     )]
-    pub global_config: Account<'info, GlobalConfig>,
+    pub global_config: Box<Account<'info, GlobalConfig>>,
 
     #[account(
         mut,
@@ -23,7 +23,7 @@ pub struct InitiateWithdrawal<'info> {
         constraint = user_position.user == user.key(),
         constraint = user_position.strategy == strategy.key(),
     )]
-    pub user_position: Account<'info, UserPosition>,
+    pub user_position: Box<Account<'info, UserPosition>>,
 
     #[account(
         init,
@@ -32,13 +32,13 @@ pub struct InitiateWithdrawal<'info> {
         seeds = [PendingWithdrawal::SEED_PREFIX.as_bytes(), user.key().as_ref(), strategy.key().as_ref()],
         bump
     )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+    pub pending_withdrawal: Box<Account<'info, PendingWithdrawal>>,
 
     #[account(
         mut,
         constraint = strategy_vault_x.key() == strategy.x_vault
     )]
-    pub strategy_vault_x: Account<'info, TokenAccount>,
+    pub strategy_vault_x: Box<Account<'info, TokenAccount>>,
 
     pub system_program: Program<'info, System>,
 }
@@ -71,59 +71,45 @@ pub fn initiate_withdrawal_handler(
 
     // Calculate fees to withdraw
     let performance_fee_shares = user_position
-        .calculate_performance_fee(current_share_value, global_config.performance_fee_bps)?;
-
-    // Add fee shares to pending fees if any
-    if performance_fee_shares > 0 {
-        strategy.fee_shares_pending = strategy
-            .fee_shares_pending
-            .checked_add(performance_fee_shares)
-            .ok_or(MaikerError::ArithmeticOverflow)?;
-
-        // Reduce user's effective shares
-        user_position.strategy_share = user_position
-            .strategy_share
-            .checked_sub(performance_fee_shares)
-            .ok_or(MaikerError::ArithmeticOverflow)?;
-    }
+        .calculate_performance_fee_shares(current_share_value, global_config.performance_fee_bps)?;
 
     // Calculate withdrawal fee as bps on the withdrawed shares
-    let withdrawal_fee_shares =
-        user_position.calculate_withdrawal_fees(shares_amount, global_config.withdrawal_fee_bps)?;
+    let withdrawal_fee_shares = user_position
+        .calculate_withdrawal_fee_shares(shares_amount, global_config.withdrawal_fee_bps)?;
 
     let effective_shares_to_withdraw = shares_amount
         .checked_sub(withdrawal_fee_shares)
+        .ok_or(MaikerError::ArithmeticOverflow)?
+        .checked_sub(performance_fee_shares)
         .ok_or(MaikerError::ArithmeticOverflow)?;
 
     // Calculate token amount to return to user
-    let token_amount = strategy.calculate_withdrawal_amount(
-        effective_shares_to_withdraw,
-        ctx.accounts.strategy_vault_x.amount,
-    )?;
+    let token_amount =
+        strategy.calculate_withdrawal_amount(effective_shares_to_withdraw, current_share_value)?;
 
     // Calculate the next withdrawal window
-    let available_timestamp = global_config.calculate_next_withdrawal_window(current_timestamp);
+    let available_timestamp = global_config.calculate_withdrawal_timestamp(current_timestamp)?;
 
     // Initialize the pending withdrawal
     pending_withdrawal.initialize(
         ctx.accounts.user.key(),
         strategy.key(),
-        shares_amount,
+        effective_shares_to_withdraw,
         token_amount,
         current_timestamp,
         available_timestamp,
         *ctx.bumps.get("pending_withdrawal").unwrap(),
     );
 
-    // Update user position by reducing shares
-    user_position.strategy_share = user_position
-        .strategy_share
-        .checked_sub(shares_amount)
+    // 1. Reduce user position shares by shares_amount from input
+    user_position.update_after_withdrawal(shares_amount, current_share_value, current_timestamp)?;
+    // 2. Add performance fee shares to strategy fee shares to strategy config
+    let total_fee_shares = performance_fee_shares
+        .checked_add(withdrawal_fee_shares)
         .ok_or(MaikerError::ArithmeticOverflow)?;
-
-    // Update last share value and timestamp
-    user_position.last_share_value = current_share_value;
-    user_position.last_update_timestamp = current_timestamp;
+    strategy.add_fee_shares(total_fee_shares)?;
+    // 3. Reduce total strategy shares by effective_shares_to_withdraw
+    strategy.burn_shares(effective_shares_to_withdraw)?;
 
     // Emit event for withdrawal initiation
     emit!(InitiateWithdrawEvent {

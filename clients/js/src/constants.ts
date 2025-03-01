@@ -1,0 +1,1 @@
+export const SHARE_PRECISION = 1_000_000;

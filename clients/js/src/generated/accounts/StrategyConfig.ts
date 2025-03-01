@@ -11,7 +11,7 @@ export interface StrategyConfigFields {
   xVault: PublicKey
   yVault: PublicKey
   strategyShares: BN
-  feeSharesPending: BN
+  feeShares: BN
   positionCount: number
   positions: Array<PublicKey>
   positionsValues: Array<BN>
@@ -27,7 +27,7 @@ export interface StrategyConfigJSON {
   xVault: string
   yVault: string
   strategyShares: string
-  feeSharesPending: string
+  feeShares: string
   positionCount: number
   positions: Array<string>
   positionsValues: Array<string>
@@ -43,7 +43,7 @@ export class StrategyConfig {
   readonly xVault: PublicKey
   readonly yVault: PublicKey
   readonly strategyShares: BN
-  readonly feeSharesPending: BN
+  readonly feeShares: BN
   readonly positionCount: number
   readonly positions: Array<PublicKey>
   readonly positionsValues: Array<BN>
@@ -62,7 +62,7 @@ export class StrategyConfig {
     borsh.publicKey("xVault"),
     borsh.publicKey("yVault"),
     borsh.u64("strategyShares"),
-    borsh.u64("feeSharesPending"),
+    borsh.u64("feeShares"),
     borsh.u8("positionCount"),
     borsh.array(borsh.publicKey(), 10, "positions"),
     borsh.array(borsh.u64(), 10, "positionsValues"),
@@ -78,7 +78,7 @@ export class StrategyConfig {
     this.xVault = fields.xVault
     this.yVault = fields.yVault
     this.strategyShares = fields.strategyShares
-    this.feeSharesPending = fields.feeSharesPending
+    this.feeShares = fields.feeShares
     this.positionCount = fields.positionCount
     this.positions = fields.positions
     this.positionsValues = fields.positionsValues
@@ -137,7 +137,7 @@ export class StrategyConfig {
       xVault: dec.xVault,
       yVault: dec.yVault,
       strategyShares: dec.strategyShares,
-      feeSharesPending: dec.feeSharesPending,
+      feeShares: dec.feeShares,
       positionCount: dec.positionCount,
       positions: dec.positions,
       positionsValues: dec.positionsValues,
@@ -155,7 +155,7 @@ export class StrategyConfig {
       xVault: this.xVault.toString(),
       yVault: this.yVault.toString(),
       strategyShares: this.strategyShares.toString(),
-      feeSharesPending: this.feeSharesPending.toString(),
+      feeShares: this.feeShares.toString(),
       positionCount: this.positionCount,
       positions: this.positions.map((item) => item.toString()),
       positionsValues: this.positionsValues.map((item) => item.toString()),
@@ -175,7 +175,7 @@ export class StrategyConfig {
       xVault: new PublicKey(obj.xVault),
       yVault: new PublicKey(obj.yVault),
       strategyShares: new BN(obj.strategyShares),
-      feeSharesPending: new BN(obj.feeSharesPending),
+      feeShares: new BN(obj.feeShares),
       positionCount: obj.positionCount,
       positions: obj.positions.map((item) => new PublicKey(item)),
       positionsValues: obj.positionsValues.map((item) => new BN(item)),

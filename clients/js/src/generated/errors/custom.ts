@@ -152,13 +152,10 @@ export class WithdrawalNotReady extends Error {
   static readonly code = 6012
   readonly code = 6012
   readonly name = "WithdrawalNotReady"
-  readonly msg =
-    "Withdrawal not ready yet, please wait for the next withdrawal window"
+  readonly msg = "Withdrawal is not ready yet"
 
   constructor(readonly logs?: string[]) {
-    super(
-      "6012: Withdrawal not ready yet, please wait for the next withdrawal window"
-    )
+    super("6012: Withdrawal is not ready yet")
   }
 }
 

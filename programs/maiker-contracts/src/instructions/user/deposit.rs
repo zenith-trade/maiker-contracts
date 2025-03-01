@@ -1,4 +1,7 @@
-use crate::{error::MaikerError, state::*, UserDepositEvent, UserDeposited, ANCHOR_DISCRIMINATOR};
+use crate::{
+    error::MaikerError, state::*, UserDepositEvent, UserDeposited, ANCHOR_DISCRIMINATOR,
+    SHARE_PRECISION,
+};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
@@ -59,10 +62,11 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     let current_share_value: u64;
     let mut performance_fee_shares: u64 = 0;
 
+    // Calculate shares to mint and current share value
     if strategy.strategy_shares == 0 {
         // Initial deposit case - set initial share price to 1:1
         new_shares = amount;
-        current_share_value = 1_000_000; // 1:1
+        current_share_value = SHARE_PRECISION; // 1:1
     } else {
         // Get the total value of the strategy before this deposit
         let vault_balance = ctx.accounts.strategy_vault_x.amount;
@@ -73,28 +77,10 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         // Calculate the current share value
         current_share_value = strategy.calculate_share_value(total_strategy_value)?;
 
-        // For existing users, check if performance fee is due
-        if user_position.user != Pubkey::default() {
-            // Calculate performance fee if share value has increased
-            performance_fee_shares = user_position.calculate_performance_fee(
-                current_share_value,
-                ctx.accounts.global_config.performance_fee_bps,
-            )?;
-
-            // Add fee shares to pending fees
-            if performance_fee_shares > 0 {
-                strategy.fee_shares_pending = strategy
-                    .fee_shares_pending
-                    .checked_add(performance_fee_shares)
-                    .ok_or(MaikerError::ArithmeticOverflow)?;
-            }
-        }
-
         // Calculate new shares based on deposit value and current share value
         new_shares = strategy.calculate_shares_for_deposit(amount, current_share_value)?;
     }
 
-    // Update user position
     if user_position.user == Pubkey::default() {
         // Initialize new position
         user_position.initialize_user(
@@ -105,26 +91,28 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             *ctx.bumps.get("user_position").unwrap(),
         );
     } else {
-        // Calculate current share value for existing position
-        let total_strategy_value =
-            strategy.calculate_total_strategy_value(ctx.accounts.strategy_vault_x.amount)?;
+        // Calculate performance fee if share value has increased
+        performance_fee_shares = user_position.calculate_performance_fee_shares(
+            current_share_value,
+            ctx.accounts.global_config.performance_fee_bps,
+        )?;
 
-        let new_share_value = strategy.calculate_share_value(total_strategy_value)?;
+        // Add fee shares to pending fees
+        if performance_fee_shares > 0 {
+            strategy.add_fee_shares(performance_fee_shares)?;
+        }
 
         // Update existing position
         user_position.update_after_deposit(
             new_shares,
             performance_fee_shares,
-            new_share_value,
+            current_share_value,
             current_timestamp,
         )?;
     }
 
     // Update strategy shares
-    strategy.strategy_shares = strategy
-        .strategy_shares
-        .checked_add(new_shares)
-        .ok_or(MaikerError::ArithmeticOverflow)?;
+    strategy.mint_shares(new_shares)?;
 
     // Transfer tokens from user to strategy vault
     token::transfer(

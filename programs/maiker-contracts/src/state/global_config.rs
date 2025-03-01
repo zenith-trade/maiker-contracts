@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 
+use crate::MaikerError;
+
 #[derive(Debug, AnchorSerialize, AnchorDeserialize)]
 pub struct GlobalConfigArgs {
     pub admin: Pubkey,
@@ -30,15 +32,31 @@ impl GlobalConfig {
         [prefix_bytes, bump_slice]
     }
 
-    /// Calculate the next withdrawal window timestamp
-    pub fn calculate_next_withdrawal_window(&self, current_timestamp: i64) -> i64 {
-        // Calculate how many intervals have passed since epoch
-        let intervals_since_epoch = current_timestamp as u64 / self.withdrawal_interval_seconds;
+    /// Calculate the next withdrawal window timestamp. It's the next full hour plus 1 hour
+    pub fn calculate_withdrawal_timestamp(&self, current_timestamp: i64) -> Result<i64> {
+        // Convert to u64 for checked arithmetic
+        let current_ts = current_timestamp as u64;
 
-        // Calculate the next interval timestamp
-        let next_window = (intervals_since_epoch + 1) * self.withdrawal_interval_seconds;
+        // Calculate seconds into current hour
+        let seconds_in_hour = 3600u64;
+        let seconds_into_hour = current_ts
+            .checked_rem(seconds_in_hour)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
 
-        next_window as i64
+        // Calculate start of next hour
+        let next_hour = current_ts
+            .checked_sub(seconds_into_hour)
+            .ok_or(MaikerError::ArithmeticOverflow)?
+            .checked_add(seconds_in_hour)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        // Add 1 hour to get withdrawal timestamp
+        let withdrawal_timestamp = next_hour
+            .checked_add(seconds_in_hour)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        // Convert back to i64
+        Ok(withdrawal_timestamp as i64)
     }
 
     pub fn initialize_global_config(&mut self, args: GlobalConfigArgs, bump: u8) {

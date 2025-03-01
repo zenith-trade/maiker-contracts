@@ -1,14 +1,14 @@
 import * as anchor from "@coral-xyz/anchor";
 import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import { MaikerContracts } from "../target/types/maiker_contracts";
-import { before, describe, test, it } from "node:test";
-import { assert } from "node:console";
+import { before, describe, test } from "node:test";
+import assert from "assert";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, Transaction, sendAndConfirmTransaction, TransactionInstruction } from "@solana/web3.js";
-import { BanksClient } from "solana-bankrun";
+import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { createStrategy, deposit, GlobalConfig, initialize, PROGRAM_ID, StrategyConfig, UserPosition } from "../clients/js/src";
+import { createStrategy, deposit, GlobalConfig, initialize, initiateWithdrawal, PendingWithdrawal, processWithdrawal, PROGRAM_ID, SHARE_PRECISION, StrategyConfig, UserPosition } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
@@ -227,6 +227,11 @@ describe("maiker-contracts", () => {
     PROGRAM_ID
   )[0];
 
+  const strategy = PublicKey.findProgramAddressSync(
+    [Buffer.from("strategy-config"), Buffer.from(creator.publicKey.toBuffer())],
+    PROGRAM_ID
+  )[0];
+
   test("Is initialized!", async () => {
     const initializeIx = initialize(
       {
@@ -262,11 +267,6 @@ describe("maiker-contracts", () => {
   });
 
   test("Create strategy", async () => {
-    const strategy = PublicKey.findProgramAddressSync(
-      [Buffer.from("strategy-config"), Buffer.from(creator.publicKey.toBuffer())],
-      PROGRAM_ID
-    )[0];
-
     const preIxs = [];
 
     // Vaults
@@ -309,10 +309,7 @@ describe("maiker-contracts", () => {
   });
 
   test("Deposit", async () => {
-    const strategy = PublicKey.findProgramAddressSync(
-      [Buffer.from("strategy-config"), Buffer.from(creator.publicKey.toBuffer())],
-      PROGRAM_ID
-    )[0];
+    const x_amount = 1000000000;
 
     const userPosition = PublicKey.findProgramAddressSync(
       [Buffer.from("user-position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
@@ -322,23 +319,16 @@ describe("maiker-contracts", () => {
     const preIxs = [];
 
     // User Ata
-    const [xUser, yUser] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, user.publicKey, user.publicKey, true),
-    ]);
+    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
 
     xUser.ix && preIxs.push(xUser.ix);
-    yUser.ix && preIxs.push(yUser.ix);
 
     // Vaults
-    const [xVault, yVault] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
-    ]);
+    const xVault = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true);
 
     const depositIx = deposit(
       {
-        amount: new BN(1000000000),
+        amount: new BN(x_amount),
       },
       {
         user: user.publicKey,
@@ -363,7 +353,131 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
+    const strategyAcc = await StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    assert(Number(strategyAcc.strategyShares) === x_amount, `strategyShares: ${strategyAcc.strategyShares} !== ${x_amount}`);
+
     const userPositionAcc = await UserPosition.fetch(bankrunProvider.connection, userPosition);
-    console.log("userPosition: ", userPositionAcc);
+    assert(Number(userPositionAcc.strategyShare) === x_amount, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== ${x_amount}`);
+    assert(Number(userPositionAcc.lastShareValue) === SHARE_PRECISION, `userPositionAcc.lastShareValue: ${userPositionAcc.lastShareValue} !== ${SHARE_PRECISION}`);
+  });
+
+  test("Withdraw", async () => {
+    const sharesAmount = 1000000000;
+
+    const userPosition = PublicKey.findProgramAddressSync(
+      [Buffer.from("user-position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
+      PROGRAM_ID
+    )[0];
+
+    const pendingWithdrawal = PublicKey.findProgramAddressSync(
+      [Buffer.from("pending-withdrawal"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
+      PROGRAM_ID
+    )[0];
+
+    const [xVault, yVault] = await Promise.all([
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
+    ]);
+
+    // Initiate withdrawal
+    const withdrawIx = initiateWithdrawal(
+      {
+        sharesAmount: new BN(sharesAmount),
+      },
+      {
+        user: user.publicKey,
+        strategy: strategy,
+        globalConfig: globalConfig,
+        userPosition: userPosition,
+        pendingWithdrawal: pendingWithdrawal,
+        strategyVaultX: xVault.ataPubKey,
+        systemProgram: SystemProgram.programId,
+      }
+    );
+
+    let blockhash = await getLatestBlockhash();
+    let builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [withdrawIx],
+      recentBlockhash: blockhash[0],
+    });
+
+    await processTransaction(builtTx.tx);
+
+    const userPositionAcc = await UserPosition.fetch(bankrunProvider.connection, userPosition);
+    const pendingWithdrawalAcc = await PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
+    const strategyAcc = await StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    const globalConfigAcc = await GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+
+    // console.log("Initiation timestamp: ", new Date(Number(pendingWithdrawalAcc.initiationTimestamp) * 1000).toISOString());
+    // console.log("Available timestamp: ", new Date(Number(pendingWithdrawalAcc.availableTimestamp) * 1000).toISOString());
+
+    assert(Number(userPositionAcc.strategyShare) === 0, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== 0`);
+
+    // Note: Apply the withdraw fee bps to assertion
+    const widthawFeeShare = sharesAmount * (globalConfigAcc.withdrawalFeeBps / 10000);
+    assert(Number(pendingWithdrawalAcc.sharesAmount) === sharesAmount - widthawFeeShare, `pendingWithdrawalAcc.sharesAmount: ${pendingWithdrawalAcc.sharesAmount} !== ${sharesAmount - widthawFeeShare}`);
+    assert(Number(pendingWithdrawalAcc.tokenAmount) === sharesAmount - widthawFeeShare, `pendingWithdrawalAcc.tokenAmount: ${pendingWithdrawalAcc.tokenAmount} !== ${sharesAmount - widthawFeeShare}`);
+
+    assert(Number(strategyAcc.feeShares) === widthawFeeShare, `strategyAcc.feeShares: ${strategyAcc.feeShares} !== ${widthawFeeShare}`);
+
+    // Try claim withdrawal prematurely
+    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
+
+    let claimIx = processWithdrawal(
+      {
+        user: user.publicKey,
+        strategy: strategy,
+        globalConfig: globalConfig,
+        pendingWithdrawal: pendingWithdrawal,
+        strategyVaultX: xVault.ataPubKey,
+        userTokenX: xUser.ataPubKey,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }
+    );
+
+    blockhash = await getLatestBlockhash();
+    builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [claimIx],
+      recentBlockhash: blockhash[0],
+    });
+
+    try {
+      await processTransaction(builtTx.tx);
+      assert(false, "Should have failed");
+    } catch (e) {
+      console.log("Failed successfully");
+    }
+
+    // Warp in time
+    let slot = await bankrunProvider.context.banksClient.getSlot();
+    // Need to warp slot to ensure new blockhash
+    bankrunProvider.context.warpToSlot(slot + BigInt(2000000));
+    // Need to warp timestamp extra for on-chain timestamp
+    bankrunProvider.context.setClock(new Clock(BigInt(0), BigInt(0), BigInt(0), BigInt(0), BigInt(Number(pendingWithdrawalAcc.availableTimestamp) + 60)));
+
+    blockhash = await getLatestBlockhash();
+    builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [claimIx],
+      recentBlockhash: blockhash[0],
+    });
+
+    await processTransaction(builtTx.tx);
+
+    try {
+      await PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
+      assert(false, "Should have failed");
+    } catch (e) {
+      console.log("Failed successfully");
+    }
   });
 });
