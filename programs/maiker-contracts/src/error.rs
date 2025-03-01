@@ -22,4 +22,10 @@ pub enum MaikerError {
 
     #[msg("Max positions reached")]
     MaxPositionsReached,
+
+    #[msg("Invalid position")]
+    InvalidPosition,
+
+    #[msg("Invalid bin id")]
+    InvalidBinId,
 }

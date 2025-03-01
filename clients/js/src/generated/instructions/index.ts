@@ -6,6 +6,8 @@ export { deposit } from "./deposit"
 export type { DepositArgs, DepositAccounts } from "./deposit"
 export { withdraw } from "./withdraw"
 export type { WithdrawArgs, WithdrawAccounts } from "./withdraw"
+export { getPositionValue } from "./getPositionValue"
+export type { GetPositionValueAccounts } from "./getPositionValue"
 export { updateGlobalConfig } from "./updateGlobalConfig"
 export type {
   UpdateGlobalConfigArgs,

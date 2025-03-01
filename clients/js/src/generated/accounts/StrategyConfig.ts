@@ -14,6 +14,8 @@ export interface StrategyConfigFields {
   feeSharesPending: BN
   positionCount: number
   positions: Array<PublicKey>
+  positionsValues: Array<BN>
+  lastPositionUpdate: Array<BN>
   lastRebalanceTime: BN
   bump: number
 }
@@ -28,6 +30,8 @@ export interface StrategyConfigJSON {
   feeSharesPending: string
   positionCount: number
   positions: Array<string>
+  positionsValues: Array<string>
+  lastPositionUpdate: Array<string>
   lastRebalanceTime: string
   bump: number
 }
@@ -42,6 +46,8 @@ export class StrategyConfig {
   readonly feeSharesPending: BN
   readonly positionCount: number
   readonly positions: Array<PublicKey>
+  readonly positionsValues: Array<BN>
+  readonly lastPositionUpdate: Array<BN>
   readonly lastRebalanceTime: BN
   readonly bump: number
 
@@ -59,6 +65,8 @@ export class StrategyConfig {
     borsh.u64("feeSharesPending"),
     borsh.u8("positionCount"),
     borsh.array(borsh.publicKey(), 10, "positions"),
+    borsh.array(borsh.u64(), 10, "positionsValues"),
+    borsh.array(borsh.i64(), 10, "lastPositionUpdate"),
     borsh.i64("lastRebalanceTime"),
     borsh.u8("bump"),
   ])
@@ -73,6 +81,8 @@ export class StrategyConfig {
     this.feeSharesPending = fields.feeSharesPending
     this.positionCount = fields.positionCount
     this.positions = fields.positions
+    this.positionsValues = fields.positionsValues
+    this.lastPositionUpdate = fields.lastPositionUpdate
     this.lastRebalanceTime = fields.lastRebalanceTime
     this.bump = fields.bump
   }
@@ -130,6 +140,8 @@ export class StrategyConfig {
       feeSharesPending: dec.feeSharesPending,
       positionCount: dec.positionCount,
       positions: dec.positions,
+      positionsValues: dec.positionsValues,
+      lastPositionUpdate: dec.lastPositionUpdate,
       lastRebalanceTime: dec.lastRebalanceTime,
       bump: dec.bump,
     })
@@ -146,6 +158,10 @@ export class StrategyConfig {
       feeSharesPending: this.feeSharesPending.toString(),
       positionCount: this.positionCount,
       positions: this.positions.map((item) => item.toString()),
+      positionsValues: this.positionsValues.map((item) => item.toString()),
+      lastPositionUpdate: this.lastPositionUpdate.map((item) =>
+        item.toString()
+      ),
       lastRebalanceTime: this.lastRebalanceTime.toString(),
       bump: this.bump,
     }
@@ -162,6 +178,8 @@ export class StrategyConfig {
       feeSharesPending: new BN(obj.feeSharesPending),
       positionCount: obj.positionCount,
       positions: obj.positions.map((item) => new PublicKey(item)),
+      positionsValues: obj.positionsValues.map((item) => new BN(item)),
+      lastPositionUpdate: obj.lastPositionUpdate.map((item) => new BN(item)),
       lastRebalanceTime: new BN(obj.lastRebalanceTime),
       bump: obj.bump,
     })

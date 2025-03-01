@@ -1,4 +1,4 @@
-use crate::{state::*, StrategyCreated, ANCHOR_DISCRIMINATOR, MAX_POSITIONS};
+use crate::{state::*, StrategyCreated, ANCHOR_DISCRIMINATOR};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -46,18 +46,14 @@ pub fn create_strategy_handler(ctx: Context<CreateStrategy>) -> Result<()> {
     let strategy_bump = *ctx.bumps.get("strategy").unwrap();
 
     // Initialize strategy
-    strategy.creator = ctx.accounts.creator.key();
-    strategy.x_mint = ctx.accounts.x_mint.key();
-    strategy.y_mint = ctx.accounts.y_mint.key();
-    strategy.x_vault = ctx.accounts.x_vault.key();
-    strategy.y_vault = ctx.accounts.y_vault.key();
-    strategy.strategy_shares = 0;
-
-    strategy.positions = [Pubkey::default(); MAX_POSITIONS];
-    strategy.position_count = 0;
-    strategy.last_rebalance_time = clock.unix_timestamp;
-
-    strategy.bump = strategy_bump;
+    strategy.initialize_strategy(
+        ctx.accounts.creator.key(),
+        ctx.accounts.x_mint.key(),
+        ctx.accounts.y_mint.key(),
+        ctx.accounts.x_vault.key(),
+        ctx.accounts.y_vault.key(),
+        strategy_bump,
+    );
 
     // Emit event
     emit!(StrategyCreated {

@@ -6,6 +6,8 @@ export type CustomError =
   | InvalidWithdrawalAmount
   | NoFeesToWithdraw
   | MaxPositionsReached
+  | InvalidPosition
+  | InvalidBinId
 
 export class ArithmeticOverflow extends Error {
   static readonly code = 6000
@@ -84,6 +86,28 @@ export class MaxPositionsReached extends Error {
   }
 }
 
+export class InvalidPosition extends Error {
+  static readonly code = 6007
+  readonly code = 6007
+  readonly name = "InvalidPosition"
+  readonly msg = "Invalid position"
+
+  constructor(readonly logs?: string[]) {
+    super("6007: Invalid position")
+  }
+}
+
+export class InvalidBinId extends Error {
+  static readonly code = 6008
+  readonly code = 6008
+  readonly name = "InvalidBinId"
+  readonly msg = "Invalid bin id"
+
+  constructor(readonly logs?: string[]) {
+    super("6008: Invalid bin id")
+  }
+}
+
 export function fromCode(code: number, logs?: string[]): CustomError | null {
   switch (code) {
     case 6000:
@@ -100,6 +124,10 @@ export function fromCode(code: number, logs?: string[]): CustomError | null {
       return new NoFeesToWithdraw(logs)
     case 6006:
       return new MaxPositionsReached(logs)
+    case 6007:
+      return new InvalidPosition(logs)
+    case 6008:
+      return new InvalidBinId(logs)
   }
 
   return null

@@ -40,6 +40,10 @@ pub mod maiker_contracts {
         instructions::withdraw_handler(ctx, shares_amount)
     }
 
+    pub fn get_position_value(ctx: Context<GetPositionValue>) -> Result<()> {
+        instructions::get_position_value_handler(ctx)
+    }
+
     // Admin Instructionsxe
     pub fn update_global_config(
         ctx: Context<UpdateGlobalConfig>,
