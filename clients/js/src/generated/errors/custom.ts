@@ -8,6 +8,10 @@ export type CustomError =
   | MaxPositionsReached
   | InvalidPosition
   | InvalidBinId
+  | InvalidDepositAmount
+  | StalePositionValue
+  | InvalidWithdrawalInterval
+  | WithdrawalNotReady
 
 export class ArithmeticOverflow extends Error {
   static readonly code = 6000
@@ -108,6 +112,56 @@ export class InvalidBinId extends Error {
   }
 }
 
+export class InvalidDepositAmount extends Error {
+  static readonly code = 6009
+  readonly code = 6009
+  readonly name = "InvalidDepositAmount"
+  readonly msg = "Invalid deposit amount"
+
+  constructor(readonly logs?: string[]) {
+    super("6009: Invalid deposit amount")
+  }
+}
+
+export class StalePositionValue extends Error {
+  static readonly code = 6010
+  readonly code = 6010
+  readonly name = "StalePositionValue"
+  readonly msg =
+    "Position value is stale and must be updated in the current slot"
+
+  constructor(readonly logs?: string[]) {
+    super(
+      "6010: Position value is stale and must be updated in the current slot"
+    )
+  }
+}
+
+export class InvalidWithdrawalInterval extends Error {
+  static readonly code = 6011
+  readonly code = 6011
+  readonly name = "InvalidWithdrawalInterval"
+  readonly msg = "Invalid withdrawal interval (minimum 5 minutes)"
+
+  constructor(readonly logs?: string[]) {
+    super("6011: Invalid withdrawal interval (minimum 5 minutes)")
+  }
+}
+
+export class WithdrawalNotReady extends Error {
+  static readonly code = 6012
+  readonly code = 6012
+  readonly name = "WithdrawalNotReady"
+  readonly msg =
+    "Withdrawal not ready yet, please wait for the next withdrawal window"
+
+  constructor(readonly logs?: string[]) {
+    super(
+      "6012: Withdrawal not ready yet, please wait for the next withdrawal window"
+    )
+  }
+}
+
 export function fromCode(code: number, logs?: string[]): CustomError | null {
   switch (code) {
     case 6000:
@@ -128,6 +182,14 @@ export function fromCode(code: number, logs?: string[]): CustomError | null {
       return new InvalidPosition(logs)
     case 6008:
       return new InvalidBinId(logs)
+    case 6009:
+      return new InvalidDepositAmount(logs)
+    case 6010:
+      return new StalePositionValue(logs)
+    case 6011:
+      return new InvalidWithdrawalInterval(logs)
+    case 6012:
+      return new WithdrawalNotReady(logs)
   }
 
   return null

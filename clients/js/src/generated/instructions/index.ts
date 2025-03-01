@@ -4,8 +4,13 @@ export { createStrategy } from "./createStrategy"
 export type { CreateStrategyAccounts } from "./createStrategy"
 export { deposit } from "./deposit"
 export type { DepositArgs, DepositAccounts } from "./deposit"
-export { withdraw } from "./withdraw"
-export type { WithdrawArgs, WithdrawAccounts } from "./withdraw"
+export { initiateWithdrawal } from "./initiateWithdrawal"
+export type {
+  InitiateWithdrawalArgs,
+  InitiateWithdrawalAccounts,
+} from "./initiateWithdrawal"
+export { processWithdrawal } from "./processWithdrawal"
+export type { ProcessWithdrawalAccounts } from "./processWithdrawal"
 export { getPositionValue } from "./getPositionValue"
 export type { GetPositionValueAccounts } from "./getPositionValue"
 export { updateGlobalConfig } from "./updateGlobalConfig"

@@ -230,8 +230,14 @@ describe("maiker-contracts", () => {
   test("Is initialized!", async () => {
     const initializeIx = initialize(
       {
-        performanceFeeBps: 0,
-        withdrawalFeeBps: 0,
+        globalConfigArgs: {
+          performanceFeeBps: 2000,
+          withdrawalFeeBps: 150,
+          intervalSeconds: new BN(60 * 60), // 1 hour
+          treasury: master.publicKey,
+          admin: master.publicKey,
+          newAdmin: null,
+        },
       },
       {
         admin: master.publicKey,
@@ -332,17 +338,15 @@ describe("maiker-contracts", () => {
 
     const depositIx = deposit(
       {
-        amountX: new BN(1000000000),
-        amountY: new BN(1000000000),
+        amount: new BN(1000000000),
       },
       {
         user: user.publicKey,
         strategy: strategy,
+        globalConfig: globalConfig,
         userPosition: userPosition,
         userTokenX: xUser.ataPubKey,
-        userTokenY: yUser.ataPubKey,
         strategyVaultX: xVault.ataPubKey,
-        strategyVaultY: yVault.ataPubKey,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       },

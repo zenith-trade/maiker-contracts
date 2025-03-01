@@ -5,8 +5,7 @@ import * as types from "../types" // eslint-disable-line @typescript-eslint/no-u
 import { PROGRAM_ID } from "../programId"
 
 export interface InitializeArgs {
-  performanceFeeBps: number
-  withdrawalFeeBps: number
+  globalConfigArgs: types.GlobalConfigArgsFields
 }
 
 export interface InitializeAccounts {
@@ -16,8 +15,7 @@ export interface InitializeAccounts {
 }
 
 export const layout = borsh.struct([
-  borsh.u16("performanceFeeBps"),
-  borsh.u16("withdrawalFeeBps"),
+  types.GlobalConfigArgs.layout("globalConfigArgs"),
 ])
 
 export function initialize(
@@ -34,8 +32,9 @@ export function initialize(
   const buffer = Buffer.alloc(1000)
   const len = layout.encode(
     {
-      performanceFeeBps: args.performanceFeeBps,
-      withdrawalFeeBps: args.withdrawalFeeBps,
+      globalConfigArgs: types.GlobalConfigArgs.toEncodable(
+        args.globalConfigArgs
+      ),
     },
     buffer
   )

@@ -9,6 +9,7 @@ export interface GlobalConfigFields {
   performanceFeeBps: number
   withdrawalFeeBps: number
   treasury: PublicKey
+  withdrawalIntervalSeconds: BN
   bump: number
 }
 
@@ -17,6 +18,7 @@ export interface GlobalConfigJSON {
   performanceFeeBps: number
   withdrawalFeeBps: number
   treasury: string
+  withdrawalIntervalSeconds: string
   bump: number
 }
 
@@ -25,6 +27,7 @@ export class GlobalConfig {
   readonly performanceFeeBps: number
   readonly withdrawalFeeBps: number
   readonly treasury: PublicKey
+  readonly withdrawalIntervalSeconds: BN
   readonly bump: number
 
   static readonly discriminator = Buffer.from([
@@ -36,6 +39,7 @@ export class GlobalConfig {
     borsh.u16("performanceFeeBps"),
     borsh.u16("withdrawalFeeBps"),
     borsh.publicKey("treasury"),
+    borsh.u64("withdrawalIntervalSeconds"),
     borsh.u8("bump"),
   ])
 
@@ -44,6 +48,7 @@ export class GlobalConfig {
     this.performanceFeeBps = fields.performanceFeeBps
     this.withdrawalFeeBps = fields.withdrawalFeeBps
     this.treasury = fields.treasury
+    this.withdrawalIntervalSeconds = fields.withdrawalIntervalSeconds
     this.bump = fields.bump
   }
 
@@ -95,6 +100,7 @@ export class GlobalConfig {
       performanceFeeBps: dec.performanceFeeBps,
       withdrawalFeeBps: dec.withdrawalFeeBps,
       treasury: dec.treasury,
+      withdrawalIntervalSeconds: dec.withdrawalIntervalSeconds,
       bump: dec.bump,
     })
   }
@@ -105,6 +111,7 @@ export class GlobalConfig {
       performanceFeeBps: this.performanceFeeBps,
       withdrawalFeeBps: this.withdrawalFeeBps,
       treasury: this.treasury.toString(),
+      withdrawalIntervalSeconds: this.withdrawalIntervalSeconds.toString(),
       bump: this.bump,
     }
   }
@@ -115,6 +122,7 @@ export class GlobalConfig {
       performanceFeeBps: obj.performanceFeeBps,
       withdrawalFeeBps: obj.withdrawalFeeBps,
       treasury: new PublicKey(obj.treasury),
+      withdrawalIntervalSeconds: new BN(obj.withdrawalIntervalSeconds),
       bump: obj.bump,
     })
   }

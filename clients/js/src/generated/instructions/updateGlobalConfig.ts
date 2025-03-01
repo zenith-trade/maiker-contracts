@@ -5,10 +5,7 @@ import * as types from "../types" // eslint-disable-line @typescript-eslint/no-u
 import { PROGRAM_ID } from "../programId"
 
 export interface UpdateGlobalConfigArgs {
-  performanceFeeBps: number | null
-  withdrawalFeeBps: number | null
-  treasury: PublicKey | null
-  newAdmin: PublicKey | null
+  globalConfigArgs: types.GlobalConfigArgsFields
 }
 
 export interface UpdateGlobalConfigAccounts {
@@ -17,10 +14,7 @@ export interface UpdateGlobalConfigAccounts {
 }
 
 export const layout = borsh.struct([
-  borsh.option(borsh.u16(), "performanceFeeBps"),
-  borsh.option(borsh.u16(), "withdrawalFeeBps"),
-  borsh.option(borsh.publicKey(), "treasury"),
-  borsh.option(borsh.publicKey(), "newAdmin"),
+  types.GlobalConfigArgs.layout("globalConfigArgs"),
 ])
 
 export function updateGlobalConfig(
@@ -36,10 +30,9 @@ export function updateGlobalConfig(
   const buffer = Buffer.alloc(1000)
   const len = layout.encode(
     {
-      performanceFeeBps: args.performanceFeeBps,
-      withdrawalFeeBps: args.withdrawalFeeBps,
-      treasury: args.treasury,
-      newAdmin: args.newAdmin,
+      globalConfigArgs: types.GlobalConfigArgs.toEncodable(
+        args.globalConfigArgs
+      ),
     },
     buffer
   )

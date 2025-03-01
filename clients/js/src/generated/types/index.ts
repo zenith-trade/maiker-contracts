@@ -8,3 +8,8 @@ export type {
   LiquidityParameterByWeightFields,
   LiquidityParameterByWeightJSON,
 } from "./LiquidityParameterByWeight"
+export { GlobalConfigArgs } from "./GlobalConfigArgs"
+export type {
+  GlobalConfigArgsFields,
+  GlobalConfigArgsJSON,
+} from "./GlobalConfigArgs"
