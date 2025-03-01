@@ -20,6 +20,8 @@ This document outlines the requirements for a Solana-based smart contract system
   - `fee_shares_pending`: Shares allocated to fees but not yet claimed
   - `position_count`: Number of active positions
   - `positions`: Array of position public keys
+  - `positions_value`: Array of position values same ordering as positions array
+  - `last_position_update`: Array of timestamp when the position value was last updated. Ordering is same as positions array pubkeys
   - `last_rebalance_time`: Timestamp of the last rebalance
   - `bump`: PDA bump
 
@@ -178,10 +180,40 @@ The program emits the following events to facilitate off-chain tracking:
   - User dashboard for visualizing strategy performance
   - Admin dashboard for monitoring and managing positions
 
-- **Multi-Strategy Support**:
-  - Allow users to allocate funds across multiple strategies
-  - Risk-based strategy categorization
 
-- **Oracle Integration**:
-  - Price-aware share value calculation
-  - More accurate performance tracking 
+## Position Value Calculation
+
+### Overview
+The strategy needs to accurately track the value of each position it manages. This is crucial for calculating user shares, determining rebalancing needs, and ensuring fair deposits and withdrawals.
+
+### Position Value Calculation Process
+1. Each position's value is calculated separately through a dedicated `get_position_value` instruction
+2. The calculation takes into account:
+   - The active bin ID from the LB pair
+   - The current price derived from the active bin
+   - The position's liquidity shares across all bins
+   - The token amounts in each bin
+
+3. The value is calculated in terms of the strategy's primary token (x_mint)
+4. The calculation results and timestamp are stored in the strategy's `positions_values` and `last_position_update` arrays
+
+### Position Value Freshness Requirement
+To ensure fair deposits and withdrawals, all position values must be up-to-date:
+
+1. Before any deposit or withdrawal can be processed, all positions must have their values updated within the current slot
+2. This is enforced by validating the `last_position_update` timestamp for each position
+3. If any position has a stale value, the deposit/withdrawal transaction will fail
+
+### Implementation Details
+- The strategy maintains arrays to track:
+  - Position public keys (`positions`)
+  - Position values (`positions_values`)
+  - Last update timestamps (`last_position_update`)
+- The `get_position_value` instruction updates these arrays
+- Deposit and withdraw instructions validate the freshness of all position values
+
+### Benefits
+- Ensures accurate and fair value calculations for all users
+- Prevents exploitation through stale position values
+- Enables the strategy to manage multiple positions while maintaining accurate accounting
+- Provides a clean separation of concerns between value calculation and deposit/withdrawal logic 

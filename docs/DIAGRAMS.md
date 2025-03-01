@@ -198,3 +198,63 @@ Protocol->>Strategy: Add position to positions array
 Protocol->>Strategy: Increment position_count
 Protocol->>Admin: Return success
 ```
+
+## Position Value Update Flow
+
+The following diagram illustrates the client-side flow for updating position values before deposits or withdrawals:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client
+    participant Blockchain
+    participant Strategy
+    participant Position1
+    participant Position2
+
+    User->>Client: Initiate deposit/withdraw
+    
+    Note over Client: Check if position values need updating
+    
+    Client->>Blockchain: get_position_value(Position1)
+    Blockchain->>Strategy: Update position_values[0]
+    Blockchain->>Strategy: Update last_position_update[0]
+    Blockchain-->>Client: Success
+    
+    Client->>Blockchain: get_position_value(Position2)
+    Blockchain->>Strategy: Update position_values[1]
+    Blockchain->>Strategy: Update last_position_update[1]
+    Blockchain-->>Client: Success
+    
+    Note over Client: All positions updated in current slot
+    
+    Client->>Blockchain: deposit/withdraw
+    Blockchain->>Strategy: Validate all position updates
+    Note over Strategy: Check all last_position_update values
+    Blockchain->>Strategy: Process deposit/withdraw
+    Blockchain-->>Client: Success
+    Client-->>User: Deposit/withdraw completed
+```
+
+### Client-Side Implementation Notes
+
+1. **Position Value Update Process**:
+   - Before initiating a deposit or withdrawal, the client must ensure all positions have up-to-date values
+   - The client should call `get_position_value` for each position in the strategy
+   - All these calls should be made within the same transaction as the deposit/withdraw instruction
+
+2. **Transaction Building**:
+   - Build a transaction with multiple instructions:
+     - One `get_position_value` instruction for each position
+     - The final deposit or withdraw instruction
+   - This ensures all updates happen atomically with the deposit/withdraw
+
+3. **Error Handling**:
+   - If any position value update fails, the entire transaction will fail
+   - If the deposit/withdraw validation fails due to stale values, the client should retry the entire process
+
+4. **Optimization**:
+   - For strategies with many positions, the client may need to batch updates across multiple transactions
+   - In this case, the deposit/withdraw should be in the final transaction after all updates are complete
+
+This design ensures that all position values are fresh when deposits or withdrawals occur, maintaining fair value calculations for all users.
