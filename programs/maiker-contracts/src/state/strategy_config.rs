@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::MAX_POSITIONS;
+use crate::{MaikerError, MAX_POSITIONS};
 
 #[account]
 #[derive(InitSpace)]
@@ -78,5 +78,108 @@ impl StrategyConfig {
             .unwrap();
         self.positions_values[index] = value;
         self.last_position_update[index] = last_update;
+    }
+
+    /// Validates that all active positions have their values updated in the current slot
+    /// Returns an error if any position has a stale value
+    pub fn validate_position_values_freshness(&self, current_timestamp: i64) -> Result<()> {
+        for i in 0..self.position_count as usize {
+            let position_pubkey = self.positions[i];
+
+            // Skip empty position slots
+            if position_pubkey == Pubkey::default() {
+                continue;
+            }
+
+            // Verify this position was updated in the current slot
+            require!(
+                self.last_position_update[i] == current_timestamp,
+                MaikerError::StalePositionValue
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Calculate the total value of all positions in the strategy
+    pub fn get_total_positions_value(&self) -> Result<u64> {
+        let mut total_value: u64 = 0;
+
+        for i in 0..self.position_count as usize {
+            let position_pubkey = self.positions[i];
+
+            // Skip empty position slots
+            if position_pubkey == Pubkey::default() {
+                continue;
+            }
+
+            total_value = total_value
+                .checked_add(self.positions_values[i])
+                .ok_or(MaikerError::ArithmeticOverflow)?;
+        }
+
+        Ok(total_value)
+    }
+
+    /// Calculate the total strategy value (vault value + positions value)
+    pub fn calculate_total_strategy_value(&self, vault_x_amount: u64) -> Result<u64> {
+        let positions_value = self.get_total_positions_value()?;
+
+        let total_value = vault_x_amount
+            .checked_add(positions_value)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        Ok(total_value)
+    }
+
+    /// Calculate the current share value based on total strategy value and total shares
+    pub fn calculate_share_value(&self, total_strategy_value: u64) -> Result<u64> {
+        if self.strategy_shares == 0 {
+            return Ok(1_000_000); // Default to 1.0 if no shares exist
+        }
+
+        let share_value = (total_strategy_value as u128)
+            .checked_mul(1_000_000)
+            .ok_or(MaikerError::ArithmeticOverflow)?
+            .checked_div(self.strategy_shares as u128)
+            .ok_or(MaikerError::ArithmeticOverflow)? as u64;
+
+        Ok(share_value)
+    }
+
+    /// Calculate shares to mint for a deposit
+    pub fn calculate_shares_for_deposit(
+        &self,
+        deposit_value: u64,
+        current_share_value: u64,
+    ) -> Result<u64> {
+        let new_shares = deposit_value
+            .checked_mul(1_000_000)
+            .ok_or(MaikerError::ArithmeticOverflow)?
+            .checked_div(current_share_value)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        Ok(new_shares)
+    }
+
+    /// Calculate token amount to return for a withdrawal based on share ratio
+    pub fn calculate_withdrawal_amount(
+        &self,
+        shares_amount: u64,
+        vault_x_amount: u64,
+    ) -> Result<u64> {
+        let user_share_ratio = (shares_amount as u128)
+            .checked_mul(1_000_000)
+            .ok_or(MaikerError::ArithmeticOverflow)?
+            .checked_div(self.strategy_shares as u128)
+            .ok_or(MaikerError::ArithmeticOverflow)? as u64;
+
+        let token_amount = vault_x_amount
+            .checked_mul(user_share_ratio)
+            .ok_or(MaikerError::ArithmeticOverflow)?
+            .checked_div(1_000_000)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        Ok(token_amount)
     }
 }

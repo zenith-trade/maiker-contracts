@@ -21,17 +21,12 @@ pub struct Initialize<'info> {
 
 pub fn initialize_handler(
     ctx: Context<Initialize>,
-    performance_fee_bps: u16,
-    withdrawal_fee_bps: u16,
+    global_config_args: GlobalConfigArgs,
 ) -> Result<()> {
     let global_config = &mut ctx.accounts.global_config;
     let bump = *ctx.bumps.get("global_config").unwrap();
 
-    global_config.admin = ctx.accounts.admin.key();
-    global_config.performance_fee_bps = performance_fee_bps;
-    global_config.withdrawal_fee_bps = withdrawal_fee_bps;
-    global_config.treasury = ctx.accounts.admin.key(); // Default to admin, can be updated later
-    global_config.bump = bump;
+    global_config.initialize_global_config(global_config_args, bump);
 
     Ok(())
 }

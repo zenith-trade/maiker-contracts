@@ -28,4 +28,16 @@ pub enum MaikerError {
 
     #[msg("Invalid bin id")]
     InvalidBinId,
+
+    #[msg("Invalid deposit amount")]
+    InvalidDepositAmount,
+
+    #[msg("Position value is stale and must be updated in the current slot")]
+    StalePositionValue,
+
+    #[msg("Invalid withdrawal interval (minimum 5 minutes)")]
+    InvalidWithdrawalInterval,
+
+    #[msg("Withdrawal not ready yet, please wait for the next withdrawal window")]
+    WithdrawalNotReady,
 }

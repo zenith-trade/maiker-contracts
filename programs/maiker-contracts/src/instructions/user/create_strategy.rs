@@ -1,4 +1,4 @@
-use crate::{state::*, StrategyCreated, ANCHOR_DISCRIMINATOR};
+use crate::{state::*, CreateStrategyEvent, ANCHOR_DISCRIMINATOR};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -56,7 +56,7 @@ pub fn create_strategy_handler(ctx: Context<CreateStrategy>) -> Result<()> {
     );
 
     // Emit event
-    emit!(StrategyCreated {
+    emit!(CreateStrategyEvent {
         strategy: strategy.key(),
         creator: ctx.accounts.creator.key(),
         x_mint: strategy.x_mint,

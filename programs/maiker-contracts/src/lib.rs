@@ -21,10 +21,9 @@ pub mod maiker_contracts {
     // Initialize
     pub fn initialize(
         ctx: Context<Initialize>,
-        performance_fee_bps: u16,
-        withdrawal_fee_bps: u16,
+        global_config_args: GlobalConfigArgs,
     ) -> Result<()> {
-        instructions::initialize_handler(ctx, performance_fee_bps, withdrawal_fee_bps)
+        instructions::initialize_handler(ctx, global_config_args)
     }
 
     // User instructions
@@ -32,33 +31,28 @@ pub mod maiker_contracts {
         instructions::create_strategy_handler(ctx)
     }
 
-    pub fn deposit(ctx: Context<Deposit>, amount_x: u64, amount_y: u64) -> Result<()> {
-        instructions::deposit_handler(ctx, amount_x, amount_y)
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+        instructions::deposit_handler(ctx, amount)
     }
 
-    pub fn withdraw(ctx: Context<Withdraw>, shares_amount: u64) -> Result<()> {
-        instructions::withdraw_handler(ctx, shares_amount)
+    pub fn initiate_withdrawal(ctx: Context<InitiateWithdrawal>, shares_amount: u64) -> Result<()> {
+        instructions::initiate_withdrawal_handler(ctx, shares_amount)
+    }
+
+    pub fn process_withdrawal(ctx: Context<ProcessWithdrawal>) -> Result<()> {
+        instructions::process_withdrawal_handler(ctx)
     }
 
     pub fn get_position_value(ctx: Context<GetPositionValue>) -> Result<()> {
         instructions::get_position_value_handler(ctx)
     }
 
-    // Admin Instructionsxe
+    // Admin Instructions
     pub fn update_global_config(
         ctx: Context<UpdateGlobalConfig>,
-        performance_fee_bps: Option<u16>,
-        withdrawal_fee_bps: Option<u16>,
-        treasury: Option<Pubkey>,
-        new_admin: Option<Pubkey>,
+        global_config_args: GlobalConfigArgs,
     ) -> Result<()> {
-        instructions::update_global_config_handler(
-            ctx,
-            performance_fee_bps,
-            withdrawal_fee_bps,
-            treasury,
-            new_admin,
-        )
+        instructions::update_global_config_handler(ctx, global_config_args)
     }
 
     // Claims the actual tokens to treasury wallet
@@ -95,4 +89,24 @@ pub mod maiker_contracts {
     ) -> Result<()> {
         instructions::initialize_position_handler(ctx, lower_bin_id, width)
     }
+}
+
+#[event]
+pub struct UserDeposited {
+    pub user: Pubkey,
+    pub strategy: Pubkey,
+    pub shares_amount: u64,
+    pub token_x_amount: u64,
+    pub token_y_amount: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct UserWithdrew {
+    pub user: Pubkey,
+    pub strategy: Pubkey,
+    pub shares_amount: u64,
+    pub token_x_amount: u64,
+    pub token_y_amount: u64,
+    pub timestamp: i64,
 }
