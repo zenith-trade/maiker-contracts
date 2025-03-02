@@ -92,11 +92,11 @@ pub struct AddLiquidity<'info> {
 
     /// The strategy vault for token X
     #[account(mut)]
-    pub user_token_x: Account<'info, TokenAccount>,
+    pub strategy_vault_x: Account<'info, TokenAccount>,
 
     /// The strategy vault for token Y
     #[account(mut)]
-    pub user_token_y: Account<'info, TokenAccount>,
+    pub strategy_vault_y: Account<'info, TokenAccount>,
 
     /// CHECK: The reserve account for token X
     #[account(mut)]
@@ -149,8 +149,8 @@ pub fn add_liquidity_handler(
             .as_ref()
             .map(|account| account.to_account_info()),
         sender: ctx.accounts.authority.to_account_info(),
-        user_token_x: ctx.accounts.user_token_x.to_account_info(),
-        user_token_y: ctx.accounts.user_token_y.to_account_info(),
+        user_token_x: ctx.accounts.strategy_vault_x.to_account_info(),
+        user_token_y: ctx.accounts.strategy_vault_y.to_account_info(),
         reserve_x: ctx.accounts.reserve_x.to_account_info(),
         reserve_y: ctx.accounts.reserve_y.to_account_info(),
         token_x_mint: ctx.accounts.token_x_mint.to_account_info(),

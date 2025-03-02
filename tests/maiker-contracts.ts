@@ -12,7 +12,7 @@ import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors,
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
-import { LBCLMM_PROGRAM_IDS } from "../dlmm-ts-client/src";
+import { BinAndAmount, binIdToBinArrayIndex, deriveBinArray, deriveBinArrayBitmapExtension, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { readFileSync } from "fs";
 import path from "path";
@@ -228,6 +228,7 @@ describe("maiker-contracts", () => {
   let xMint: PublicKey;
   let yMint: PublicKey;
   let lbPairPubkey: PublicKey;
+  let lbPairAcc: dlmm.lbPair;
 
   before(async () => {
     await loadProviders();
@@ -298,8 +299,8 @@ describe("maiker-contracts", () => {
     // Not possible with bankrun because of restricted bankrun connection spec
     // const dlmm = await DLMM.create(bankrunProvider.connection, lbPairPubkey);
 
-    const dlmmAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
-    console.log("dlmmAcc: ", dlmmAcc);
+    lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
+    console.log("lbPairAcc: ", lbPairAcc);
   });
 
   // // Configure the client to use the local cluster.
@@ -566,10 +567,140 @@ describe("maiker-contracts", () => {
   });
 
   test("Add Position", async () => {
+    // TODO: For later we need a helper function in our client that can handle the entire rebalancing step.
+    // Check addLiquidityByWeight of dlmm-ts-client as reference.
+    // It should just take in the strategy pubkey, totalXAmount, totalYAmount, and xYAmountDistribution.
+    // It should then handle setting up 1) positions 2) bin arrays 3) and adding of liquidity
+    // All required instruction can be returned by that function
+
+    // Before that there need to be 2 more steps:
+    // 1) Remove all liquidity for all positions
+    // 2) Rebalance through swapping
+
+    // TODO: Actually need to swap xMint first
+    const totalXAmount = new BN(1000000000);
+    const totalYAmount = new BN(1000000000);
+
     const position = PublicKey.findProgramAddressSync(
       [Buffer.from("position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
       maikerProgramId.PROGRAM_ID
     )[0];
 
+    const lowerBinId = lbPairAcc.activeId - 35; // Put liquidity equal around active bin
+    const upperBinId = lowerBinId + 70;
+    // Initialize position Ix
+    const initPositionIx = maikerInstructions.initializePosition(
+      {
+        lowerBinId: lowerBinId,
+        width: Number(MAX_BIN_ARRAY_SIZE), // 70
+      },
+      {
+        authority: admin.publicKey, // Admin to do rebalancing
+        globalConfig: globalConfig,
+        strategy: strategy,
+        position: position,
+        lbPair: lbPairPubkey,
+        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        eventAuthority: user.publicKey,
+        systemProgram: SystemProgram.programId,
+        rent: SystemProgram.programId,
+      }
+    )
+
+    // Add liquidity Ix
+    const [xVault, yVault] = await Promise.all([
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
+    ]);
+
+    const [binArrayLower] = deriveBinArray(
+      lbPairPubkey,
+      new BN(lowerBinId),
+      dlmmProgramId.PROGRAM_ID
+    );
+
+    const [binArrayUpper] = deriveBinArray(
+      lbPairPubkey,
+      new BN(upperBinId),
+      dlmmProgramId.PROGRAM_ID
+    );
+
+    const minBinArrayIndex = binIdToBinArrayIndex(new BN(lowerBinId));
+    const maxBinArrayIndex = binIdToBinArrayIndex(new BN(upperBinId));
+
+    const useExtension =
+      isOverflowDefaultBinArrayBitmap(minBinArrayIndex) ||
+      isOverflowDefaultBinArrayBitmap(maxBinArrayIndex);
+
+    const binArrayBitmapExtension = useExtension
+      ? deriveBinArrayBitmapExtension(lbPairPubkey, dlmmProgramId.PROGRAM_ID)[0]
+      : null;
+
+    // @0xyaya here you would calculate the desired distribution
+    const xYAmountDistribution: BinAndAmount[] = [];
+
+    const binLiquidityDist =
+      toWeightDistribution(
+        totalXAmount,
+        totalYAmount,
+        xYAmountDistribution.map((item) => ({
+          binId: item.binId,
+          xAmountBpsOfTotal: item.xAmountBpsOfTotal,
+          yAmountBpsOfTotal: item.yAmountBpsOfTotal,
+        })),
+        lbPairAcc.binStep
+      );
+
+    if (binLiquidityDist.length === 0) {
+      throw new Error("No liquidity to add");
+    }
+
+    const liquidityParams = {
+      amountX: new BN(1000000000),
+      amountY: new BN(1000000000),
+      binLiquidityDist: binLiquidityDist,
+      activeId: lbPairAcc.activeId,
+      maxActiveBinSlippage: 0,
+    };
+
+    const add_liquidity_ix = maikerInstructions.addLiquidity(
+      {
+        liquidityParameter: liquidityParams,
+      },
+      {
+        position: position,
+        authority: admin.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        lbPair: lbPairPubkey,
+        tokenXMint: xMint,
+        tokenYMint: yMint,
+        strategyVaultX: xVault.ataPubKey,
+        strategyVaultY: yVault.ataPubKey,
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        binArrayLower: binArrayLower,
+        binArrayUpper: binArrayUpper,
+        binArrayBitmapExtension: binArrayBitmapExtension,
+        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        eventAuthority: user.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }
+    )
+
+    // Build tx
+    const blockhash = await getLatestBlockhash();
+    const builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [initPositionIx, add_liquidity_ix],
+      recentBlockhash: blockhash[0],
+    })
+
+    await processTransaction(builtTx.tx);
+
+    // Assert
   })
 });

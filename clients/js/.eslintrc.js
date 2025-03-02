@@ -31,5 +31,5 @@ module.exports = {
       }
     ]
   },
-  ignorePatterns: ['dist/**', '.eslintrc.js', 'src/generated/**'],
+  ignorePatterns: ['dist/**', '.eslintrc.js', 'src/generated-dlmm/**', 'src/generated-maiker/**'],
 };

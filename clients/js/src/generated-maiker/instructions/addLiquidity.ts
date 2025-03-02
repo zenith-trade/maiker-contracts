@@ -19,9 +19,9 @@ export interface AddLiquidityAccounts {
   tokenXMint: PublicKey
   tokenYMint: PublicKey
   /** The strategy vault for token X */
-  userTokenX: PublicKey
+  strategyVaultX: PublicKey
   /** The strategy vault for token Y */
-  userTokenY: PublicKey
+  strategyVaultY: PublicKey
   reserveX: PublicKey
   reserveY: PublicKey
   binArrayLower: PublicKey
@@ -53,8 +53,8 @@ export function addLiquidity(
     { pubkey: accounts.lbPair, isSigner: false, isWritable: true },
     { pubkey: accounts.tokenXMint, isSigner: false, isWritable: true },
     { pubkey: accounts.tokenYMint, isSigner: false, isWritable: true },
-    { pubkey: accounts.userTokenX, isSigner: false, isWritable: true },
-    { pubkey: accounts.userTokenY, isSigner: false, isWritable: true },
+    { pubkey: accounts.strategyVaultX, isSigner: false, isWritable: true },
+    { pubkey: accounts.strategyVaultY, isSigner: false, isWritable: true },
     { pubkey: accounts.reserveX, isSigner: false, isWritable: true },
     { pubkey: accounts.reserveY, isSigner: false, isWritable: true },
     { pubkey: accounts.binArrayLower, isSigner: false, isWritable: true },
