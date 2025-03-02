@@ -1,6 +1,5 @@
 use crate::state::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct ClosePosition<'info> {
@@ -13,10 +12,10 @@ pub struct ClosePosition<'info> {
         seeds = [GlobalConfig::SEED_PREFIX.as_bytes()],
         bump = global_config.bump,
     )]
-    pub global_config: Account<'info, GlobalConfig>,
+    pub global_config: Box<Account<'info, GlobalConfig>>,
 
     #[account(mut)]
-    pub strategy: Account<'info, StrategyConfig>,
+    pub strategy: Box<Account<'info, StrategyConfig>>,
 
     /// CHECK: This is the position account to be closed
     #[account(mut)]

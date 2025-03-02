@@ -1,6 +1,5 @@
 use crate::{
-    error::MaikerError, state::*, UserDepositEvent, UserDeposited, ANCHOR_DISCRIMINATOR,
-    SHARE_PRECISION,
+    error::MaikerError, state::*, UserDepositEvent, ANCHOR_DISCRIMINATOR, SHARE_PRECISION,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};

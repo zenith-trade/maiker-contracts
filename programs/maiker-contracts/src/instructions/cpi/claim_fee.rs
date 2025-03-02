@@ -13,22 +13,24 @@ pub struct ClaimFee<'info> {
         seeds = [GlobalConfig::SEED_PREFIX.as_bytes()],
         bump = global_config.bump,
     )]
-    pub global_config: Account<'info, GlobalConfig>,
+    pub global_config: Box<Account<'info, GlobalConfig>>,
 
     #[account(mut)]
-    pub strategy: Account<'info, StrategyConfig>,
+    pub strategy: Box<Account<'info, StrategyConfig>>,
 
     #[account(
         mut,
-        constraint = strategy_vault_x.key() == strategy.x_vault
+        token::mint = token_x_mint,
+        token::authority = strategy
     )]
-    pub strategy_vault_x: Account<'info, TokenAccount>,
+    pub strategy_vault_x: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
-        constraint = strategy_vault_y.key() == strategy.y_vault
+        token::mint = token_y_mint,
+        token::authority = strategy
     )]
-    pub strategy_vault_y: Account<'info, TokenAccount>,
+    pub strategy_vault_y: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: This is the position account
     #[account(mut)]

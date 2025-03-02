@@ -68,10 +68,10 @@ pub struct AddLiquidity<'info> {
         seeds = [GlobalConfig::SEED_PREFIX.as_bytes()],
         bump = global_config.bump,
     )]
-    pub global_config: Account<'info, GlobalConfig>,
+    pub global_config: Box<Account<'info, GlobalConfig>>,
 
     #[account(mut)]
-    pub strategy: Account<'info, StrategyConfig>,
+    pub strategy: Box<Account<'info, StrategyConfig>>,
 
     /// CPI accounts below
     /// CHECK: The position account

@@ -90,23 +90,3 @@ pub mod maiker_contracts {
         instructions::initialize_position_handler(ctx, lower_bin_id, width)
     }
 }
-
-#[event]
-pub struct UserDeposited {
-    pub user: Pubkey,
-    pub strategy: Pubkey,
-    pub shares_amount: u64,
-    pub token_x_amount: u64,
-    pub token_y_amount: u64,
-    pub timestamp: i64,
-}
-
-#[event]
-pub struct UserWithdrew {
-    pub user: Pubkey,
-    pub strategy: Pubkey,
-    pub shares_amount: u64,
-    pub token_x_amount: u64,
-    pub token_y_amount: u64,
-    pub timestamp: i64,
-}

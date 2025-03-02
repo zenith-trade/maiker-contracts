@@ -1,5 +1,3 @@
-use std::future::pending;
-
 use crate::{state::*, MaikerError, ProcessWithdrawEvent};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
@@ -10,13 +8,13 @@ pub struct ProcessWithdrawal<'info> {
     pub user: Signer<'info>,
 
     #[account(mut)]
-    pub strategy: Account<'info, StrategyConfig>,
+    pub strategy: Box<Account<'info, StrategyConfig>>,
 
     #[account(
         seeds = [GlobalConfig::SEED_PREFIX.as_bytes()],
         bump = global_config.bump,
     )]
-    pub global_config: Account<'info, GlobalConfig>,
+    pub global_config: Box<Account<'info, GlobalConfig>>,
 
     #[account(
         mut,
@@ -26,21 +24,21 @@ pub struct ProcessWithdrawal<'info> {
         constraint = pending_withdrawal.strategy == strategy.key(),
         close = user
     )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+    pub pending_withdrawal: Box<Account<'info, PendingWithdrawal>>,
 
     #[account(
         mut,
         token::mint = strategy.x_mint,
         token::authority = strategy.key(),
     )]
-    pub strategy_vault_x: Account<'info, TokenAccount>,
+    pub strategy_vault_x: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
         token::mint = strategy.x_mint,
         token::authority = pending_withdrawal.user,
     )]
-    pub user_token_x: Account<'info, TokenAccount>,
+    pub user_token_x: Box<Account<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
