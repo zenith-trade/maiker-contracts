@@ -2,10 +2,13 @@
     "scripts": {
         "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
         "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-        "generate": "anchor-client-gen target/idl/maiker_contracts.json clients/js/src/generated --program-id 27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx"
+        "generate:idls": "node ./configs/shank.cjs",
+        "generate:maiker": "anchor-client-gen target/idl/maiker_contracts.json clients/js/src/generated-maiker --program-id 27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx",
+        "generate:dlmm": "anchor-client-gen idls/dlmm.json clients/js/src/generated-dlmm --program-id LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+        "programs:dump": "./configs/programs/dump.sh"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "^0.29.0",
+        "@coral-xyz/anchor": "^0.28.0",
         "@solana/spl-token": "^0.4.12",
         "@solana/web3.js": "^1.98.0",
         "anchor-bankrun": "^0.5.0",

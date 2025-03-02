@@ -8,11 +8,16 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { createStrategy, deposit, GlobalConfig, initialize, initiateWithdrawal, PendingWithdrawal, processWithdrawal, PROGRAM_ID, SHARE_PRECISION, StrategyConfig, UserPosition } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
-import { getOrCreateATAInstruction } from "../dlmm-ts-client/src";
+import { LBCLMM_PROGRAM_IDS } from "../dlmm-ts-client/src";
+import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
+import { readFileSync } from "fs";
+import path from "path";
+
+const PROGRAM_BIN_DIR = path.join(__dirname, "..", ".programsBin");
 
 const INITIAL_SOL = 5000 * LAMPORTS_PER_SOL;
 const USE_BANKRUN = true;
@@ -30,6 +35,17 @@ const admin = Keypair.generate()
 /// --- PROVIDERS
 let bankrunProvider: BankrunProvider;
 
+/// METEORA DLMM
+const DEFAULT_ACTIVE_ID = new BN(5660);
+const DEFAULT_BIN_STEP = new BN(10);
+const DEFAULT_BASE_FACTOR = new BN(10000);
+
+const [presetParamPda] = derivePresetParameter2(
+  DEFAULT_BIN_STEP,
+  DEFAULT_BASE_FACTOR,
+  new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"])
+);
+
 const loadProviders = async () => {
   // process.env.ANCHOR_WALLET = "../keypairs/pump_test.json";
 
@@ -37,6 +53,22 @@ const loadProviders = async () => {
     "./",
     [],
     [
+      // DLMM Program
+      {
+        address: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        info: await loadProgram(getBinFilePath("dlmm.so")),
+      },
+      // preset_parameter account
+      {
+        address: presetParamPda,
+        info: {
+          lamports: INITIAL_SOL,
+          executable: false,
+          data: readFileSync(getBinFilePath("preset_parameter.bin")),
+          owner: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        },
+      },
+      // Funding test keypairs
       {
         address: master.publicKey,
         info: {
@@ -76,6 +108,21 @@ const loadProviders = async () => {
     ]
   );
   bankrunProvider = new BankrunProvider(bankrunContext);
+};
+
+function getBinFilePath(programBinary: string) {
+  return path.join(PROGRAM_BIN_DIR, programBinary);
+}
+
+export const loadProgram = async (binPath: string) => {
+  const programBytes = readFileSync(binPath);
+  const executableAccount = {
+    lamports: INITIAL_SOL,
+    executable: true,
+    owner: new PublicKey("BPFLoader2111111111111111111111111111111111"),
+    data: programBytes,
+  };
+  return executableAccount;
 };
 
 async function getLatestBlockhash() {
@@ -180,7 +227,7 @@ async function createMint(
 describe("maiker-contracts", () => {
   let xMint: PublicKey;
   let yMint: PublicKey;
-  // let lbPair: PublicKey;
+  let lbPairPubkey: PublicKey;
 
   before(async () => {
     await loadProviders();
@@ -204,8 +251,8 @@ describe("maiker-contracts", () => {
     const mintXToUserIx = createMintToInstruction(xMint, xUser.ataPubKey, creator.publicKey, 1000000000);
     const mintYToUserIx = createMintToInstruction(yMint, yUser.ataPubKey, creator.publicKey, 1000000000);
 
-    const blockhash = await getLatestBlockhash();
-    const builtTx = await simulateAndGetTxWithCUs({
+    let blockhash = await getLatestBlockhash();
+    let builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: creator.publicKey,
       lookupTableAccounts: [],
@@ -216,6 +263,43 @@ describe("maiker-contracts", () => {
     await processTransaction(builtTx.tx);
 
     // Create DLMM LbPair
+    [lbPairPubkey] = deriveLbPair2(
+      xMint,
+      yMint,
+      DEFAULT_BIN_STEP,
+      DEFAULT_BASE_FACTOR,
+      new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"])
+    );
+
+    // console.log("lbPairPubkey: ", lbPairPubkey.toBase58());
+    // console.log("presetParamPda: ", presetParamPda.toBase58());
+
+    const tx = await DLMM.createLbPair(
+      bankrunProvider.connection,
+      master.publicKey,
+      xMint,
+      yMint,
+      new BN(DEFAULT_BIN_STEP),
+      new BN(DEFAULT_BASE_FACTOR),
+      presetParamPda,
+      DEFAULT_ACTIVE_ID,
+      {
+        programId: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+      }
+    )
+
+    tx.feePayer = master.publicKey;
+    tx.recentBlockhash = blockhash[0];
+    tx.sign(master);
+
+    // Normal localhost impl not working because dlmm-sdk gives us legacy Transaction object
+    await bankrunProvider.context.banksClient.processTransaction(tx);
+
+    // Not possible with bankrun because of restricted bankrun connection spec
+    // const dlmm = await DLMM.create(bankrunProvider.connection, lbPairPubkey);
+
+    const dlmmAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
+    console.log("dlmmAcc: ", dlmmAcc);
   });
 
   // // Configure the client to use the local cluster.
@@ -224,16 +308,16 @@ describe("maiker-contracts", () => {
 
   const globalConfig = PublicKey.findProgramAddressSync(
     [Buffer.from("global-config")],
-    PROGRAM_ID
+    maikerProgramId.PROGRAM_ID
   )[0];
 
   const strategy = PublicKey.findProgramAddressSync(
     [Buffer.from("strategy-config"), Buffer.from(creator.publicKey.toBuffer())],
-    PROGRAM_ID
+    maikerProgramId.PROGRAM_ID
   )[0];
 
   test("Is initialized!", async () => {
-    const initializeIx = initialize(
+    const initializeIx = maikerInstructions.initialize(
       {
         globalConfigArgs: {
           performanceFeeBps: 2000,
@@ -262,7 +346,7 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
-    const globalConfigAcc = await GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    const globalConfigAcc = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
     console.log("globalConfig: ", globalConfigAcc);
   });
 
@@ -279,7 +363,7 @@ describe("maiker-contracts", () => {
     xVault.ix && preIxs.push(xVault.ix);
     yVault.ix && preIxs.push(yVault.ix);
 
-    const createStrategyIx = createStrategy(
+    const createStrategyIx = maikerInstructions.createStrategy(
       {
         creator: creator.publicKey,
         xMint: xMint,
@@ -304,7 +388,7 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
-    const strategyAcc = await StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
     console.log("strategy: ", strategyAcc);
   });
 
@@ -313,7 +397,7 @@ describe("maiker-contracts", () => {
 
     const userPosition = PublicKey.findProgramAddressSync(
       [Buffer.from("user-position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
-      PROGRAM_ID
+      maikerProgramId.PROGRAM_ID
     )[0];
 
     const preIxs = [];
@@ -326,7 +410,7 @@ describe("maiker-contracts", () => {
     // Vaults
     const xVault = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true);
 
-    const depositIx = deposit(
+    const depositIx = maikerInstructions.deposit(
       {
         amount: new BN(x_amount),
       },
@@ -353,10 +437,10 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
-    const strategyAcc = await StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
     assert(Number(strategyAcc.strategyShares) === x_amount, `strategyShares: ${strategyAcc.strategyShares} !== ${x_amount}`);
 
-    const userPositionAcc = await UserPosition.fetch(bankrunProvider.connection, userPosition);
+    const userPositionAcc = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
     assert(Number(userPositionAcc.strategyShare) === x_amount, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== ${x_amount}`);
     assert(Number(userPositionAcc.lastShareValue) === SHARE_PRECISION, `userPositionAcc.lastShareValue: ${userPositionAcc.lastShareValue} !== ${SHARE_PRECISION}`);
   });
@@ -366,12 +450,12 @@ describe("maiker-contracts", () => {
 
     const userPosition = PublicKey.findProgramAddressSync(
       [Buffer.from("user-position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
-      PROGRAM_ID
+      maikerProgramId.PROGRAM_ID
     )[0];
 
     const pendingWithdrawal = PublicKey.findProgramAddressSync(
       [Buffer.from("pending-withdrawal"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
-      PROGRAM_ID
+      maikerProgramId.PROGRAM_ID
     )[0];
 
     const [xVault, yVault] = await Promise.all([
@@ -380,7 +464,7 @@ describe("maiker-contracts", () => {
     ]);
 
     // Initiate withdrawal
-    const withdrawIx = initiateWithdrawal(
+    const withdrawIx = maikerInstructions.initiateWithdrawal(
       {
         sharesAmount: new BN(sharesAmount),
       },
@@ -406,10 +490,10 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
-    const userPositionAcc = await UserPosition.fetch(bankrunProvider.connection, userPosition);
-    const pendingWithdrawalAcc = await PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
-    const strategyAcc = await StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    const globalConfigAcc = await GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    const userPositionAcc = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
+    const pendingWithdrawalAcc = await maiker.PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
+    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    const globalConfigAcc = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
 
     // console.log("Initiation timestamp: ", new Date(Number(pendingWithdrawalAcc.initiationTimestamp) * 1000).toISOString());
     // console.log("Available timestamp: ", new Date(Number(pendingWithdrawalAcc.availableTimestamp) * 1000).toISOString());
@@ -426,7 +510,7 @@ describe("maiker-contracts", () => {
     // Try claim withdrawal prematurely
     const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
 
-    let claimIx = processWithdrawal(
+    let claimIx = maikerInstructions.processWithdrawal(
       {
         user: user.publicKey,
         strategy: strategy,
@@ -474,10 +558,18 @@ describe("maiker-contracts", () => {
     await processTransaction(builtTx.tx);
 
     try {
-      await PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
+      await maiker.PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
       assert(false, "Should have failed");
     } catch (e) {
       console.log("Failed successfully");
     }
   });
+
+  test("Add Position", async () => {
+    const position = PublicKey.findProgramAddressSync(
+      [Buffer.from("position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
+      maikerProgramId.PROGRAM_ID
+    )[0];
+
+  })
 });
