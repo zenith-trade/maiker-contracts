@@ -3,6 +3,7 @@
         "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
         "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
         "generate:idls": "node ./configs/shank.cjs",
+        "generate:clients:codama": "node ./configs/codama.cjs",
         "generate:maiker": "anchor-client-gen target/idl/maiker_contracts.json clients/js/src/generated-maiker --program-id 27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx",
         "generate:dlmm": "anchor-client-gen idls/dlmm.json clients/js/src/generated-dlmm --program-id LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
         "programs:dump": "./configs/programs/dump.sh"
@@ -19,6 +20,7 @@
         "@types/chai": "^4.3.0",
         "@types/mocha": "^9.0.0",
         "chai": "^4.3.4",
+        "codama": "^1.2.8",
         "mocha": "^9.0.3",
         "prettier": "^2.6.2",
         "ts-mocha": "^10.0.0",

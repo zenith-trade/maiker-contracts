@@ -16,6 +16,7 @@ import { BinAndAmount, binIdToBinArrayIndex, deriveBinArray, deriveBinArrayBitma
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { readFileSync } from "fs";
 import path from "path";
+import { getAddLiquidityInstruction } from "../clients-codama/js/src";
 
 const PROGRAM_BIN_DIR = path.join(__dirname, "..", ".programsBin");
 
@@ -586,8 +587,14 @@ describe("maiker-contracts", () => {
       maikerProgramId.PROGRAM_ID
     )[0];
 
-    const lowerBinId = lbPairAcc.activeId - 35; // Put liquidity equal around active bin
-    const upperBinId = lowerBinId + 70;
+    const activeBin = lbPairAcc.activeId
+    const lowerBinId = activeBin - Number(MAX_BIN_ARRAY_SIZE) / 2; // Put liquidity equal around active bin
+    const upperBinId = lowerBinId + Number(MAX_BIN_ARRAY_SIZE);
+
+    console.log("activeBin: ", activeBin);
+    console.log("lowerBinId: ", lowerBinId);
+    console.log("upperBinId: ", upperBinId);
+
     // Initialize position Ix
     const initPositionIx = maikerInstructions.initializePosition(
       {
@@ -632,12 +639,24 @@ describe("maiker-contracts", () => {
       isOverflowDefaultBinArrayBitmap(minBinArrayIndex) ||
       isOverflowDefaultBinArrayBitmap(maxBinArrayIndex);
 
+    console.log("Use extension: ", useExtension);
+
     const binArrayBitmapExtension = useExtension
       ? deriveBinArrayBitmapExtension(lbPairPubkey, dlmmProgramId.PROGRAM_ID)[0]
       : null;
 
-    // @0xyaya here you would calculate the desired distribution
+    console.log("binArrayBitmapExtension: ", binArrayBitmapExtension);
+
+    // @0xyaya here you would calculate the desired distribution. Right now equal distribution (spot).
     const xYAmountDistribution: BinAndAmount[] = [];
+    for (let i = Number(lowerBinId); i <= Number(upperBinId); i += 1) {
+      xYAmountDistribution.push({
+        binId: i,
+        xAmountBpsOfTotal: i <= activeBin ? new BN(0) : new BN(Math.round(10000 / Number(MAX_BIN_ARRAY_SIZE) / 2)),
+        yAmountBpsOfTotal: i <= activeBin ? new BN(Math.round(10000 / Number(MAX_BIN_ARRAY_SIZE) / 2)) : new BN(0),
+      });
+    }
+    console.log("xYAmountDistribution: ", xYAmountDistribution);
 
     const binLiquidityDist =
       toWeightDistribution(
@@ -663,7 +682,7 @@ describe("maiker-contracts", () => {
       maxActiveBinSlippage: 0,
     };
 
-    const add_liquidity_ix = maikerInstructions.addLiquidity(
+    const addLiquidityIx = maikerInstructions.addLiquidity(
       {
         liquidityParameter: liquidityParams,
       },
@@ -695,7 +714,7 @@ describe("maiker-contracts", () => {
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [initPositionIx, add_liquidity_ix],
+      ixs: [initPositionIx, addLiquidityIx],
       recentBlockhash: blockhash[0],
     })
 
