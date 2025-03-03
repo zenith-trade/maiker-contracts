@@ -1,9 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
-import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
+import { AnchorProvider, BN, Program, utils } from "@coral-xyz/anchor";
 import { MaikerContracts } from "../target/types/maiker_contracts";
 import { before, describe, test } from "node:test";
 import assert from "assert";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, Transaction, sendAndConfirmTransaction, TransactionInstruction } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, SYSVAR_RENT_PUBKEY, Transaction, sendAndConfirmTransaction, TransactionInstruction } from "@solana/web3.js";
 import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
@@ -16,7 +16,6 @@ import { BinAndAmount, binIdToBinArrayIndex, deriveBinArray, deriveBinArrayBitma
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { readFileSync } from "fs";
 import path from "path";
-import { getAddLiquidityInstruction } from "../clients-codama/js/src";
 
 const PROGRAM_BIN_DIR = path.join(__dirname, "..", ".programsBin");
 
@@ -46,6 +45,11 @@ const [presetParamPda] = derivePresetParameter2(
   DEFAULT_BASE_FACTOR,
   new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"])
 );
+
+const dlmmEventAuthorityPda = PublicKey.findProgramAddressSync(
+  [Buffer.from("__event_authority")],
+  dlmmProgramId.PROGRAM_ID
+)[0];
 
 const loadProviders = async () => {
   // process.env.ANCHOR_WALLET = "../keypairs/pump_test.json";
@@ -314,7 +318,7 @@ describe("maiker-contracts", () => {
   )[0];
 
   const strategy = PublicKey.findProgramAddressSync(
-    [Buffer.from("strategy-config"), Buffer.from(creator.publicKey.toBuffer())],
+    [Buffer.from("strategy-config"), creator.publicKey.toBuffer()],
     maikerProgramId.PROGRAM_ID
   )[0];
 
@@ -398,7 +402,7 @@ describe("maiker-contracts", () => {
     const x_amount = 1000000000;
 
     const userPosition = PublicKey.findProgramAddressSync(
-      [Buffer.from("user-position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
+      [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
       maikerProgramId.PROGRAM_ID
     )[0];
 
@@ -451,12 +455,12 @@ describe("maiker-contracts", () => {
     const sharesAmount = 1000000000;
 
     const userPosition = PublicKey.findProgramAddressSync(
-      [Buffer.from("user-position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
+      [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
       maikerProgramId.PROGRAM_ID
     )[0];
 
     const pendingWithdrawal = PublicKey.findProgramAddressSync(
-      [Buffer.from("pending-withdrawal"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
+      [Buffer.from("pending-withdrawal"), user.publicKey.toBuffer(), strategy.toBuffer()],
       maikerProgramId.PROGRAM_ID
     )[0];
 
@@ -582,11 +586,6 @@ describe("maiker-contracts", () => {
     const totalXAmount = new BN(1000000000);
     const totalYAmount = new BN(1000000000);
 
-    const position = PublicKey.findProgramAddressSync(
-      [Buffer.from("position"), Buffer.from(user.publicKey.toBuffer()), Buffer.from(strategy.toBuffer())],
-      maikerProgramId.PROGRAM_ID
-    )[0];
-
     const activeBin = lbPairAcc.activeId
     const lowerBinId = activeBin - Number(MAX_BIN_ARRAY_SIZE) / 2; // Put liquidity equal around active bin
     const upperBinId = lowerBinId + Number(MAX_BIN_ARRAY_SIZE);
@@ -596,21 +595,24 @@ describe("maiker-contracts", () => {
     console.log("upperBinId: ", upperBinId);
 
     // Initialize position Ix
+    const newPosition = Keypair.generate();
+    console.log("New Position Pubkey: ", newPosition.publicKey.toBase58());
+
     const initPositionIx = maikerInstructions.initializePosition(
       {
         lowerBinId: lowerBinId,
         width: Number(MAX_BIN_ARRAY_SIZE), // 70
       },
       {
-        authority: admin.publicKey, // Admin to do rebalancing
+        authority: master.publicKey, // Admin to do rebalancing
         globalConfig: globalConfig,
         strategy: strategy,
-        position: position,
+        position: newPosition.publicKey,
         lbPair: lbPairPubkey,
         lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-        eventAuthority: user.publicKey,
+        eventAuthority: dlmmEventAuthorityPda,
         systemProgram: SystemProgram.programId,
-        rent: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY
       }
     )
 
@@ -632,6 +634,13 @@ describe("maiker-contracts", () => {
       dlmmProgramId.PROGRAM_ID
     );
 
+    // TODO: Check if binArrays need to be initialized
+    // const binArrayLowerAcc = await dlmm.binArray.fetch(bankrunProvider.connection, binArrayLower);
+    // const binArrayUpperAcc = await dlmm.binArray.fetch(bankrunProvider.connection, binArrayUpper);
+
+    // console.log("binArrayLowerAcc: ", binArrayLowerAcc);
+    // console.log("binArrayUpperAcc: ", binArrayUpperAcc);
+
     const minBinArrayIndex = binIdToBinArrayIndex(new BN(lowerBinId));
     const maxBinArrayIndex = binIdToBinArrayIndex(new BN(upperBinId));
 
@@ -639,13 +648,13 @@ describe("maiker-contracts", () => {
       isOverflowDefaultBinArrayBitmap(minBinArrayIndex) ||
       isOverflowDefaultBinArrayBitmap(maxBinArrayIndex);
 
-    console.log("Use extension: ", useExtension);
+    // console.log("Use extension: ", useExtension);
 
     const binArrayBitmapExtension = useExtension
       ? deriveBinArrayBitmapExtension(lbPairPubkey, dlmmProgramId.PROGRAM_ID)[0]
       : null;
 
-    console.log("binArrayBitmapExtension: ", binArrayBitmapExtension);
+    // console.log("binArrayBitmapExtension: ", binArrayBitmapExtension);
 
     // @0xyaya here you would calculate the desired distribution. Right now equal distribution (spot).
     const xYAmountDistribution: BinAndAmount[] = [];
@@ -656,7 +665,7 @@ describe("maiker-contracts", () => {
         yAmountBpsOfTotal: i <= activeBin ? new BN(Math.round(10000 / Number(MAX_BIN_ARRAY_SIZE) / 2)) : new BN(0),
       });
     }
-    console.log("xYAmountDistribution: ", xYAmountDistribution);
+    // console.log("xYAmountDistribution: ", xYAmountDistribution);
 
     const binLiquidityDist =
       toWeightDistribution(
@@ -682,31 +691,31 @@ describe("maiker-contracts", () => {
       maxActiveBinSlippage: 0,
     };
 
-    const addLiquidityIx = maikerInstructions.addLiquidity(
-      {
-        liquidityParameter: liquidityParams,
-      },
-      {
-        position: position,
-        authority: admin.publicKey,
-        globalConfig: globalConfig,
-        strategy: strategy,
-        lbPair: lbPairPubkey,
-        tokenXMint: xMint,
-        tokenYMint: yMint,
-        strategyVaultX: xVault.ataPubKey,
-        strategyVaultY: yVault.ataPubKey,
-        reserveX: lbPairAcc.reserveX,
-        reserveY: lbPairAcc.reserveY,
-        binArrayLower: binArrayLower,
-        binArrayUpper: binArrayUpper,
-        binArrayBitmapExtension: binArrayBitmapExtension,
-        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-        eventAuthority: user.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      }
-    )
+    // const addLiquidityIx = maikerInstructions.addLiquidity(
+    //   {
+    //     liquidityParameter: liquidityParams,
+    //   },
+    //   {
+    //     position: newPosition.publicKey,
+    //     authority: master.publicKey,
+    //     globalConfig: globalConfig,
+    //     strategy: strategy,
+    //     lbPair: lbPairPubkey,
+    //     tokenXMint: xMint,
+    //     tokenYMint: yMint,
+    //     strategyVaultX: xVault.ataPubKey,
+    //     strategyVaultY: yVault.ataPubKey,
+    //     reserveX: lbPairAcc.reserveX,
+    //     reserveY: lbPairAcc.reserveY,
+    //     binArrayLower: binArrayLower,
+    //     binArrayUpper: binArrayUpper,
+    //     binArrayBitmapExtension: binArrayBitmapExtension || maikerProgramId.PROGRAM_ID, // Optional accounts have to be replaced with the program ID
+    //     lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+    //     eventAuthority: dlmmEventAuthorityPda,
+    //     tokenProgram: TOKEN_PROGRAM_ID,
+    //     systemProgram: SystemProgram.programId,
+    //   }
+    // )
 
     // Build tx
     const blockhash = await getLatestBlockhash();
@@ -714,12 +723,18 @@ describe("maiker-contracts", () => {
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [initPositionIx, addLiquidityIx],
+      ixs: [initPositionIx],
       recentBlockhash: blockhash[0],
     })
 
+    // Need to sign the tx with the new position
+    builtTx.tx.sign([newPosition]);
     await processTransaction(builtTx.tx);
 
     // Assert
+    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+
+    assert(strategyAcc.positionCount === 1, `strategyAcc.positionCount: ${strategyAcc.positionCount} !== 1`);
+    assert(strategyAcc.positions[0].toBase58() === newPosition.publicKey.toBase58(), `strategyAcc.positions[0]: ${strategyAcc.positions[0].toString()} !== ${newPosition.publicKey.toString()}`);
   })
 });

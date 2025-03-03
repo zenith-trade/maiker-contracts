@@ -33,10 +33,10 @@ export function initializePosition(
   programId: PublicKey = PROGRAM_ID
 ) {
   const keys: Array<AccountMeta> = [
-    { pubkey: accounts.authority, isSigner: true, isWritable: false },
+    { pubkey: accounts.authority, isSigner: true, isWritable: true },
     { pubkey: accounts.globalConfig, isSigner: false, isWritable: false },
     { pubkey: accounts.strategy, isSigner: false, isWritable: true },
-    { pubkey: accounts.position, isSigner: false, isWritable: true },
+    { pubkey: accounts.position, isSigner: true, isWritable: true },
     { pubkey: accounts.lbPair, isSigner: false, isWritable: false },
     { pubkey: accounts.lbClmmProgram, isSigner: false, isWritable: false },
     { pubkey: accounts.eventAuthority, isSigner: false, isWritable: false },

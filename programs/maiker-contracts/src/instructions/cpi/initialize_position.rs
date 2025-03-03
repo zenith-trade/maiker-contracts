@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 #[derive(Accounts)]
 pub struct InitializePosition<'info> {
     #[account(
+        mut,
         constraint = authority.key() == global_config.admin
     )]
     pub authority: Signer<'info>,
@@ -21,7 +22,7 @@ pub struct InitializePosition<'info> {
     // CPI accounts below
     /// CHECK: This is the position account that will be initialized
     #[account(mut)]
-    pub position: UncheckedAccount<'info>,
+    pub position: Signer<'info>,
 
     /// CHECK: This is the LB pair account
     pub lb_pair: UncheckedAccount<'info>,
@@ -30,7 +31,7 @@ pub struct InitializePosition<'info> {
     #[account(address = lb_clmm::ID)]
     pub lb_clmm_program: Program<'info, lb_clmm::program::LbClmm>,
 
-    /// CHECK: Event authority for lb_clmm
+    /// CHECK: This is the event authority for lb_clmm
     pub event_authority: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
