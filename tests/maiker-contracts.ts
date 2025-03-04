@@ -8,7 +8,7 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
@@ -616,37 +616,47 @@ describe("maiker-contracts", () => {
       }
     )
 
+    // Build tx
+    let blockhash = await getLatestBlockhash();
+    let builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [initPositionIx],
+      recentBlockhash: blockhash[0],
+    })
+
+    // Need to sign the tx with the new position
+    builtTx.tx.sign([newPosition]);
+    await processTransaction(builtTx.tx);
+
+    // Assert
+    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+
+    assert(strategyAcc.positionCount === 1, `strategyAcc.positionCount: ${strategyAcc.positionCount} !== 1`);
+    assert(strategyAcc.positions[0].toBase58() === newPosition.publicKey.toBase58(), `strategyAcc.positions[0]: ${strategyAcc.positions[0].toString()} !== ${newPosition.publicKey.toString()}`);
+
     // Add liquidity Ix
     const [xVault, yVault] = await Promise.all([
       getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
       getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
     ]);
 
-    const [binArrayLower] = deriveBinArray(
-      lbPairPubkey,
-      new BN(lowerBinId),
-      dlmmProgramId.PROGRAM_ID
-    );
+    const preIxsAddLiquidity = [];
 
-    const [binArrayUpper] = deriveBinArray(
-      lbPairPubkey,
-      new BN(upperBinId),
-      dlmmProgramId.PROGRAM_ID
-    );
+    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(lowerBinId));
+    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(upperBinId));
 
-    // TODO: Check if binArrays need to be initialized
-    // const binArrayLowerAcc = await dlmm.binArray.fetch(bankrunProvider.connection, binArrayLower);
-    // const binArrayUpperAcc = await dlmm.binArray.fetch(bankrunProvider.connection, binArrayUpper);
+    // Check if binArrays need to be initialized
+    const { instructions, lowerBinArray, upperBinArray } = await getOrCreateBinArraysInstructions(bankrunProvider.connection, lbPairPubkey, new BN(lowerBinArrayIndex), new BN(upperBinArrayIndex), master.publicKey);
+    instructions.length > 0 && preIxsAddLiquidity.push(...instructions);
 
-    // console.log("binArrayLowerAcc: ", binArrayLowerAcc);
-    // console.log("binArrayUpperAcc: ", binArrayUpperAcc);
+    // console.log("binArray Lower: ", lowerBinArray.toBase58(), "binArray Upper: ", upperBinArray.toBase58());
 
-    const minBinArrayIndex = binIdToBinArrayIndex(new BN(lowerBinId));
-    const maxBinArrayIndex = binIdToBinArrayIndex(new BN(upperBinId));
-
+    // Check if extension is required
     const useExtension =
-      isOverflowDefaultBinArrayBitmap(minBinArrayIndex) ||
-      isOverflowDefaultBinArrayBitmap(maxBinArrayIndex);
+      isOverflowDefaultBinArrayBitmap(lowerBinArrayIndex) ||
+      isOverflowDefaultBinArrayBitmap(upperBinArrayIndex);
 
     // console.log("Use extension: ", useExtension);
 
@@ -658,7 +668,7 @@ describe("maiker-contracts", () => {
 
     // @0xyaya here you would calculate the desired distribution. Right now equal distribution (spot).
     const xYAmountDistribution: BinAndAmount[] = [];
-    for (let i = Number(lowerBinId); i <= Number(upperBinId); i += 1) {
+    for (let i = Number(lowerBinId); i < Number(upperBinId); i += 1) {
       xYAmountDistribution.push({
         binId: i,
         xAmountBpsOfTotal: i <= activeBin ? new BN(0) : new BN(Math.round(10000 / Number(MAX_BIN_ARRAY_SIZE) / 2)),
@@ -683,6 +693,8 @@ describe("maiker-contracts", () => {
       throw new Error("No liquidity to add");
     }
 
+    console.log("binLiquidityDist Length: ", binLiquidityDist.length);
+
     const liquidityParams = {
       amountX: new BN(1000000000),
       amountY: new BN(1000000000),
@@ -691,50 +703,44 @@ describe("maiker-contracts", () => {
       maxActiveBinSlippage: 0,
     };
 
-    // const addLiquidityIx = maikerInstructions.addLiquidity(
-    //   {
-    //     liquidityParameter: liquidityParams,
-    //   },
-    //   {
-    //     position: newPosition.publicKey,
-    //     authority: master.publicKey,
-    //     globalConfig: globalConfig,
-    //     strategy: strategy,
-    //     lbPair: lbPairPubkey,
-    //     tokenXMint: xMint,
-    //     tokenYMint: yMint,
-    //     strategyVaultX: xVault.ataPubKey,
-    //     strategyVaultY: yVault.ataPubKey,
-    //     reserveX: lbPairAcc.reserveX,
-    //     reserveY: lbPairAcc.reserveY,
-    //     binArrayLower: binArrayLower,
-    //     binArrayUpper: binArrayUpper,
-    //     binArrayBitmapExtension: binArrayBitmapExtension || maikerProgramId.PROGRAM_ID, // Optional accounts have to be replaced with the program ID
-    //     lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-    //     eventAuthority: dlmmEventAuthorityPda,
-    //     tokenProgram: TOKEN_PROGRAM_ID,
-    //     systemProgram: SystemProgram.programId,
-    //   }
-    // )
+    const addLiquidityIx = maikerInstructions.addLiquidity(
+      {
+        liquidityParameter: liquidityParams,
+      },
+      {
+        position: newPosition.publicKey,
+        authority: master.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        lbPair: lbPairPubkey,
+        tokenXMint: xMint,
+        tokenYMint: yMint,
+        strategyVaultX: xVault.ataPubKey,
+        strategyVaultY: yVault.ataPubKey,
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        binArrayLower: lowerBinArray,
+        binArrayUpper: upperBinArray,
+        binArrayBitmapExtension: binArrayBitmapExtension || maikerProgramId.PROGRAM_ID, // Optional accounts have to be replaced with the program ID
+        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        eventAuthority: dlmmEventAuthorityPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }
+    )
 
     // Build tx
-    const blockhash = await getLatestBlockhash();
-    const builtTx = await simulateAndGetTxWithCUs({
+    blockhash = await getLatestBlockhash();
+    builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [initPositionIx],
+      ixs: [...preIxsAddLiquidity, addLiquidityIx],
       recentBlockhash: blockhash[0],
     })
 
-    // Need to sign the tx with the new position
-    builtTx.tx.sign([newPosition]);
     await processTransaction(builtTx.tx);
 
     // Assert
-    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-
-    assert(strategyAcc.positionCount === 1, `strategyAcc.positionCount: ${strategyAcc.positionCount} !== 1`);
-    assert(strategyAcc.positions[0].toBase58() === newPosition.publicKey.toBase58(), `strategyAcc.positions[0]: ${strategyAcc.positions[0].toString()} !== ${newPosition.publicKey.toString()}`);
   })
 });

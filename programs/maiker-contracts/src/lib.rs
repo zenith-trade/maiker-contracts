@@ -89,4 +89,13 @@ pub mod maiker_contracts {
     ) -> Result<()> {
         instructions::initialize_position_handler(ctx, lower_bin_id, width)
     }
+
+    pub fn swap_exact_in(
+        ctx: Context<Swap>,
+        amount_in: u64,
+        min_amount_out: u64,
+        x_to_y: bool,
+    ) -> Result<()> {
+        instructions::swap_exact_in_handler(ctx, amount_in, min_amount_out, x_to_y)
+    }
 }

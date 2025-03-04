@@ -10,5 +10,5 @@ export * as dlmmInstructions from "./generated-dlmm/instructions";
 export * as dlmmTypes from "./generated-dlmm/types";
 export * as dlmmProgramId from "./generated-dlmm/programId";
 
-export * from "./utils/buildTxAndCheckCu";
+export * from "./utils";
 export * from "./constants";

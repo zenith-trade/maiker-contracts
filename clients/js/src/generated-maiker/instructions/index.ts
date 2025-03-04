@@ -33,3 +33,5 @@ export type {
   InitializePositionArgs,
   InitializePositionAccounts,
 } from "./initializePosition"
+export { swapExactIn } from "./swapExactIn"
+export type { SwapExactInArgs, SwapExactInAccounts } from "./swapExactIn"

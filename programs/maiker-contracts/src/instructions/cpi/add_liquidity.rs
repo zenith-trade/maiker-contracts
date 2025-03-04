@@ -138,6 +138,9 @@ pub fn add_liquidity_handler(
 ) -> Result<()> {
     // TODO: Validation Lb Pair and Strategy token accounts
 
+    let strategy_signer = ctx.accounts.strategy.get_pda_signer();
+    let strategy_signer_seeds = &[&strategy_signer[..]];
+
     let accounts = lb_clmm::cpi::accounts::ModifyLiquidity {
         lb_pair: ctx.accounts.lb_pair.to_account_info(),
         position: ctx.accounts.position.to_account_info(),
@@ -148,7 +151,7 @@ pub fn add_liquidity_handler(
             .bin_array_bitmap_extension
             .as_ref()
             .map(|account| account.to_account_info()),
-        sender: ctx.accounts.authority.to_account_info(),
+        sender: ctx.accounts.strategy.to_account_info(),
         user_token_x: ctx.accounts.strategy_vault_x.to_account_info(),
         user_token_y: ctx.accounts.strategy_vault_y.to_account_info(),
         reserve_x: ctx.accounts.reserve_x.to_account_info(),
@@ -161,7 +164,11 @@ pub fn add_liquidity_handler(
         program: ctx.accounts.lb_clmm_program.to_account_info(),
     };
 
-    let cpi_ctx = CpiContext::new(ctx.accounts.lb_clmm_program.to_account_info(), accounts);
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.lb_clmm_program.to_account_info(),
+        accounts,
+        strategy_signer_seeds,
+    );
 
     lb_clmm::cpi::add_liquidity_by_weight(cpi_ctx, liquidity_parameter.into())?;
 
