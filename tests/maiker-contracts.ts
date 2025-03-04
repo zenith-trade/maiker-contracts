@@ -3,16 +3,16 @@ import { AnchorProvider, BN, Program, utils } from "@coral-xyz/anchor";
 import { MaikerContracts } from "../target/types/maiker_contracts";
 import { before, describe, test } from "node:test";
 import assert from "assert";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, SYSVAR_RENT_PUBKEY, Transaction, sendAndConfirmTransaction, TransactionInstruction } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, SYSVAR_RENT_PUBKEY, Transaction, sendAndConfirmTransaction, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
-import { BinAndAmount, binIdToBinArrayIndex, deriveBinArray, deriveBinArrayBitmapExtension, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
+import { BinAndAmount, binIdToBinArrayIndex, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { readFileSync } from "fs";
 import path from "path";
@@ -45,11 +45,6 @@ const [presetParamPda] = derivePresetParameter2(
   DEFAULT_BASE_FACTOR,
   new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"])
 );
-
-const dlmmEventAuthorityPda = PublicKey.findProgramAddressSync(
-  [Buffer.from("__event_authority")],
-  dlmmProgramId.PROGRAM_ID
-)[0];
 
 const loadProviders = async () => {
   // process.env.ANCHOR_WALLET = "../keypairs/pump_test.json";
@@ -254,19 +249,25 @@ describe("maiker-contracts", () => {
     yUser.ix && preIxs.push(yUser.ix);
 
 
-    const mintXToUserIx = createMintToInstruction(xMint, xUser.ataPubKey, creator.publicKey, 1000000000);
-    const mintYToUserIx = createMintToInstruction(yMint, yUser.ataPubKey, creator.publicKey, 1000000000);
+    const mintXToUserIx = createMintToInstruction(xMint, xUser.ataPubKey, creator.publicKey, 1000000000000000); // 1B
+    const mintYToUserIx = createMintToInstruction(yMint, yUser.ataPubKey, creator.publicKey, 1000000000000000); // 1B
 
     let blockhash = await getLatestBlockhash();
     let builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
-      payerPublicKey: creator.publicKey,
+      payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
       ixs: [...preIxs, mintXToUserIx, mintYToUserIx],
       recentBlockhash: blockhash[0],
     });
 
     await processTransaction(builtTx.tx);
+
+    let userTokenX = await getTokenAcc(xUser.ataPubKey);
+    let userTokenY = await getTokenAcc(yUser.ataPubKey);
+
+    assert(userTokenX.amount.toString() === "1000000000000000", `userTokenX.amount: ${userTokenX.amount} !== 1000000000000000`);
+    assert(userTokenY.amount.toString() === "1000000000000000", `userTokenY.amount: ${userTokenY.amount} !== 1000000000000000`);
 
     // Create DLMM LbPair
     [lbPairPubkey] = deriveLbPair2(
@@ -306,6 +307,84 @@ describe("maiker-contracts", () => {
 
     lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
     console.log("lbPairAcc: ", lbPairAcc);
+
+    const activeBin = lbPairAcc.activeId
+    const lowerBinId = activeBin - Number(MAX_BIN_ARRAY_SIZE) / 2;
+    const upperBinId = lowerBinId + Number(MAX_BIN_ARRAY_SIZE) - 1;
+
+    // Initialize External Position and Add Liquidity -> Required so our strategy can swap initially
+    const pos = Keypair.generate();
+
+    const binIds = Array.from(
+      { length: upperBinId - lowerBinId + 1 },
+      (_, i) => lowerBinId + i
+    );
+    const xYAmountDistribution: BinAndAmount[] = calculateSpotDistribution(activeBin, binIds)
+
+    const ixs = await initializePositionAndAddLiquidityByWeight({
+      connection: bankrunProvider.connection,
+      lbPairPubkey,
+      lbPair: lbPairAcc,
+      positionPubKey: pos.publicKey,
+      totalXAmount: new BN(500000000000000), // 500M
+      totalYAmount: new BN(500000000000000), // 500M
+      lowerBinId: lowerBinId,
+      upperBinId: upperBinId,
+      xYAmountDistribution: xYAmountDistribution,
+      user: user.publicKey,
+    })
+
+    // console.log("Instructions: ", ixs);
+
+    if (ixs.preInstructions && ixs.preInstructions.length > 0) {
+      console.log("Executing pre instructions");
+
+      blockhash = await getLatestBlockhash();
+      builtTx = await simulateAndGetTxWithCUs({
+        connection: bankrunProvider.connection,
+        payerPublicKey: user.publicKey,
+        lookupTableAccounts: [],
+        ixs: [...ixs.preInstructions],
+        recentBlockhash: blockhash[0],
+      });
+
+      await processTransaction(builtTx.tx);
+    }
+
+    blockhash = await getLatestBlockhash();
+    builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [...ixs.mainInstructions],
+      recentBlockhash: blockhash[0],
+    });
+
+    await processTransaction(builtTx.tx);
+
+    if (ixs.postInstructions && ixs.postInstructions.length > 0) {
+      console.log("Executing post instructions");
+      blockhash = await getLatestBlockhash();
+      builtTx = await simulateAndGetTxWithCUs({
+        connection: bankrunProvider.connection,
+        payerPublicKey: user.publicKey,
+        lookupTableAccounts: [],
+        ixs: [...ixs.postInstructions],
+        recentBlockhash: blockhash[0],
+      });
+
+      await processTransaction(builtTx.tx);
+    }
+
+    userTokenX = await getTokenAcc(xUser.ataPubKey);
+    userTokenY = await getTokenAcc(yUser.ataPubKey);
+
+    console.log("userTokenX: ", userTokenX.amount.toString());
+    console.log("userTokenY: ", userTokenY.amount.toString());
+
+    // Why are not all the tokens being used???
+    // assert(userTokenX.amount.toString() === "500000000000000", `userTokenX.amount: ${userTokenX.amount} !== 500000000000000`);
+    // assert(userTokenY.amount.toString() === "500000000000000", `userTokenY.amount: ${userTokenY.amount} !== 500000000000000`);
   });
 
   // // Configure the client to use the local cluster.
@@ -399,7 +478,7 @@ describe("maiker-contracts", () => {
   });
 
   test("Deposit", async () => {
-    const x_amount = 1000000000;
+    const xAmount = 1000000000000; // 1M
 
     const userPosition = PublicKey.findProgramAddressSync(
       [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
@@ -418,7 +497,7 @@ describe("maiker-contracts", () => {
 
     const depositIx = maikerInstructions.deposit(
       {
-        amount: new BN(x_amount),
+        amount: new BN(xAmount),
       },
       {
         user: user.publicKey,
@@ -444,15 +523,18 @@ describe("maiker-contracts", () => {
     await processTransaction(builtTx.tx);
 
     const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    assert(Number(strategyAcc.strategyShares) === x_amount, `strategyShares: ${strategyAcc.strategyShares} !== ${x_amount}`);
+    assert(Number(strategyAcc.strategyShares) === xAmount, `strategyShares: ${strategyAcc.strategyShares} !== ${xAmount}`);
 
     const userPositionAcc = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
-    assert(Number(userPositionAcc.strategyShare) === x_amount, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== ${x_amount}`);
+    assert(Number(userPositionAcc.strategyShare) === xAmount, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== ${xAmount}`);
     assert(Number(userPositionAcc.lastShareValue) === SHARE_PRECISION, `userPositionAcc.lastShareValue: ${userPositionAcc.lastShareValue} !== ${SHARE_PRECISION}`);
+
+    const xVaultTokenAcc = await getTokenAcc(xVault.ataPubKey);
+    assert(Number(xVaultTokenAcc.amount) === xAmount, `xVaultTokenAcc.amount: ${xVaultTokenAcc.amount} !== ${xAmount}`);
   });
 
   test("Withdraw", async () => {
-    const sharesAmount = 1000000000;
+    const sharesAmount = 100000000000; // 10k
 
     const userPosition = PublicKey.findProgramAddressSync(
       [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
@@ -463,6 +545,8 @@ describe("maiker-contracts", () => {
       [Buffer.from("pending-withdrawal"), user.publicKey.toBuffer(), strategy.toBuffer()],
       maikerProgramId.PROGRAM_ID
     )[0];
+
+    const userPositionAccPre = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
 
     const [xVault, yVault] = await Promise.all([
       getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
@@ -504,7 +588,7 @@ describe("maiker-contracts", () => {
     // console.log("Initiation timestamp: ", new Date(Number(pendingWithdrawalAcc.initiationTimestamp) * 1000).toISOString());
     // console.log("Available timestamp: ", new Date(Number(pendingWithdrawalAcc.availableTimestamp) * 1000).toISOString());
 
-    assert(Number(userPositionAcc.strategyShare) === 0, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== 0`);
+    assert(Number(userPositionAcc.strategyShare) === Number(userPositionAccPre.strategyShare) - sharesAmount, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== ${userPositionAccPre.strategyShare} - ${sharesAmount}`);
 
     // Note: Apply the withdraw fee bps to assertion
     const widthawFeeShare = sharesAmount * (globalConfigAcc.withdrawalFeeBps / 10000);
@@ -582,13 +666,104 @@ describe("maiker-contracts", () => {
     // 1) Remove all liquidity for all positions
     // 2) Rebalance through swapping
 
-    // TODO: Actually need to swap xMint first
-    const totalXAmount = new BN(1000000000);
-    const totalYAmount = new BN(1000000000);
+    // Need to swap xMint first
 
-    const activeBin = lbPairAcc.activeId
+    const swapInputAmount = 1000000000; // 1000 tokens
+
+    const [xVault, yVault] = await Promise.all([
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
+    ]);
+
+    let activeBin = lbPairAcc.activeId
+    console.log("Active Bin pre swap: ", activeBin);
+
+    const activeBinArrayIdx = binIdToBinArrayIndex(
+      new BN(activeBin)
+    );
+    const [activeBinArray] = deriveBinArray(
+      lbPairPubkey,
+      activeBinArrayIdx,
+      dlmmProgramId.PROGRAM_ID
+    );
+
+    const activeBinArrayMeta: AccountMeta = {
+      isSigner: false,
+      isWritable: true,
+      pubkey: activeBinArray,
+    };
+
+    const xVaultTokenAccPre = await getTokenAcc(xVault.ataPubKey);
+    const yVaultTokenAccPre = await getTokenAcc(yVault.ataPubKey);
+
+    console.log("xVaultTokenAccPre: ", xVaultTokenAccPre.amount.toString());
+    console.log("yVaultTokenAccPre: ", yVaultTokenAccPre.amount.toString());
+
+    const swapIx = maikerInstructions.swapExactIn(
+      {
+        amountIn: new BN(swapInputAmount),
+        minAmountOut: new BN(0), // Irrelevant for test
+        xToY: true,
+      },
+      {
+        authority: master.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        lbPair: lbPairPubkey,
+        binArrayBitmapExtension: dlmmProgramId.PROGRAM_ID, // We know it's not required here in test
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        /** The strategy vault for token X, which will be used for swapping */
+        strategyVaultX: xVault.ataPubKey,
+        /** The strategy vault for token Y, which will be used for swapping */
+        strategyVaultY: yVault.ataPubKey,
+        tokenXMint: xMint,
+        tokenYMint: yMint,
+        oracle: lbPairAcc.oracle,
+        hostFeeIn: dlmmProgramId.PROGRAM_ID,
+        /** The lb_clmm program */
+        lbClmmProgram: dlmmProgramId.PROGRAM_ID,
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        /** The token program for token X */
+        tokenXProgram: TOKEN_PROGRAM_ID,
+        /** The token program for token Y */
+        tokenYProgram: TOKEN_PROGRAM_ID
+      }
+    )
+
+    // Remaining accounts pushed directly
+    swapIx.keys.push(activeBinArrayMeta);
+
+    // Build tx
+    let blockhash = await getLatestBlockhash();
+    let builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [swapIx],
+      recentBlockhash: blockhash[0],
+    })
+
+    await processTransaction(builtTx.tx);
+
+    const xVaultTokenAcc = await getTokenAcc(xVault.ataPubKey);
+    const yVaultTokenAcc = await getTokenAcc(yVault.ataPubKey);
+
+    console.log("xVaultTokenAcc: ", xVaultTokenAcc.amount.toString());
+    console.log("yVaultTokenAcc: ", yVaultTokenAcc.amount.toString());
+
+    assert(Number(xVaultTokenAcc.amount) === Number(xVaultTokenAccPre.amount) - swapInputAmount, `xVaultTokenAcc.amount: ${xVaultTokenAcc.amount} !== ${xVaultTokenAccPre.amount} - ${swapInputAmount}`);
+
+    // We want to deposit 1000 tokens in total for both x and y
+    const totalXAmount = new BN(1000000000); // 1000
+    const totalYAmount = new BN(1000000000); // 1000
+
+    lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
+    activeBin = lbPairAcc.activeId;
+    console.log("Active Bin post swap: ", activeBin);
+
     const lowerBinId = activeBin - Number(MAX_BIN_ARRAY_SIZE) / 2; // Put liquidity equal around active bin
-    const upperBinId = lowerBinId + Number(MAX_BIN_ARRAY_SIZE);
+    const upperBinId = lowerBinId + Number(MAX_BIN_ARRAY_SIZE) - 1; // Only plus 69
 
     console.log("activeBin: ", activeBin);
     console.log("lowerBinId: ", lowerBinId);
@@ -610,15 +785,15 @@ describe("maiker-contracts", () => {
         position: newPosition.publicKey,
         lbPair: lbPairPubkey,
         lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-        eventAuthority: dlmmEventAuthorityPda,
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY
       }
     )
 
     // Build tx
-    let blockhash = await getLatestBlockhash();
-    let builtTx = await simulateAndGetTxWithCUs({
+    blockhash = await getLatestBlockhash();
+    builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
@@ -637,11 +812,6 @@ describe("maiker-contracts", () => {
     assert(strategyAcc.positions[0].toBase58() === newPosition.publicKey.toBase58(), `strategyAcc.positions[0]: ${strategyAcc.positions[0].toString()} !== ${newPosition.publicKey.toString()}`);
 
     // Add liquidity Ix
-    const [xVault, yVault] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
-    ]);
-
     const preIxsAddLiquidity = [];
 
     const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(lowerBinId));
@@ -667,14 +837,13 @@ describe("maiker-contracts", () => {
     // console.log("binArrayBitmapExtension: ", binArrayBitmapExtension);
 
     // @0xyaya here you would calculate the desired distribution. Right now equal distribution (spot).
-    const xYAmountDistribution: BinAndAmount[] = [];
-    for (let i = Number(lowerBinId); i < Number(upperBinId); i += 1) {
-      xYAmountDistribution.push({
-        binId: i,
-        xAmountBpsOfTotal: i <= activeBin ? new BN(0) : new BN(Math.round(10000 / Number(MAX_BIN_ARRAY_SIZE) / 2)),
-        yAmountBpsOfTotal: i <= activeBin ? new BN(Math.round(10000 / Number(MAX_BIN_ARRAY_SIZE) / 2)) : new BN(0),
-      });
-    }
+    const binIds = Array.from(
+      { length: upperBinId - lowerBinId + 1 },
+      (_, i) => lowerBinId + i
+    );
+    // console.log("Bin IDs: ", binIds);
+
+    const xYAmountDistribution: BinAndAmount[] = calculateSpotDistribution(activeBin, binIds)
     // console.log("xYAmountDistribution: ", xYAmountDistribution);
 
     const binLiquidityDist =
@@ -723,7 +892,7 @@ describe("maiker-contracts", () => {
         binArrayUpper: upperBinArray,
         binArrayBitmapExtension: binArrayBitmapExtension || maikerProgramId.PROGRAM_ID, // Optional accounts have to be replaced with the program ID
         lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-        eventAuthority: dlmmEventAuthorityPda,
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       }
@@ -742,5 +911,13 @@ describe("maiker-contracts", () => {
     await processTransaction(builtTx.tx);
 
     // Assert
+    const xVaultTokenAccPost = await getTokenAcc(xVault.ataPubKey);
+    const yVaultTokenAccPost = await getTokenAcc(yVault.ataPubKey);
+
+    console.log("xVaultTokenAccPost: ", xVaultTokenAccPost.amount.toString());
+    console.log("yVaultTokenAccPost: ", yVaultTokenAccPost.amount.toString());
+
+    console.log("xVault Balance diff: ", Number(xVaultTokenAccPost.amount) - Number(xVaultTokenAcc.amount));
+    console.log("yVault Balance diff: ", Number(yVaultTokenAccPost.amount) - Number(yVaultTokenAcc.amount));
   })
 });

@@ -90,8 +90,8 @@ pub mod maiker_contracts {
         instructions::initialize_position_handler(ctx, lower_bin_id, width)
     }
 
-    pub fn swap_exact_in(
-        ctx: Context<Swap>,
+    pub fn swap_exact_in<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
         amount_in: u64,
         min_amount_out: u64,
         x_to_y: bool,

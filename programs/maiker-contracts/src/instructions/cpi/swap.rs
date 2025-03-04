@@ -74,8 +74,8 @@ pub struct Swap<'info> {
 }
 
 /// Handle exact input swap - specifies the exact input amount and a minimum output amount
-pub fn swap_exact_in_handler(
-    ctx: Context<Swap>,
+pub fn swap_exact_in_handler<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
     amount_in: u64,
     min_amount_out: u64,
     x_to_y: bool, // true if swapping from X to Y, false if swapping from Y to X
@@ -129,7 +129,8 @@ pub fn swap_exact_in_handler(
         ctx.accounts.lb_clmm_program.to_account_info(),
         accounts,
         strategy_signer_seeds,
-    );
+    )
+    .with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
     // Call the swap function on the lb_clmm program
     lb_clmm::cpi::swap(cpi_ctx, amount_in, min_amount_out)?;
