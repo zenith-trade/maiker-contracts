@@ -1,7 +1,7 @@
 import { BN } from "@coral-xyz/anchor";
-import { BinAndAmount, binIdToBinArrayIndex, deriveBinArray, deriveBinArrayBitmapExtension, getOrCreateATAInstruction, isOverflowDefaultBinArrayBitmap, MAX_ACTIVE_BIN_SLIPPAGE, MAX_BIN_PER_POSITION, toWeightDistribution, wrapSOLInstruction, unwrapSOLInstruction, LiquidityParameterByWeight, LiquidityOneSideParameter, MAX_BIN_LENGTH_ALLOWED_IN_ONE_TX, getEstimatedComputeUnitIxWithBuffer } from "@meteora-ag/dlmm";
+import { BinAndAmount, binIdToBinArrayIndex, deriveBinArray, deriveBinArrayBitmapExtension, getOrCreateATAInstruction, isOverflowDefaultBinArrayBitmap, MAX_ACTIVE_BIN_SLIPPAGE, MAX_BIN_PER_POSITION, toWeightDistribution, wrapSOLInstruction, unwrapSOLInstruction, LiquidityParameterByWeight, LiquidityOneSideParameter, MAX_BIN_LENGTH_ALLOWED_IN_ONE_TX, getEstimatedComputeUnitIxWithBuffer, LbPosition, chunkedGetMultipleAccountInfos, PositionVersion } from "@meteora-ag/dlmm";
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from "@solana/web3.js";
 import { dlmm, DLMM_EVENT_AUTHORITY_PDA, dlmmInstructions, dlmmProgramId } from "..";
 
 export const DEFAULT_ADD_LIQUIDITY_CU = 800_000;

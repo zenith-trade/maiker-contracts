@@ -12,7 +12,7 @@ import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors,
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
-import { BinAndAmount, binIdToBinArrayIndex, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
+import { BinAndAmount, binIdToBinArrayIndex, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { readFileSync } from "fs";
 import path from "path";
@@ -230,6 +230,8 @@ describe("maiker-contracts", () => {
   let lbPairPubkey: PublicKey;
   let lbPairAcc: dlmm.lbPair;
 
+  let dlmmInstance: DLMM;
+
   before(async () => {
     await loadProviders();
 
@@ -302,11 +304,12 @@ describe("maiker-contracts", () => {
     // Normal localhost impl not working because dlmm-sdk gives us legacy Transaction object
     await bankrunProvider.context.banksClient.processTransaction(tx);
 
-    // Not possible with bankrun because of restricted bankrun connection spec
-    // const dlmm = await DLMM.create(bankrunProvider.connection, lbPairPubkey);
+    // This is made possible because of a change in the dlmm-ts-client to replace getMultipleAccountsInfo with getAccountInfo Promise.all()
+    dlmmInstance = await DLMM.create(bankrunProvider.connection, lbPairPubkey);
+    lbPairAcc = dlmmInstance.lbPair as dlmm.lbPair;
 
-    lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
-    console.log("lbPairAcc: ", lbPairAcc);
+    // lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
+    // console.log("lbPairAcc: ", lbPairAcc);
 
     const activeBin = lbPairAcc.activeId
     const lowerBinId = activeBin - Number(MAX_BIN_ARRAY_SIZE) / 2;
@@ -919,5 +922,58 @@ describe("maiker-contracts", () => {
 
     console.log("xVault Balance diff: ", Number(xVaultTokenAccPost.amount) - Number(xVaultTokenAcc.amount));
     console.log("yVault Balance diff: ", Number(yVaultTokenAccPost.amount) - Number(yVaultTokenAcc.amount));
+  })
+
+  test("Get Position Value", async () => {
+    lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
+    const activeBin = lbPairAcc.activeId;
+
+    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    const position = strategyAcc.positions[0];
+
+    const price = getPriceOfBinByBinId(activeBin, lbPairAcc.binStep);
+    console.log("price: ", price);
+
+    await dlmmInstance.refetchStates();
+    const positionInfo = await dlmmInstance.getPosition(position);
+    console.log("positionInfo: ", positionInfo);
+
+    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.lowerBinId));
+    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.upperBinId));
+
+    const { lowerBinArray, upperBinArray } = await getOrCreateBinArraysInstructions(bankrunProvider.connection, lbPairPubkey, new BN(lowerBinArrayIndex), new BN(upperBinArrayIndex), master.publicKey);
+
+    const getPositionValueIx = maikerInstructions.getPositionValue(
+      {
+        position: position,
+        strategy: strategy,
+        lbPair: lbPairPubkey,
+        binArrayLower: lowerBinArray,
+        binArrayUpper: upperBinArray,
+        user: user.publicKey,
+      }
+    )
+
+    // Build tx
+    const blockhash = await getLatestBlockhash();
+    const builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [getPositionValueIx],
+      recentBlockhash: blockhash[0],
+    })
+
+    await processTransaction(builtTx.tx);
+
+    const strategyAccPost = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    // console.log("strategyAccPost: ", strategyAccPost.positionsValues[0].toString());
+
+    const positionValue = Math.round(Number(positionInfo.positionData.totalXAmount) + Number(positionInfo.positionData.totalYAmount) * price.toNumber());
+    // console.log("positionValue: ", positionValue);
+
+    const positionValueDiff = Math.abs(Number(strategyAccPost.positionsValues[0]) - positionValue);
+    const allowedDiff = positionValue * 0.0001; // 0.01% tolerance
+    assert(positionValueDiff <= allowedDiff, `Position value difference ${positionValueDiff} exceeds 0.01% tolerance of ${allowedDiff}. Expected ~${positionValue}, got ${strategyAccPost.positionsValues[0].toString()}`);
   })
 });

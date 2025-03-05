@@ -168,6 +168,8 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
         total_value = total_token_x
             .checked_add(token_y_in_x)
             .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        msg!("Total value in terms of token X: {}", total_value);
     } else {
         // Strategy's mint_x matches lb_pair's token_y_mint
         // Calculate value in terms of token Y
@@ -182,6 +184,8 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
         total_value = total_token_y
             .checked_add(token_x_in_y)
             .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        msg!("Total value in terms of token Y: {}", total_value);
     }
 
     // Update strategy config with position value

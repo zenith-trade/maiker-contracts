@@ -193,6 +193,7 @@ export const unwrapSOLInstruction = async (
   return null;
 };
 
+// IMPORTANT: Had to rewrite this function for testing because bankrun doesn't implement getMultipleAccountsInfo
 export async function chunkedGetMultipleAccountInfos(
   connection: Connection,
   pks: PublicKey[],
@@ -201,7 +202,13 @@ export async function chunkedGetMultipleAccountInfos(
   const accountInfos = (
     await Promise.all(
       chunks(pks, chunkSize).map((chunk) =>
-        connection.getMultipleAccountsInfo(chunk)
+        Promise.all(chunk.map(async (pk) => {
+          try {
+            return await connection.getAccountInfo(pk);
+          } catch (e) {
+            return null;
+          }
+        }))
       )
     )
   ).flat();
