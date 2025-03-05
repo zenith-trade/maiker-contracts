@@ -924,12 +924,109 @@ describe("maiker-contracts", () => {
     console.log("yVault Balance diff: ", Number(yVaultTokenAccPost.amount) - Number(yVaultTokenAcc.amount));
   })
 
-  test("Get Position Value", async () => {
+  test("Deposit and withdraw without setting position value first ", async () => {
+    const xAmount = 1000000000000; // 1M
+
+    const userPosition = PublicKey.findProgramAddressSync(
+      [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
+      maikerProgramId.PROGRAM_ID
+    )[0];
+
+    const preIxs = [];
+
+    // User Ata
+    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
+
+    xUser.ix && preIxs.push(xUser.ix);
+
+    // Vaults
+    const xVault = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true);
+
+    const depositIx = maikerInstructions.deposit(
+      {
+        amount: new BN(xAmount),
+      },
+      {
+        user: user.publicKey,
+        strategy: strategy,
+        globalConfig: globalConfig,
+        userPosition: userPosition,
+        userTokenX: xUser.ataPubKey,
+        strategyVaultX: xVault.ataPubKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      },
+    );
+
+    let blockhash = await getLatestBlockhash();
+    let builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [...preIxs, depositIx],
+      recentBlockhash: blockhash[0],
+    });
+
+    try {
+      await processTransaction(builtTx.tx);
+      assert(false, "Should not be able to deposit without setting position value first");
+    } catch (error) {
+      console.log("Failed to deposit successfully");
+    }
+
+    // Try to Initiate withdrawal
+    const pendingWithdrawal = PublicKey.findProgramAddressSync(
+      [Buffer.from("pending-withdrawal"), user.publicKey.toBuffer(), strategy.toBuffer()],
+      maikerProgramId.PROGRAM_ID
+    )[0];
+
+    const withdrawIx = maikerInstructions.initiateWithdrawal(
+      {
+        sharesAmount: new BN(1000),
+      },
+      {
+        user: user.publicKey,
+        strategy: strategy,
+        globalConfig: globalConfig,
+        userPosition: userPosition,
+        pendingWithdrawal: pendingWithdrawal,
+        strategyVaultX: xVault.ataPubKey,
+        systemProgram: SystemProgram.programId,
+      }
+    );
+
+    blockhash = await getLatestBlockhash();
+    builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [withdrawIx],
+      recentBlockhash: blockhash[0],
+    });
+
+    try {
+      await processTransaction(builtTx.tx);
+      assert(false, "Should not be able to withdraw without setting position value first");
+    } catch (error) {
+      console.log("Failed to withdraw successfully");
+    }
+  });
+
+  test("Get Position Value and deposit", async () => {
     lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
+
     const activeBin = lbPairAcc.activeId;
 
-    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    const position = strategyAcc.positions[0];
+    const userPosition = PublicKey.findProgramAddressSync(
+      [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
+      maikerProgramId.PROGRAM_ID
+    )[0];
+
+    const strategyAccPre = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    const userPositionAccPre = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
+    // console.log("userPositionAccPre: ", userPositionAccPre);
+
+    const position = strategyAccPre.positions[0];
 
     const price = getPriceOfBinByBinId(activeBin, lbPairAcc.binStep);
     console.log("price: ", price);
@@ -954,13 +1051,34 @@ describe("maiker-contracts", () => {
       }
     )
 
+    // Deposit
+    const xAmount = 1000000000000; // 1M
+
+    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
+
+    const depositIx = maikerInstructions.deposit(
+      {
+        amount: new BN(xAmount),
+      },
+      {
+        user: user.publicKey,
+        strategy: strategy,
+        globalConfig: globalConfig,
+        userPosition: userPosition,
+        userTokenX: xUser.ataPubKey,
+        strategyVaultX: strategyAccPre.xVault,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      },
+    );
+
     // Build tx
     const blockhash = await getLatestBlockhash();
     const builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [getPositionValueIx],
+      ixs: [getPositionValueIx, depositIx],
       recentBlockhash: blockhash[0],
     })
 
@@ -970,10 +1088,24 @@ describe("maiker-contracts", () => {
     // console.log("strategyAccPost: ", strategyAccPost.positionsValues[0].toString());
 
     const positionValue = Math.round(Number(positionInfo.positionData.totalXAmount) + Number(positionInfo.positionData.totalYAmount) * price.toNumber());
-    // console.log("positionValue: ", positionValue);
+    console.log("positionValue: ", positionValue);
 
+    // Assert Position Value
     const positionValueDiff = Math.abs(Number(strategyAccPost.positionsValues[0]) - positionValue);
     const allowedDiff = positionValue * 0.0001; // 0.01% tolerance
     assert(positionValueDiff <= allowedDiff, `Position value difference ${positionValueDiff} exceeds 0.01% tolerance of ${allowedDiff}. Expected ~${positionValue}, got ${strategyAccPost.positionsValues[0].toString()}`);
+
+    // Assert User Position Shares
+    const userPositionAccPost = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
+    console.log("userPositionAccPost Shares: ", userPositionAccPost.strategyShare.toString());
+    console.log("userPositionAccPre Shares: ", userPositionAccPre.strategyShare.toString());
+
+    console.log("userPositionAccPost Last Share Value: ", userPositionAccPost.lastShareValue.toString());
+    console.log("userPositionAccPre Last Share Value: ", userPositionAccPre.lastShareValue.toString());
   })
+  // Rebalance close position flow
+
+  // Claim Fees Admin
+
+  // Update Global Config
 });

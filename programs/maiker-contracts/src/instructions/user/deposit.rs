@@ -69,12 +69,14 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     } else {
         // Get the total value of the strategy before this deposit
         let vault_balance = ctx.accounts.strategy_vault_x.amount;
-
+        msg!("Vault balance: {}", vault_balance);
         // Calculate total strategy value including positions
         let total_strategy_value = strategy.calculate_total_strategy_value(vault_balance)?;
+        msg!("Total strategy value: {}", total_strategy_value);
 
         // Calculate the current share value
         current_share_value = strategy.calculate_share_value(total_strategy_value)?;
+        msg!("Current share value: {}", current_share_value);
 
         // Calculate new shares based on deposit value and current share value
         new_shares = strategy.calculate_shares_for_deposit(amount, current_share_value)?;
@@ -95,6 +97,7 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             current_share_value,
             ctx.accounts.global_config.performance_fee_bps,
         )?;
+        msg!("Performance fee shares: {}", performance_fee_shares);
 
         // Add fee shares to pending fees
         if performance_fee_shares > 0 {
@@ -111,6 +114,7 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     }
 
     // Update strategy shares
+    msg!("Minting shares: {}", new_shares);
     strategy.mint_shares(new_shares)?;
 
     // Transfer tokens from user to strategy vault
