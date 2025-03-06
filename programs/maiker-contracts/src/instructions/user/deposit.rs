@@ -68,10 +68,15 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         current_share_value = SHARE_PRECISION; // 1:1
     } else {
         // Get the total value of the strategy before this deposit
-        let vault_balance = ctx.accounts.strategy_vault_x.amount;
-        msg!("Vault balance: {}", vault_balance);
+        let vault_x_balance = ctx.accounts.strategy_vault_x.amount;
+        msg!("Vault balance: {}", vault_x_balance);
+
+        // TODO: Make sure vault y balance is also accounted for
+        // let vault_y_balance = ctx.accounts.strategy_vault_y.amount;
+        // msg!("Vault balance: {}", vault_y_balance);
+
         // Calculate total strategy value including positions
-        let total_strategy_value = strategy.calculate_total_strategy_value(vault_balance)?;
+        let total_strategy_value = strategy.calculate_total_strategy_value(vault_x_balance)?;
         msg!("Total strategy value: {}", total_strategy_value);
 
         // Calculate the current share value
@@ -81,6 +86,10 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         // Calculate new shares based on deposit value and current share value
         new_shares = strategy.calculate_shares_for_deposit(amount, current_share_value)?;
     }
+
+    // Update strategy shares
+    msg!("Minting shares: {}", new_shares);
+    strategy.mint_shares(new_shares)?;
 
     if user_position.user == Pubkey::default() {
         // Initialize new position
@@ -112,10 +121,6 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             current_timestamp,
         )?;
     }
-
-    // Update strategy shares
-    msg!("Minting shares: {}", new_shares);
-    strategy.mint_shares(new_shares)?;
 
     // Transfer tokens from user to strategy vault
     token::transfer(

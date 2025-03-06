@@ -60,6 +60,8 @@ impl UserPosition {
             .checked_div(self.last_share_value)
             .ok_or(MaikerError::ArithmeticOverflow)?;
 
+        msg!("Value gain percentage: {}", value_gain_percentage);
+
         // Calculate performance fee shares
         let performance_fee_shares = self
             .strategy_share

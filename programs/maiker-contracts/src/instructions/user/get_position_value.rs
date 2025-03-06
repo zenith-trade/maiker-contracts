@@ -155,14 +155,16 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
     let total_value;
 
     if calculate_in_x {
-        // Strategy's mint_x matches lb_pair's token_x_mint
+        // Strategy's mint_x === lb_pair's token_x_mint
         // Calculate value in terms of token X
         let token_y_in_x = if total_token_y > 0 {
-            // Use safe_mul_shr_cast to multiply token_y by price and shift right by SCALE_OFFSET
-            safe_mul_shr_cast(total_token_y.into(), price, SCALE_OFFSET, Rounding::Down)?
+            // Use safe_shl_div_cast to shift right by SCALE_OFFSET and divide token_y by price
+            safe_shl_div_cast(total_token_y.into(), price, SCALE_OFFSET, Rounding::Down)?
         } else {
             0
         };
+
+        msg!("Token y in x: {}", token_y_in_x);
 
         // Total value in terms of token X
         total_value = total_token_x
@@ -171,14 +173,16 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
 
         msg!("Total value in terms of token X: {}", total_value);
     } else {
-        // Strategy's mint_x matches lb_pair's token_y_mint
+        // Strategy's mint_x !== lb_pair's token_y_mint
         // Calculate value in terms of token Y
         let token_x_in_y = if total_token_x > 0 {
-            // Use safe_shl_div_cast to shift token_x left by SCALE_OFFSET and divide by price
-            safe_shl_div_cast(total_token_x.into(), price, SCALE_OFFSET, Rounding::Down)?
+            // Use safe_mul_shr_cast to multiply token_x by price and shift right by SCALE_OFFSET
+            safe_mul_shr_cast(total_token_x.into(), price, SCALE_OFFSET, Rounding::Down)?
         } else {
             0
         };
+
+        msg!("Token x in y: {}", token_x_in_y);
 
         // Total value in terms of token Y
         total_value = total_token_y

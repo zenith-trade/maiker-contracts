@@ -12,7 +12,7 @@ import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors,
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
-import { BinAndAmount, binIdToBinArrayIndex, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
+import { BinAndAmount, BinArrayAccount, binIdToBinArrayIndex, calculateBidAskDistribution, calculateNormalDistribution, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { readFileSync } from "fs";
 import path from "path";
@@ -21,7 +21,6 @@ const PROGRAM_BIN_DIR = path.join(__dirname, "..", ".programsBin");
 
 const INITIAL_SOL = 5000 * LAMPORTS_PER_SOL;
 const USE_BANKRUN = true;
-
 
 const RPC_URL = "http://localhost:8899";
 const connection = new Connection(RPC_URL);
@@ -224,6 +223,16 @@ async function createMint(
   return mint;
 }
 
+// Function to check if a value is within 1% of expected
+const isWithinOnePercent = (actual: bigint, expected: bigint): boolean => {
+  const difference = actual > expected
+    ? actual - expected
+    : expected - actual;
+
+  const onePercent = expected / BigInt(100);
+  return difference <= onePercent;
+}
+
 describe("maiker-contracts", () => {
   let xMint: PublicKey;
   let yMint: PublicKey;
@@ -322,18 +331,31 @@ describe("maiker-contracts", () => {
       { length: upperBinId - lowerBinId + 1 },
       (_, i) => lowerBinId + i
     );
-    const xYAmountDistribution: BinAndAmount[] = calculateSpotDistribution(activeBin, binIds)
+
+    const SpotDistribution: BinAndAmount[] = calculateSpotDistribution(activeBin, binIds);
+
+    // const bidAskDistribution: BinAndAmount[] = calculateBidAskDistribution(activeBin, binIds);
+    // console.log("Bid Ask Distribution: ", bidAskDistribution);
+    // const normalDistribution: BinAndAmount[] = calculateNormalDistribution(activeBin, binIds);
+    // console.log("Normal Distribution: ", normalDistribution);
+
+    // console.log("xYAmountDistribution: ", xYAmountDistribution);
+    // console.log("first bin: ", xYAmountDistribution[0].yAmountBpsOfTotal.toString()); // 281 bps per bin
+    // console.log("last bin: ", xYAmountDistribution[xYAmountDistribution.length - 1].xAmountBpsOfTotal.toString()); // 289 bps per bin
+
+    const totalXAmount = 500000000000000; // 500M
+    const totalYAmount = 500000000000000; // 500M
 
     const ixs = await initializePositionAndAddLiquidityByWeight({
       connection: bankrunProvider.connection,
       lbPairPubkey,
       lbPair: lbPairAcc,
       positionPubKey: pos.publicKey,
-      totalXAmount: new BN(500000000000000), // 500M
-      totalYAmount: new BN(500000000000000), // 500M
+      totalXAmount: new BN(totalXAmount),
+      totalYAmount: new BN(totalYAmount),
       lowerBinId: lowerBinId,
       upperBinId: upperBinId,
-      xYAmountDistribution: xYAmountDistribution,
+      xYAmountDistribution: SpotDistribution,
       user: user.publicKey,
     })
 
@@ -379,15 +401,34 @@ describe("maiker-contracts", () => {
       await processTransaction(builtTx.tx);
     }
 
+    await dlmmInstance.refetchStates();
+    const price = getPriceOfBinByBinId(lbPairAcc.activeId, lbPairAcc.binStep);
+
+    // price seems to always have 9 decimals -> So we have to divide by 1000 to get to per y token price with 6 decimals
+    console.log("price per y token: ", (price.toNumber() / 1000).toFixed(10));
+
     userTokenX = await getTokenAcc(xUser.ataPubKey);
     userTokenY = await getTokenAcc(yUser.ataPubKey);
 
-    console.log("userTokenX: ", userTokenX.amount.toString());
-    console.log("userTokenY: ", userTokenY.amount.toString());
+    const reserveX = await getTokenAcc(dlmmInstance.lbPair.reserveX);
+    const reserveY = await getTokenAcc(dlmmInstance.lbPair.reserveY);
+
+    console.log("reserveX: ", reserveX.amount.toString()); // 144M
+    console.log("reserveY: ", reserveY.amount.toString()); // 500M
+
+    console.log("userTokenX: ", userTokenX.amount.toString()); // 856M Remaining
+    console.log("userTokenY: ", userTokenY.amount.toString()); // 500M used as intended
 
     // Why are not all the tokens being used???
-    // assert(userTokenX.amount.toString() === "500000000000000", `userTokenX.amount: ${userTokenX.amount} !== 500000000000000`);
-    // assert(userTokenY.amount.toString() === "500000000000000", `userTokenY.amount: ${userTokenY.amount} !== 500000000000000`);
+    // Answer: The price is not 1:1 -> The price is 286 x per y -> Therefore 500M * 0.286 = 143M is used -> Total position value is 143M * 2 = 286M xToken
+    // Note: reserveX = reserveY * price / 10 * ^4
+
+    // Assert Position Value
+    const initialTotalSupplyMinted = 1000000000000000; // 1B
+    const expectedAmountX = initialTotalSupplyMinted - Number(reserveX.amount)
+    const expectedAmountY = initialTotalSupplyMinted - Number(reserveY.amount)
+    assert(isWithinOnePercent(userTokenX.amount, BigInt(expectedAmountX)), `userTokenX.amount: ${userTokenX.amount} !== ${expectedAmountX}`);
+    assert(isWithinOnePercent(userTokenY.amount, BigInt(expectedAmountY)), `userTokenY.amount: ${userTokenY.amount} !== ${expectedAmountY}`);
   });
 
   // // Configure the client to use the local cluster.
@@ -670,8 +711,7 @@ describe("maiker-contracts", () => {
     // 2) Rebalance through swapping
 
     // Need to swap xMint first
-
-    const swapInputAmount = 1000000000; // 1000 tokens
+    const swapInputAmount = 1_000_000_000; // 1000 tokens
 
     const [xVault, yVault] = await Promise.all([
       getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
@@ -684,6 +724,7 @@ describe("maiker-contracts", () => {
     const activeBinArrayIdx = binIdToBinArrayIndex(
       new BN(activeBin)
     );
+
     const [activeBinArray] = deriveBinArray(
       lbPairPubkey,
       activeBinArrayIdx,
@@ -699,8 +740,18 @@ describe("maiker-contracts", () => {
     const xVaultTokenAccPre = await getTokenAcc(xVault.ataPubKey);
     const yVaultTokenAccPre = await getTokenAcc(yVault.ataPubKey);
 
-    console.log("xVaultTokenAccPre: ", xVaultTokenAccPre.amount.toString());
-    console.log("yVaultTokenAccPre: ", yVaultTokenAccPre.amount.toString());
+    console.log("xVaultTokenAccPre: ", xVaultTokenAccPre.amount.toString()); // 901_500_000_000
+    console.log("yVaultTokenAccPre: ", yVaultTokenAccPre.amount.toString()); // 0
+
+    // Doesn't work with bankrun
+    // const binArrays = await dlmmInstance.getBinArrays();
+    // const swapQuote = dlmmInstance.swapQuote(
+    //   new BN(swapInputAmount),
+    //   true,
+    //   new BN(100),
+    //   binArrays
+    // );
+    // console.log("Swap quote: ", swapQuote);
 
     const swapIx = maikerInstructions.swapExactIn(
       {
@@ -758,8 +809,8 @@ describe("maiker-contracts", () => {
     assert(Number(xVaultTokenAcc.amount) === Number(xVaultTokenAccPre.amount) - swapInputAmount, `xVaultTokenAcc.amount: ${xVaultTokenAcc.amount} !== ${xVaultTokenAccPre.amount} - ${swapInputAmount}`);
 
     // We want to deposit 1000 tokens in total for both x and y
-    const totalXAmount = new BN(1000000000); // 1000
-    const totalYAmount = new BN(1000000000); // 1000
+    const totalXAmount = new BN(1000_000_000); // 1000 - should match since that was the amount we've swapped with
+    const totalYAmount = new BN(Number(yVaultTokenAcc.amount)); // Total Y in vault
 
     lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
     activeBin = lbPairAcc.activeId;
@@ -865,11 +916,9 @@ describe("maiker-contracts", () => {
       throw new Error("No liquidity to add");
     }
 
-    console.log("binLiquidityDist Length: ", binLiquidityDist.length);
-
     const liquidityParams = {
-      amountX: new BN(1000000000),
-      amountY: new BN(1000000000),
+      amountX: totalXAmount,
+      amountY: totalYAmount,
       binLiquidityDist: binLiquidityDist,
       activeId: lbPairAcc.activeId,
       maxActiveBinSlippage: 0,
@@ -920,8 +969,13 @@ describe("maiker-contracts", () => {
     console.log("xVaultTokenAccPost: ", xVaultTokenAccPost.amount.toString());
     console.log("yVaultTokenAccPost: ", yVaultTokenAccPost.amount.toString());
 
-    console.log("xVault Balance diff: ", Number(xVaultTokenAccPost.amount) - Number(xVaultTokenAcc.amount));
-    console.log("yVault Balance diff: ", Number(yVaultTokenAccPost.amount) - Number(yVaultTokenAcc.amount));
+    const xVaultBalanceDiff = Math.abs(Number(xVaultTokenAccPost.amount) - Number(xVaultTokenAcc.amount));
+    const yVaultBalanceDiff = Math.abs(Number(yVaultTokenAccPost.amount) - Number(yVaultTokenAcc.amount));
+    console.log("xVault Balance diff: ", xVaultBalanceDiff);
+    console.log("yVault Balance diff: ", yVaultBalanceDiff);
+
+    assert(isWithinOnePercent(BigInt(xVaultBalanceDiff), BigInt(totalXAmount.toNumber())), `xVaultBalanceDiff: ${xVaultBalanceDiff} !== ${totalXAmount}`);
+    assert(isWithinOnePercent(BigInt(yVaultBalanceDiff), BigInt(totalYAmount.toNumber())), `yVaultBalanceDiff: ${yVaultBalanceDiff} !== ${totalYAmount}`);
   })
 
   test("Deposit and withdraw without setting position value first ", async () => {
@@ -1024,7 +1078,7 @@ describe("maiker-contracts", () => {
 
     const strategyAccPre = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
     const userPositionAccPre = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
-    // console.log("userPositionAccPre: ", userPositionAccPre);
+    console.log("userPositionAccPre lastShareValue: ", userPositionAccPre.lastShareValue.toString());
 
     const position = strategyAccPre.positions[0];
 
@@ -1052,7 +1106,7 @@ describe("maiker-contracts", () => {
     )
 
     // Deposit
-    const xAmount = 1000000000000; // 1M
+    const xAmount = 100_000_000_000; // 100k
 
     const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
 
@@ -1087,15 +1141,18 @@ describe("maiker-contracts", () => {
     const strategyAccPost = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
     // console.log("strategyAccPost: ", strategyAccPost.positionsValues[0].toString());
 
-    const positionValue = Math.round(Number(positionInfo.positionData.totalXAmount) + Number(positionInfo.positionData.totalYAmount) * price.toNumber());
+    // All within client library
+    // TODO: Create helper function to calculate position value as well as total strategy value
+    // TODO: Create helper function to calculate share value
+    const positionValue = Math.round(Number(positionInfo.positionData.totalXAmount) + Number(positionInfo.positionData.totalYAmount) / price.toNumber());
     console.log("positionValue: ", positionValue);
 
-    // Assert Position Value
     const positionValueDiff = Math.abs(Number(strategyAccPost.positionsValues[0]) - positionValue);
     const allowedDiff = positionValue * 0.0001; // 0.01% tolerance
     assert(positionValueDiff <= allowedDiff, `Position value difference ${positionValueDiff} exceeds 0.01% tolerance of ${allowedDiff}. Expected ~${positionValue}, got ${strategyAccPost.positionsValues[0].toString()}`);
 
     // Assert User Position Shares
+    // TODO: Update after client library implementation
     const userPositionAccPost = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
     console.log("userPositionAccPost Shares: ", userPositionAccPost.strategyShare.toString());
     console.log("userPositionAccPre Shares: ", userPositionAccPre.strategyShare.toString());
@@ -1103,7 +1160,11 @@ describe("maiker-contracts", () => {
     console.log("userPositionAccPost Last Share Value: ", userPositionAccPost.lastShareValue.toString());
     console.log("userPositionAccPre Last Share Value: ", userPositionAccPre.lastShareValue.toString());
   })
+
   // Rebalance close position flow
+  test("Rebalance close position flow", async () => {
+    // TODO: Implement
+  })
 
   // Claim Fees Admin
 
