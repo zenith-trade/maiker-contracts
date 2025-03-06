@@ -38,6 +38,10 @@ pub struct ClaimFees<'info> {
 pub fn claim_fees_handler(ctx: Context<ClaimFees>, shares_to_claim: Option<u64>) -> Result<()> {
     let strategy = &mut ctx.accounts.strategy;
     let clock = Clock::get()?;
+    let slot = clock.slot;
+
+    // Validate that all positions have up-to-date values
+    strategy.validate_position_values_freshness(slot)?;
 
     // Check if there are any pending fees
     require!(strategy.fee_shares > 0, MaikerError::NoFeesToWithdraw);
@@ -54,11 +58,14 @@ pub fn claim_fees_handler(ctx: Context<ClaimFees>, shares_to_claim: Option<u64>)
     // Calculate total strategy value and current share value
     let total_strategy_value =
         strategy.calculate_total_strategy_value(ctx.accounts.strategy_vault_x.amount)?;
+    msg!("total_strategy_value: {}", total_strategy_value);
 
     let current_share_value = strategy.calculate_share_value(total_strategy_value)?;
+    msg!("current_share_value: {}", current_share_value);
 
     let token_amount =
         strategy.calculate_withdrawal_amount(shares_to_claim, current_share_value)?;
+    msg!("token_amount: {}", token_amount);
 
     // Transfer tokens to treasury
     token::transfer(

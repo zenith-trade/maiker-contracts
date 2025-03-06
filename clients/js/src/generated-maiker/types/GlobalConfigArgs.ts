@@ -4,7 +4,6 @@ import * as types from "../types" // eslint-disable-line @typescript-eslint/no-u
 import * as borsh from "@coral-xyz/borsh"
 
 export interface GlobalConfigArgsFields {
-  admin: PublicKey
   performanceFeeBps: number
   withdrawalFeeBps: number
   treasury: PublicKey
@@ -13,7 +12,6 @@ export interface GlobalConfigArgsFields {
 }
 
 export interface GlobalConfigArgsJSON {
-  admin: string
   performanceFeeBps: number
   withdrawalFeeBps: number
   treasury: string
@@ -22,7 +20,6 @@ export interface GlobalConfigArgsJSON {
 }
 
 export class GlobalConfigArgs {
-  readonly admin: PublicKey
   readonly performanceFeeBps: number
   readonly withdrawalFeeBps: number
   readonly treasury: PublicKey
@@ -30,7 +27,6 @@ export class GlobalConfigArgs {
   readonly newAdmin: PublicKey | null
 
   constructor(fields: GlobalConfigArgsFields) {
-    this.admin = fields.admin
     this.performanceFeeBps = fields.performanceFeeBps
     this.withdrawalFeeBps = fields.withdrawalFeeBps
     this.treasury = fields.treasury
@@ -41,7 +37,6 @@ export class GlobalConfigArgs {
   static layout(property?: string) {
     return borsh.struct(
       [
-        borsh.publicKey("admin"),
         borsh.u16("performanceFeeBps"),
         borsh.u16("withdrawalFeeBps"),
         borsh.publicKey("treasury"),
@@ -55,7 +50,6 @@ export class GlobalConfigArgs {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromDecoded(obj: any) {
     return new GlobalConfigArgs({
-      admin: obj.admin,
       performanceFeeBps: obj.performanceFeeBps,
       withdrawalFeeBps: obj.withdrawalFeeBps,
       treasury: obj.treasury,
@@ -66,7 +60,6 @@ export class GlobalConfigArgs {
 
   static toEncodable(fields: GlobalConfigArgsFields) {
     return {
-      admin: fields.admin,
       performanceFeeBps: fields.performanceFeeBps,
       withdrawalFeeBps: fields.withdrawalFeeBps,
       treasury: fields.treasury,
@@ -77,7 +70,6 @@ export class GlobalConfigArgs {
 
   toJSON(): GlobalConfigArgsJSON {
     return {
-      admin: this.admin.toString(),
       performanceFeeBps: this.performanceFeeBps,
       withdrawalFeeBps: this.withdrawalFeeBps,
       treasury: this.treasury.toString(),
@@ -88,7 +80,6 @@ export class GlobalConfigArgs {
 
   static fromJSON(obj: GlobalConfigArgsJSON): GlobalConfigArgs {
     return new GlobalConfigArgs({
-      admin: new PublicKey(obj.admin),
       performanceFeeBps: obj.performanceFeeBps,
       withdrawalFeeBps: obj.withdrawalFeeBps,
       treasury: new PublicKey(obj.treasury),

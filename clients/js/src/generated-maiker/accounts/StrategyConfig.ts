@@ -66,7 +66,7 @@ export class StrategyConfig {
     borsh.u8("positionCount"),
     borsh.array(borsh.publicKey(), 10, "positions"),
     borsh.array(borsh.u64(), 10, "positionsValues"),
-    borsh.array(borsh.i64(), 10, "lastPositionUpdate"),
+    borsh.array(borsh.u64(), 10, "lastPositionUpdate"),
     borsh.i64("lastRebalanceTime"),
     borsh.u8("bump"),
   ])

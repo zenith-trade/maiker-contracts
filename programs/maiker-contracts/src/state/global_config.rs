@@ -4,7 +4,6 @@ use crate::MaikerError;
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize)]
 pub struct GlobalConfigArgs {
-    pub admin: Pubkey,
     pub performance_fee_bps: u16,
     pub withdrawal_fee_bps: u16,
     pub treasury: Pubkey,
@@ -59,8 +58,8 @@ impl GlobalConfig {
         Ok(withdrawal_timestamp as i64)
     }
 
-    pub fn initialize_global_config(&mut self, args: GlobalConfigArgs, bump: u8) {
-        self.admin = args.admin;
+    pub fn initialize_global_config(&mut self, args: GlobalConfigArgs, admin: Pubkey, bump: u8) {
+        self.admin = admin;
         self.performance_fee_bps = args.performance_fee_bps;
         self.withdrawal_fee_bps = args.withdrawal_fee_bps;
         self.treasury = args.treasury;

@@ -48,10 +48,10 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     let strategy = &mut ctx.accounts.strategy;
     let user_position = &mut ctx.accounts.user_position;
     let clock = Clock::get()?;
-    let current_timestamp = clock.unix_timestamp;
+    let slot = clock.slot;
 
     // Validate that all positions have up-to-date values
-    strategy.validate_position_values_freshness(current_timestamp)?;
+    strategy.validate_position_values_freshness(slot)?;
 
     // Ensure token amount is greater than zero
     require!(amount > 0, MaikerError::InvalidDepositAmount);
@@ -97,7 +97,7 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             ctx.accounts.user.key(),
             strategy.key(),
             new_shares,
-            current_timestamp,
+            slot,
             *ctx.bumps.get("user_position").unwrap(),
         );
     } else {
@@ -118,7 +118,7 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             new_shares,
             performance_fee_shares,
             current_share_value,
-            current_timestamp,
+            slot,
         )?;
     }
 
@@ -143,7 +143,7 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         token_amount: amount,
         current_share_value,
         performance_fee_shares: performance_fee_shares,
-        timestamp: current_timestamp,
+        timestamp: clock.unix_timestamp,
     });
 
     Ok(())

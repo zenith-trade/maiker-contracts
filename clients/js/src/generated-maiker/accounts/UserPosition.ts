@@ -9,7 +9,7 @@ export interface UserPositionFields {
   strategy: PublicKey
   strategyShare: BN
   lastShareValue: BN
-  lastUpdateTimestamp: BN
+  lastUpdateSlot: BN
   bump: number
 }
 
@@ -18,7 +18,7 @@ export interface UserPositionJSON {
   strategy: string
   strategyShare: string
   lastShareValue: string
-  lastUpdateTimestamp: string
+  lastUpdateSlot: string
   bump: number
 }
 
@@ -27,7 +27,7 @@ export class UserPosition {
   readonly strategy: PublicKey
   readonly strategyShare: BN
   readonly lastShareValue: BN
-  readonly lastUpdateTimestamp: BN
+  readonly lastUpdateSlot: BN
   readonly bump: number
 
   static readonly discriminator = Buffer.from([
@@ -39,7 +39,7 @@ export class UserPosition {
     borsh.publicKey("strategy"),
     borsh.u64("strategyShare"),
     borsh.u64("lastShareValue"),
-    borsh.i64("lastUpdateTimestamp"),
+    borsh.u64("lastUpdateSlot"),
     borsh.u8("bump"),
   ])
 
@@ -48,7 +48,7 @@ export class UserPosition {
     this.strategy = fields.strategy
     this.strategyShare = fields.strategyShare
     this.lastShareValue = fields.lastShareValue
-    this.lastUpdateTimestamp = fields.lastUpdateTimestamp
+    this.lastUpdateSlot = fields.lastUpdateSlot
     this.bump = fields.bump
   }
 
@@ -100,7 +100,7 @@ export class UserPosition {
       strategy: dec.strategy,
       strategyShare: dec.strategyShare,
       lastShareValue: dec.lastShareValue,
-      lastUpdateTimestamp: dec.lastUpdateTimestamp,
+      lastUpdateSlot: dec.lastUpdateSlot,
       bump: dec.bump,
     })
   }
@@ -111,7 +111,7 @@ export class UserPosition {
       strategy: this.strategy.toString(),
       strategyShare: this.strategyShare.toString(),
       lastShareValue: this.lastShareValue.toString(),
-      lastUpdateTimestamp: this.lastUpdateTimestamp.toString(),
+      lastUpdateSlot: this.lastUpdateSlot.toString(),
       bump: this.bump,
     }
   }
@@ -122,7 +122,7 @@ export class UserPosition {
       strategy: new PublicKey(obj.strategy),
       strategyShare: new BN(obj.strategyShare),
       lastShareValue: new BN(obj.lastShareValue),
-      lastUpdateTimestamp: new BN(obj.lastUpdateTimestamp),
+      lastUpdateSlot: new BN(obj.lastUpdateSlot),
       bump: obj.bump,
     })
   }

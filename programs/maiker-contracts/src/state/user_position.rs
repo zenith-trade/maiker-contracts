@@ -4,12 +4,12 @@ use anchor_lang::prelude::*;
 #[account]
 #[derive(InitSpace)]
 pub struct UserPosition {
-    pub user: Pubkey,               // User's wallet address
-    pub strategy: Pubkey,           // Reference to the StrategyConfig
-    pub strategy_share: u64,        // User's share of the strategy position
-    pub last_share_value: u64,      // Last share value when user deposited/withdrew
-    pub last_update_timestamp: i64, // Last time the position was updated
-    pub bump: u8,                   // PDA bump
+    pub user: Pubkey,          // User's wallet address
+    pub strategy: Pubkey,      // Reference to the StrategyConfig
+    pub strategy_share: u64,   // User's share of the strategy position
+    pub last_share_value: u64, // Last share value when user deposited/withdrew
+    pub last_update_slot: u64, // Last slot the position was updated
+    pub bump: u8,              // PDA bump
 }
 
 impl UserPosition {
@@ -29,14 +29,14 @@ impl UserPosition {
         user: Pubkey,
         strategy: Pubkey,
         shares: u64,
-        current_timestamp: i64,
+        slot: u64,
         bump: u8,
     ) {
         self.user = user;
         self.strategy = strategy;
         self.strategy_share = shares;
         self.last_share_value = SHARE_PRECISION; // Initial share value is 1.0
-        self.last_update_timestamp = current_timestamp;
+        self.last_update_slot = slot;
         self.bump = bump;
     }
 
@@ -100,7 +100,7 @@ impl UserPosition {
         new_shares: u64,
         performance_fee_shares: u64,
         current_share_value: u64,
-        current_timestamp: i64,
+        slot: u64,
     ) -> Result<()> {
         // Update shares (subtract performance fee shares and add new shares)
         self.strategy_share = self
@@ -112,7 +112,7 @@ impl UserPosition {
 
         // Update last share value and timestamp
         self.last_share_value = current_share_value;
-        self.last_update_timestamp = current_timestamp;
+        self.last_update_slot = slot;
 
         Ok(())
     }
@@ -122,7 +122,7 @@ impl UserPosition {
         &mut self,
         shares_amount: u64,
         current_share_value: u64,
-        current_timestamp: i64,
+        slot: u64,
     ) -> Result<()> {
         // Subtract withdrawn shares
         self.strategy_share = self
@@ -132,7 +132,7 @@ impl UserPosition {
 
         // Update last share value and timestamp
         self.last_share_value = current_share_value;
-        self.last_update_timestamp = current_timestamp;
+        self.last_update_slot = slot;
 
         Ok(())
     }

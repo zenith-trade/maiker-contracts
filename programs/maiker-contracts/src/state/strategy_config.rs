@@ -22,7 +22,7 @@ pub struct StrategyConfig {
     pub position_count: u8,
     pub positions: [Pubkey; MAX_POSITIONS],
     pub positions_values: [u64; MAX_POSITIONS], // Total position value in token X
-    pub last_position_update: [i64; MAX_POSITIONS],
+    pub last_position_update: [u64; MAX_POSITIONS], // Slot of last position update
 
     // Rebalancing info
     pub last_rebalance_time: i64,
@@ -181,18 +181,18 @@ impl StrategyConfig {
         Err(error!(MaikerError::PositionNotFound))
     }
 
-    pub fn update_position_value(&mut self, position: Pubkey, value: u64, timestamp: i64) {
+    pub fn update_position_value(&mut self, position: Pubkey, value: u64, slot: u64) {
         for i in 0..self.position_count as usize {
             if self.positions[i] == position {
                 self.positions_values[i] = value;
-                self.last_position_update[i] = timestamp;
+                self.last_position_update[i] = slot;
                 break;
             }
         }
     }
 
     /// Validates that all active positions have their values updated in the current slot
-    pub fn validate_position_values_freshness(&self, current_timestamp: i64) -> Result<()> {
+    pub fn validate_position_values_freshness(&self, slot: u64) -> Result<()> {
         for i in 0..self.position_count as usize {
             let position_pubkey = self.positions[i];
 
@@ -203,7 +203,7 @@ impl StrategyConfig {
 
             // Verify this position was updated in the current slot
             require!(
-                self.last_position_update[i] == current_timestamp,
+                self.last_position_update[i] == slot,
                 MaikerError::StalePositionValue
             );
         }

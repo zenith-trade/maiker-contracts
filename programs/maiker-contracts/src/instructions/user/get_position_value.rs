@@ -193,11 +193,7 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
     }
 
     // Update strategy config with position value
-    strategy.update_position_value(
-        ctx.accounts.position.key(),
-        total_value,
-        Clock::get()?.unix_timestamp,
-    );
+    strategy.update_position_value(ctx.accounts.position.key(), total_value, Clock::get()?.slot);
 
     Ok(())
 }

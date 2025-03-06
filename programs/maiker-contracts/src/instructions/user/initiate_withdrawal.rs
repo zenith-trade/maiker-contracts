@@ -52,10 +52,11 @@ pub fn initiate_withdrawal_handler(
     let global_config = &ctx.accounts.global_config;
     let pending_withdrawal = &mut ctx.accounts.pending_withdrawal;
     let clock = Clock::get()?;
+    let slot = clock.slot;
     let current_timestamp = clock.unix_timestamp;
 
     // Validate that all positions have up-to-date values
-    strategy.validate_position_values_freshness(current_timestamp)?;
+    strategy.validate_position_values_freshness(clock.slot)?;
 
     // Validate withdrawal amount
     require!(
@@ -102,7 +103,7 @@ pub fn initiate_withdrawal_handler(
     );
 
     // 1. Reduce user position shares by shares_amount from input
-    user_position.update_after_withdrawal(shares_amount, current_share_value, current_timestamp)?;
+    user_position.update_after_withdrawal(shares_amount, current_share_value, slot)?;
     // 2. Add performance fee shares to strategy fee shares to strategy config
     let total_fee_shares = performance_fee_shares
         .checked_add(withdrawal_fee_shares)

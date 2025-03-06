@@ -453,7 +453,6 @@ describe("maiker-contracts", () => {
           withdrawalFeeBps: 150,
           intervalSeconds: new BN(60 * 60), // 1 hour
           treasury: master.publicKey,
-          admin: master.publicKey,
           newAdmin: null,
         },
       },
@@ -1308,6 +1307,94 @@ describe("maiker-contracts", () => {
   })
 
   // Claim Fees Admin
+  test("Claim Fees Admin", async () => {
+    const globalConfigAcc = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    console.log("globalConfigAcc: ", globalConfigAcc);
+
+    const strategyAccPre = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    console.log("strategyAccPre: ", strategyAccPre);
+
+    const feeShares = strategyAccPre.feeShares;
+    console.log("feeShares: ", Number(feeShares));
+
+    const preIxs = []
+
+    const treasuryX = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, globalConfigAcc.treasury, master.publicKey);
+    if (treasuryX.ix) preIxs.push(treasuryX.ix);
+
+    const claimFeeIx = maikerInstructions.claimFees(
+      {
+        sharesToClaim: feeShares,
+      },
+      {
+        authority: master.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        strategyVaultX: strategyAccPre.xVault,
+        treasuryX: treasuryX.ataPubKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }
+    )
+
+    const blockhash = await getLatestBlockhash();
+    const builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [...preIxs, claimFeeIx],
+      recentBlockhash: blockhash[0],
+    })
+
+    await processTransaction(builtTx.tx);
+
+    const strategyAccPost = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    console.log("strategyAccPost: ", strategyAccPost);
+
+    assert.equal(Number(strategyAccPost.feeShares), Number(strategyAccPre.feeShares) - Number(feeShares), "Fee shares should be reduced by fee shares claimed");
+    assert.equal(Number(strategyAccPost.strategyShares), Number(strategyAccPre.strategyShares) - Number(feeShares), "Strategy shares should be reduced by fee shares claimed");
+  })
 
   // Update Global Config
+  test("Update Global Config", async () => {
+    const globalConfigAccPre = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    console.log("globalConfigAccPre: ", globalConfigAccPre);
+
+    const newGlobalConfigArgs = {
+      admin: globalConfigAccPre.admin,
+      performanceFeeBps: 100,
+      withdrawalFeeBps: 100,
+      treasury: admin.publicKey,
+      intervalSeconds: new BN(3600 / 2),
+      newAdmin: admin.publicKey,
+    }
+    const updateGlobalConfigIx = maikerInstructions.updateGlobalConfig(
+      {
+        globalConfigArgs: newGlobalConfigArgs,
+      },
+      {
+        authority: master.publicKey,
+        globalConfig: globalConfig,
+      }
+    )
+
+    const blockhash = await getLatestBlockhash();
+    const builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [updateGlobalConfigIx],
+      recentBlockhash: blockhash[0],
+    })
+
+    await processTransaction(builtTx.tx);
+
+    const globalConfigAccPost = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    console.log("globalConfigAccPost: ", globalConfigAccPost);
+
+    assert.equal(globalConfigAccPost.performanceFeeBps, newGlobalConfigArgs.performanceFeeBps, "Performance fee should be updated");
+    assert.equal(globalConfigAccPost.withdrawalFeeBps, newGlobalConfigArgs.withdrawalFeeBps, "Withdrawal fee should be updated");
+    assert.equal(Number(globalConfigAccPost.withdrawalIntervalSeconds), Number(newGlobalConfigArgs.intervalSeconds), "Interval should be updated");
+    assert.equal(globalConfigAccPost.treasury.toBase58(), newGlobalConfigArgs.treasury.toBase58(), "Treasury should be updated");
+    assert.equal(globalConfigAccPost.admin.toBase58(), newGlobalConfigArgs.newAdmin.toBase58(), "Admin should be updated");
+  })
 });
