@@ -1161,9 +1161,150 @@ describe("maiker-contracts", () => {
     console.log("userPositionAccPre Last Share Value: ", userPositionAccPre.lastShareValue.toString());
   })
 
-  // Rebalance close position flow
+  // Rebalance close position flow: Claim Fees, Withdraw Liquidity, Close Position
   test("Rebalance close position flow", async () => {
-    // TODO: Implement
+    await dlmmInstance.refetchStates();
+    const strategyAccPre = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    console.log("strategyAccPre: ", strategyAccPre);
+
+    const vaultXPre = await getTokenAcc(strategyAccPre.xVault);
+    const vaultYPre = await getTokenAcc(strategyAccPre.yVault);
+
+    const position = strategyAccPre.positions[0];
+
+    const positionInfo = await dlmmInstance.getPosition(position);
+    // console.log("positionInfo: ", positionInfo);
+
+    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.lowerBinId));
+    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.upperBinId));
+
+    const { lowerBinArray, upperBinArray } = await getOrCreateBinArraysInstructions(bankrunProvider.connection, lbPairPubkey, new BN(lowerBinArrayIndex), new BN(upperBinArrayIndex), master.publicKey);
+
+    const claimFeeIx = maikerInstructions.claimFee(
+      {
+        authority: master.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        strategyVaultX: strategyAccPre.xVault,
+        strategyVaultY: strategyAccPre.yVault,
+        position: position,
+        lbPair: lbPairPubkey,
+        binArrayLower: lowerBinArray,
+        binArrayUpper: upperBinArray,
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        tokenXMint: xMint,
+        tokenYMint: yMint,
+        /** The lb_clmm program */
+        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }
+    )
+
+    const withdrawLiquidityIx = maikerInstructions.removeLiquidity(
+      {
+        authority: master.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        strategyVaultX: strategyAccPre.xVault,
+        strategyVaultY: strategyAccPre.yVault,
+        position: position,
+        lbPair: lbPairPubkey,
+        binArrayBitmapExtension: maikerProgramId.PROGRAM_ID, // For testing we know no binArraybitmap extension is required
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        tokenXMint: xMint,
+        tokenYMint: yMint,
+        binArrayLower: lowerBinArray,
+        binArrayUpper: upperBinArray,
+        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      },
+    )
+
+    const closePositionIx = maikerInstructions.closePosition(
+      {
+        authority: master.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        position: position,
+        lbPair: lbPairPubkey,
+        binArrayLower: lowerBinArray,
+        binArrayUpper: upperBinArray,
+        rentReceiver: master.publicKey,
+        /** The lb_clmm program */
+        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        positionOwner: user.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }
+    )
+
+    const blockhash = await getLatestBlockhash();
+    const builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [claimFeeIx, withdrawLiquidityIx, closePositionIx],
+      recentBlockhash: blockhash[0],
+    })
+
+    await processTransaction(builtTx.tx);
+
+    // Assert
+    const strategyAccPost = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    // console.log("strategyAccPost: ", strategyAccPost);
+
+    // Assert position was removed correctly
+    assert.equal(strategyAccPost.positionCount, strategyAccPre.positionCount - 1);
+
+    // Find where position was in the pre-state arrays
+    const positionIndex = strategyAccPre.positions.findIndex(p => p.equals(position));
+    assert(positionIndex !== -1, "Position should have existed in pre-state");
+
+    // Assert position was removed from positions array
+    assert(strategyAccPost.positions[positionIndex].equals(PublicKey.default),
+      "Position should be removed and replaced with default pubkey");
+
+    // Assert position values were removed
+    assert.equal(strategyAccPost.positionsValues[positionIndex], 0,
+      "Position values should be cleared, instead got: " + strategyAccPost.positionsValues[positionIndex].toString());
+
+    // Assert lastPositionUpdate was cleared
+    assert.equal(strategyAccPost.lastPositionUpdate[positionIndex], 0,
+      "Last position update should be cleared, instead got: " + strategyAccPost.lastPositionUpdate[positionIndex].toString());
+
+    // TODO: Need to write another test with multiple positions to properly check that
+    // Check all positions after index shifted down
+    for (let i = positionIndex; i < strategyAccPre.positionCount - 1; i++) {
+      assert(strategyAccPost.positions[i].equals(strategyAccPre.positions[i + 1]),
+        "Positions after removed index should shift down");
+      assert.deepEqual(strategyAccPost.positionsValues[i], strategyAccPre.positionsValues[i + 1],
+        "Position values after removed index should shift down");
+      assert.equal(strategyAccPost.lastPositionUpdate[i], strategyAccPre.lastPositionUpdate[i + 1],
+        "Last position updates after removed index should shift down");
+    }
+
+    // Token balances
+    const vaultXPost = await getTokenAcc(strategyAccPost.xVault);
+    const vaultYPost = await getTokenAcc(strategyAccPost.yVault);
+
+    // console.log("positionInfo.positionData.totalXAmount: ", positionInfo.positionData.totalXAmount);
+    // console.log("positionInfo.positionData.totalYAmount: ", positionInfo.positionData.totalYAmount);
+
+    // console.log("vaultXPre: ", vaultXPre.amount.toString());
+    // console.log("vaultYPre: ", vaultYPre.amount.toString());
+
+    // console.log("vaultXPost: ", vaultXPost.amount.toString());
+    // console.log("vaultYPost: ", vaultYPost.amount.toString());
+
+    assert.equal(Number(vaultXPost.amount), Number(vaultXPre.amount) + Math.floor(Number(positionInfo.positionData.totalXAmount)),
+      "Vault X should have increased by the position value");
+
+    assert.equal(Number(vaultYPost.amount), Number(vaultYPre.amount) + Math.floor(Number(positionInfo.positionData.totalYAmount)),
+      "Vault Y should have increased by the position value");
   })
 
   // Claim Fees Admin

@@ -12,6 +12,7 @@ export type CustomError =
   | StalePositionValue
   | InvalidWithdrawalInterval
   | WithdrawalNotReady
+  | PositionNotFound
 
 export class ArithmeticOverflow extends Error {
   static readonly code = 6000
@@ -159,6 +160,17 @@ export class WithdrawalNotReady extends Error {
   }
 }
 
+export class PositionNotFound extends Error {
+  static readonly code = 6013
+  readonly code = 6013
+  readonly name = "PositionNotFound"
+  readonly msg = "Position not found"
+
+  constructor(readonly logs?: string[]) {
+    super("6013: Position not found")
+  }
+}
+
 export function fromCode(code: number, logs?: string[]): CustomError | null {
   switch (code) {
     case 6000:
@@ -187,6 +199,8 @@ export function fromCode(code: number, logs?: string[]): CustomError | null {
       return new InvalidWithdrawalInterval(logs)
     case 6012:
       return new WithdrawalNotReady(logs)
+    case 6013:
+      return new PositionNotFound(logs)
   }
 
   return null

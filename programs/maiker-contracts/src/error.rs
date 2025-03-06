@@ -40,4 +40,7 @@ pub enum MaikerError {
 
     #[msg("Withdrawal is not ready yet")]
     WithdrawalNotReady,
+
+    #[msg("Position not found")]
+    PositionNotFound,
 }

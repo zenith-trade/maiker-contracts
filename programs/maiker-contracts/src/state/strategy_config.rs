@@ -101,19 +101,94 @@ impl StrategyConfig {
         Ok(())
     }
 
-    pub fn update_position_value(
-        self: &mut Self,
-        position_key: Pubkey,
-        value: u64,
-        last_update: i64,
-    ) {
-        let index = self
-            .positions
-            .iter()
-            .position(|&key| key == position_key)
-            .unwrap();
-        self.positions_values[index] = value;
-        self.last_position_update[index] = last_update;
+    /// Adds a new position to the strategy
+    /// Returns an error if the maximum number of positions has been reached
+    pub fn add_position(&mut self, position: Pubkey) -> Result<()> {
+        // Check if we have space for a new position
+        if self.position_count as usize >= self.positions.len() {
+            return Err(error!(MaikerError::MaxPositionsReached));
+        }
+
+        // Add the position to the array
+        let position_count = self.position_count as usize;
+        self.positions[position_count] = position;
+        self.position_count += 1;
+
+        Ok(())
+    }
+
+    // /// Removes a position from the strategy and shifts all elements down
+    // /// Returns true if the position was found and removed, false otherwise
+    // pub fn remove_position(&mut self, position: Pubkey) -> bool {
+    //     // Find the position in the array
+    //     let mut found = false;
+
+    //     for i in 0..self.position_count as usize {
+    //         if self.positions[i] == position {
+    //             found = true;
+
+    //             // Shift all elements after this position down by one
+    //             for j in i..(self.position_count as usize - 1) {
+    //                 self.positions[j] = self.positions[j + 1];
+    //                 self.positions_values[j] = self.positions_values[j + 1];
+    //                 self.last_position_update[j] = self.last_position_update[j + 1];
+    //             }
+
+    //             // Clear the last position
+    //             let last_index = self.position_count as usize - 1;
+    //             self.positions[last_index] = Pubkey::default();
+    //             self.positions_values[last_index] = 0;
+    //             self.last_position_update[last_index] = 0;
+
+    //             // Decrement the count
+    //             self.position_count -= 1;
+
+    //             break;
+    //         }
+    //     }
+
+    //     found
+    // }
+
+    /// Removes a position from the strategy by swapping with the last position
+    /// This is more gas efficient but does not preserve position order
+    pub fn remove_position(&mut self, position: Pubkey) -> Result<()> {
+        // Find the position in the array
+        for i in 0..self.position_count as usize {
+            if self.positions[i] == position {
+                // If this is not the last position, swap with the last position
+                if i < self.position_count as usize - 1 {
+                    self.positions[i] = self.positions[self.position_count as usize - 1];
+                    self.positions_values[i] =
+                        self.positions_values[self.position_count as usize - 1];
+                    self.last_position_update[i] =
+                        self.last_position_update[self.position_count as usize - 1];
+                }
+
+                // Clear the last position
+                let last_index = self.position_count as usize - 1;
+                self.positions[last_index] = Pubkey::default();
+                self.positions_values[last_index] = 0;
+                self.last_position_update[last_index] = 0;
+
+                // Decrement the count
+                self.position_count -= 1;
+
+                return Ok(());
+            }
+        }
+
+        Err(error!(MaikerError::PositionNotFound))
+    }
+
+    pub fn update_position_value(&mut self, position: Pubkey, value: u64, timestamp: i64) {
+        for i in 0..self.position_count as usize {
+            if self.positions[i] == position {
+                self.positions_values[i] = value;
+                self.last_position_update[i] = timestamp;
+                break;
+            }
+        }
     }
 
     /// Validates that all active positions have their values updated in the current slot

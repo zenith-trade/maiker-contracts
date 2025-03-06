@@ -44,15 +44,16 @@ pub fn initialize_position_handler(
     width: i32,
 ) -> Result<()> {
     // TODO: Validation that LB pair is valid for token pair of this strategy
+    let strategy = &mut ctx.accounts.strategy;
 
-    let strategy_signer = ctx.accounts.strategy.get_pda_signer();
+    let strategy_signer = strategy.get_pda_signer();
     let strategy_signer_seeds = &[&strategy_signer[..]];
 
     let accounts = lb_clmm::cpi::accounts::InitializePosition {
         payer: ctx.accounts.authority.to_account_info(), // Authority pays for account creation
         position: ctx.accounts.position.to_account_info(),
         lb_pair: ctx.accounts.lb_pair.to_account_info(),
-        owner: ctx.accounts.strategy.to_account_info(), // Strategy PDA
+        owner: strategy.to_account_info(), // Strategy PDA
         system_program: ctx.accounts.system_program.to_account_info(),
         rent: ctx.accounts.rent.to_account_info(),
         event_authority: ctx.accounts.event_authority.to_account_info(),
@@ -67,18 +68,8 @@ pub fn initialize_position_handler(
 
     lb_clmm::cpi::initialize_position(cpi_ctx, lower_bin_id, width)?;
 
-    // Update the strategy's positions array
-    let strategy = &mut ctx.accounts.strategy;
-
-    // Check if we have space for a new position
-    if strategy.position_count as usize >= strategy.positions.len() {
-        return Err(error!(MaikerError::MaxPositionsReached));
-    }
-
-    // Add the position to the array
-    let position_count = strategy.position_count as usize;
-    strategy.positions[position_count] = ctx.accounts.position.key();
-    strategy.position_count += 1;
+    // Update the strategy's positions array using the add_position method
+    strategy.add_position(ctx.accounts.position.key())?;
 
     Ok(())
 }

@@ -8,8 +8,8 @@ export interface RemoveLiquidityAccounts {
   authority: PublicKey
   globalConfig: PublicKey
   strategy: PublicKey
-  userTokenX: PublicKey
-  userTokenY: PublicKey
+  strategyVaultX: PublicKey
+  strategyVaultY: PublicKey
   position: PublicKey
   lbPair: PublicKey
   binArrayBitmapExtension: PublicKey
@@ -32,8 +32,8 @@ export function removeLiquidity(
     { pubkey: accounts.authority, isSigner: true, isWritable: false },
     { pubkey: accounts.globalConfig, isSigner: false, isWritable: false },
     { pubkey: accounts.strategy, isSigner: false, isWritable: true },
-    { pubkey: accounts.userTokenX, isSigner: false, isWritable: true },
-    { pubkey: accounts.userTokenY, isSigner: false, isWritable: true },
+    { pubkey: accounts.strategyVaultX, isSigner: false, isWritable: true },
+    { pubkey: accounts.strategyVaultY, isSigner: false, isWritable: true },
     { pubkey: accounts.position, isSigner: false, isWritable: true },
     { pubkey: accounts.lbPair, isSigner: false, isWritable: true },
     {
