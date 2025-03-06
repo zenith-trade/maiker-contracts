@@ -6,7 +6,14 @@
         "generate:clients:codama": "node ./configs/codama.cjs",
         "generate:maiker": "anchor-client-gen target/idl/maiker_contracts.json clients/js/src/generated-maiker --program-id 27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx",
         "generate:dlmm": "anchor-client-gen idls/dlmm.json clients/js/src/generated-dlmm --program-id LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
-        "programs:dump": "./configs/programs/dump.sh"
+        "programs:build": "./configs/program/build.sh maiker-contracts",
+        "programs:test": "RUST_LOG=error ./configs/program/test.sh maiker-contracts",
+        "programs:debug": "./configs/program/test.sh maiker-contracts",
+        "programs:dump": "./configs/program/dump.sh",
+        "validator": "CI=1 amman start --config ./configs/validator.cjs",
+        "validator:debug": "amman start --config ./configs/validator.cjs",
+        "validator:logs": "CI=1 amman logs",
+        "validator:stop": "amman stop"
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.28.0",
@@ -16,6 +23,7 @@
         "solana-bankrun": "^0.4.0"
     },
     "devDependencies": {
+        "@metaplex-foundation/amman": "^0.12.1",
         "@types/bn.js": "^5.1.0",
         "@types/chai": "^4.3.0",
         "@types/mocha": "^9.0.0",
