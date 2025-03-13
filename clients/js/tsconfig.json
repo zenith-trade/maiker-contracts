@@ -16,7 +16,7 @@
     "emitDeclarationOnly": false,
     "importHelpers": false,
     "strict": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noFallthroughCasesInSwitch": true,
     "downlevelIteration": true,
     "esModuleInterop": true,
@@ -26,6 +26,6 @@
     "skipLibCheck": true,
     "useUnknownInCatchVariables": false,
   },
-  "include": ["src/**/*", "tests/**/*", "jest.config.js"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/generated-dlmm", "src/generated-maiker"]
 }

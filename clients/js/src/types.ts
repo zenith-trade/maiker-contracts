@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { BinAndAmount, LbPosition, PositionData, TokenReserve } from '@meteora-ag/dlmm';
+import { BinAndAmount, PositionData, TokenReserve } from '@meteora-ag/dlmm';
 import { dlmm } from 'src';
 
 /**

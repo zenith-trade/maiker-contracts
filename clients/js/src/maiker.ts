@@ -1,20 +1,13 @@
-import { Connection, PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction, SYSVAR_CLOCK_PUBKEY, AccountMeta } from '@solana/web3.js';
-import { getAssociatedTokenAddressSync as getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getMint, Mint, AccountLayout, MintLayout } from '@solana/spl-token';
+import { Connection, PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_CLOCK_PUBKEY, AccountMeta } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getMint, Mint, AccountLayout } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 import Decimal from 'decimal.js';
 import DLMM, {
-  deriveLbPair2,
-  BinAndAmount,
-  calculateSpotDistribution,
-  calculateBidAskDistribution,
-  calculateNormalDistribution,
   binIdToBinArrayIndex,
   deriveBinArray,
   isOverflowDefaultBinArrayBitmap,
   deriveBinArrayBitmapExtension,
   toWeightDistribution,
-  LbPair,
-  TokenReserve,
   PositionData,
   PositionVersion,
   getBinArrayLowerUpperBinId,
@@ -23,7 +16,6 @@ import DLMM, {
   BinArray,
   Position,
   PositionBinData,
-  ClmmProgram,
   SwapFee,
   getBinFromBinArray,
   SCALE_OFFSET,
@@ -32,17 +24,12 @@ import DLMM, {
 } from '@meteora-ag/dlmm';
 import * as maiker from './generated-maiker/accounts';
 import * as maikerInstructions from './generated-maiker/instructions';
-import * as maikerTypes from './generated-maiker/types';
 import { PROGRAM_ID as maikerProgramId } from './generated-maiker/programId';
 import * as dlmm from './generated-dlmm/accounts';
-import * as dlmmInstructions from './generated-dlmm/instructions';
-import * as dlmmTypes from './generated-dlmm/types';
 import { PROGRAM_ID as dlmmProgramId } from './generated-dlmm/programId';
-import { simulateAndGetTxWithCUs } from './utils/buildTxAndCheckCu';
 import { DLMM_EVENT_AUTHORITY_PDA, SHARE_PRECISION } from './constants';
 import { getOrCreateBinArraysInstructions } from './meteora/utils';
 import {
-  StrategyContext,
   PositionValue,
   UserPositionInfo,
   PendingWithdrawalInfo,
@@ -50,7 +37,6 @@ import {
   DepositParams,
   WithdrawParams,
   PositionLiquidityParams,
-  TransactionResult,
   StrategySetupParams,
   PositionInfo
 } from './types';
