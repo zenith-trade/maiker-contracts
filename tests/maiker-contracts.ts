@@ -538,7 +538,7 @@ describe("maiker-contracts", () => {
 
     // Use SDK's getUserPosition to get position info
     const userPositionInfo = await maikerSdk.getUserPosition(user.publicKey);
-    console.log("User position info: ", userPositionInfo);
+    // console.log("User position info: ", userPositionInfo);
 
     // Assertions
     assert(Number(maikerSdk.strategyAcc.strategyShares) === xAmount,
@@ -566,8 +566,8 @@ describe("maiker-contracts", () => {
     );
 
     // Get user position info before withdrawal
-    const userPositionInfoBefore = await maikerSdk.getUserPosition(user.publicKey);
-    console.log("User position before withdrawal:", userPositionInfoBefore);
+    const userPositionInfoPre = await maikerSdk.getUserPosition(user.publicKey);
+    console.log("User position before withdrawal:", userPositionInfoPre);
 
     // Create withdrawal initiation instruction using the SDK
     const withdrawIx = await maikerSdk.createInitiateWithdrawalInstruction({
@@ -602,16 +602,16 @@ describe("maiker-contracts", () => {
     await maikerSdk.refresh();
 
     // Get user position info after initiation
-    const userPositionInfoAfter = await maikerSdk.getUserPosition(user.publicKey);
-    console.log("User position after withdrawal initiation:", userPositionInfoAfter);
+    const userPositionInfoPost = await maikerSdk.getUserPosition(user.publicKey);
+    console.log("User position after withdrawal initiation:", userPositionInfoPost);
 
     // Apply the withdraw fee bps to assertion
     const withdrawalFeeBps = maikerSdk.globalConfigAcc.withdrawalFeeBps;
     const withdrawFeeShare = sharesAmount * (withdrawalFeeBps / 10000);
 
     // Verify user position shares were reduced
-    assert(userPositionInfoAfter.strategyShare === userPositionInfoBefore.strategyShare - sharesAmount,
-      `User position shares not reduced correctly: ${userPositionInfoAfter.strategyShare} !== ${userPositionInfoBefore.strategyShare - sharesAmount}`);
+    assert(userPositionInfoPost.strategyShare === userPositionInfoPre.strategyShare - sharesAmount,
+      `User position shares not reduced correctly: ${userPositionInfoPost.strategyShare} !== ${userPositionInfoPre.strategyShare - sharesAmount}`);
 
     // Verify pending withdrawal amount (after fee)
     assert(Number(userWithdrawalData.sharesAmount) === sharesAmount - withdrawFeeShare,
@@ -622,7 +622,6 @@ describe("maiker-contracts", () => {
       `Strategy fee shares incorrect: ${maikerSdk.strategyAcc.feeShares} !== ${withdrawFeeShare}`);
 
     // Try claim withdrawal prematurely
-
     // Create process withdrawal instruction using the SDK
     const claimIxs = await maikerSdk.createProcessWithdrawalInstruction({
       user: user.publicKey
@@ -975,103 +974,67 @@ describe("maiker-contracts", () => {
 
   // Rebalance close position flow: Claim Fees, Withdraw Liquidity, Close Position
   test("Rebalance close position flow", async () => {
-    await dlmmInstance.refetchStates();
-    const strategyAccPre = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
+    );
+
+    await maikerSdk.refresh();
+
+    const strategyAccPre = maikerSdk.strategyAcc;
     console.log("strategyAccPre: ", strategyAccPre);
 
     const vaultXPre = await getTokenAcc(strategyAccPre.xVault);
     const vaultYPre = await getTokenAcc(strategyAccPre.yVault);
 
-    const position = strategyAccPre.positions[0];
+    const positionPubkey = strategyAccPre.positions[0];
 
-    const positionInfo = await dlmmInstance.getPosition(position);
+    const positionInfos = await maikerSdk.getPositions();
+    const positionInfo = positionInfos.find(p => p.pubkey.equals(positionPubkey));
     // console.log("positionInfo: ", positionInfo);
 
-    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.lowerBinId));
-    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.upperBinId));
+    // const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.lowerBinId));
+    // const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.upperBinId));
 
-    const { lowerBinArray, upperBinArray } = await getOrCreateBinArraysInstructions(bankrunProvider.connection, lbPairPubkey, new BN(lowerBinArrayIndex), new BN(upperBinArrayIndex), master.publicKey);
+    // const { lowerBinArray, upperBinArray } = await getOrCreateBinArraysInstructions(bankrunProvider.connection, lbPairPubkey, new BN(lowerBinArrayIndex), new BN(upperBinArrayIndex), master.publicKey);
 
-    const claimFeeIx = maikerInstructions.claimFee(
-      {
-        authority: master.publicKey,
-        globalConfig: globalConfig,
-        strategy: strategy,
-        strategyVaultX: strategyAccPre.xVault,
-        strategyVaultY: strategyAccPre.yVault,
-        position: position,
-        lbPair: lbPairPubkey,
-        binArrayLower: lowerBinArray,
-        binArrayUpper: upperBinArray,
-        reserveX: lbPairAcc.reserveX,
-        reserveY: lbPairAcc.reserveY,
-        tokenXMint: xMint,
-        tokenYMint: yMint,
-        /** The lb_clmm program */
-        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      }
-    )
+    const claimFeeIx = maikerSdk.createMeteoraClaimFeesInstruction({
+      authority: master.publicKey,
+      lbPair: positionInfo.lbPair,
+      position: positionPubkey,
+    });
 
-    const withdrawLiquidityIx = maikerInstructions.removeLiquidity(
-      {
-        authority: master.publicKey,
-        globalConfig: globalConfig,
-        strategy: strategy,
-        strategyVaultX: strategyAccPre.xVault,
-        strategyVaultY: strategyAccPre.yVault,
-        position: position,
-        lbPair: lbPairPubkey,
-        binArrayBitmapExtension: maikerProgramId.PROGRAM_ID, // For testing we know no binArraybitmap extension is required
-        reserveX: lbPairAcc.reserveX,
-        reserveY: lbPairAcc.reserveY,
-        tokenXMint: xMint,
-        tokenYMint: yMint,
-        binArrayLower: lowerBinArray,
-        binArrayUpper: upperBinArray,
-        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      },
-    )
+    const removeLiquidityIx = maikerSdk.createRemoveLiquidityInstruction({
+      authority: master.publicKey,
+      position: positionPubkey,
+    });
 
-    const closePositionIx = maikerInstructions.closePosition(
-      {
-        authority: master.publicKey,
-        globalConfig: globalConfig,
-        strategy: strategy,
-        position: position,
-        lbPair: lbPairPubkey,
-        binArrayLower: lowerBinArray,
-        binArrayUpper: upperBinArray,
-        rentReceiver: master.publicKey,
-        /** The lb_clmm program */
-        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
-        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
-      }
-    )
+    const closePositionIx = maikerSdk.createClosePositionInstruction({
+      authority: master.publicKey,
+      position: positionPubkey,
+    });
 
     const blockhash = await getLatestBlockhash();
     const builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [claimFeeIx, withdrawLiquidityIx, closePositionIx],
+      ixs: [claimFeeIx, removeLiquidityIx, closePositionIx],
       recentBlockhash: blockhash[0],
     })
 
     await processTransaction(builtTx.tx);
 
     // Assert
-    const strategyAccPost = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    await maikerSdk.refresh();
+    const strategyAccPost = maikerSdk.strategyAcc;
     // console.log("strategyAccPost: ", strategyAccPost);
 
     // Assert position was removed correctly
     assert.equal(strategyAccPost.positionCount, strategyAccPre.positionCount - 1);
 
     // Find where position was in the pre-state arrays
-    const positionIndex = strategyAccPre.positions.findIndex(p => p.equals(position));
+    const positionIndex = strategyAccPre.positions.findIndex(p => p.equals(positionPubkey));
     assert(positionIndex !== -1, "Position should have existed in pre-state");
 
     // Assert position was removed from positions array
@@ -1119,23 +1082,30 @@ describe("maiker-contracts", () => {
 
   // Claim Fees Admin
   test("Claim Fees Admin", async () => {
-    const globalConfigAcc = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
-    console.log("globalConfigAcc: ", globalConfigAcc);
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
+    );
 
-    const strategyAccPre = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    await maikerSdk.refresh();
+
+    const globalConfigAccPre = maikerSdk.globalConfigAcc;
+    console.log("globalConfigAccPre: ", globalConfigAccPre);
+
+    const strategyAccPre = maikerSdk.strategyAcc;
     console.log("strategyAccPre: ", strategyAccPre);
 
-    const feeShares = strategyAccPre.feeShares;
-    console.log("feeShares: ", Number(feeShares));
+    const feeSharesPre = strategyAccPre.feeShares;
+    console.log("feeShares Pre: ", Number(feeSharesPre));
 
     const preIxs = []
 
-    const treasuryX = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, globalConfigAcc.treasury, master.publicKey);
+    const treasuryX = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, globalConfigAccPre.treasury, master.publicKey);
     if (treasuryX.ix) preIxs.push(treasuryX.ix);
 
     const claimFeeIx = maikerInstructions.claimFees(
       {
-        sharesToClaim: feeShares,
+        sharesToClaim: feeSharesPre,
       },
       {
         authority: master.publicKey,
@@ -1158,16 +1128,24 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
-    const strategyAccPost = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
+    await maikerSdk.refresh();
+    const strategyAccPost = maikerSdk.strategyAcc;
     console.log("strategyAccPost: ", strategyAccPost);
 
-    assert.equal(Number(strategyAccPost.feeShares), Number(strategyAccPre.feeShares) - Number(feeShares), "Fee shares should be reduced by fee shares claimed");
-    assert.equal(Number(strategyAccPost.strategyShares), Number(strategyAccPre.strategyShares) - Number(feeShares), "Strategy shares should be reduced by fee shares claimed");
+    assert.equal(Number(strategyAccPost.feeShares), Number(strategyAccPre.feeShares) - Number(feeSharesPre), "Fee shares should be reduced by fee shares claimed");
+    assert.equal(Number(strategyAccPost.strategyShares), Number(strategyAccPre.strategyShares) - Number(feeSharesPre), "Strategy shares should be reduced by fee shares claimed");
   })
 
   // Update Global Config
   test("Update Global Config", async () => {
-    const globalConfigAccPre = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
+    );
+
+    await maikerSdk.refresh();
+
+    const globalConfigAccPre = maikerSdk.globalConfigAcc;
     console.log("globalConfigAccPre: ", globalConfigAccPre);
 
     const newGlobalConfigArgs = {

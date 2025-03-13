@@ -28,6 +28,7 @@ import DLMM, {
   getBinFromBinArray,
   SCALE_OFFSET,
   LMRewards,
+  LBCLMM_PROGRAM_IDS,
 } from '@meteora-ag/dlmm';
 import * as maiker from './generated-maiker/accounts';
 import * as maikerInstructions from './generated-maiker/instructions';
@@ -151,22 +152,6 @@ export class MaikerSDK {
       strategyData,
       globalConfigData
     );
-
-    // TODO: How will we handle Position Data?
-
-    // If there are positions, set up DLMM instance
-    // if (strategyData.positionCount > 0) {
-    //   const [lbPair] = deriveLbPair2(
-    //     strategyData.xMint,
-    //     strategyData.yMint,
-    //     new BN(10), // Default bin step, can be adjusted if needed
-    //     new BN(10000), // Default base factor
-    //     dlmmProgramId
-    //   );
-
-    //   instance.lbPair = lbPair;
-    //   instance.dlmmInstance = await DLMM.create(connection, lbPair);
-    // }
 
     return instance;
   }
@@ -778,17 +763,58 @@ export class MaikerSDK {
     params: {
       authority: PublicKey,
       position: PublicKey,
-      lowerBinId: number,
-      upperBinId: number,
     }
-  ): Promise<{
-    instruction: TransactionInstruction,
-    preInstructions: TransactionInstruction[]
-  }> {
-    // Implementation will go here
-    // This is similar to addLiquidity but uses the removeLiquidity instruction
-    // For brevity, we'll implement this later
-    throw new Error("Not implemented yet");
+  ): TransactionInstruction {
+    const positionInfo = this.positions.get(params.position.toBase58());
+
+    if (!positionInfo) {
+      throw new Error("Position not found");
+    }
+
+    const lbPairAcc = this.lbPairs.get(positionInfo.lbPair.toBase58());
+
+    if (!lbPairAcc) {
+      throw new Error("LB Pair not found");
+    }
+
+    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.lowerBinId ?? 0));
+    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0));
+
+    const [lowerBinArrayPubKey] = deriveBinArray(
+      positionInfo.lbPair,
+      lowerBinArrayIndex,
+      dlmmProgramId
+    );
+    const [upperBinArrayPubKey] = deriveBinArray(
+      positionInfo.lbPair,
+      upperBinArrayIndex,
+      dlmmProgramId
+    );
+
+
+    const withdrawLiquidityIx = maikerInstructions.removeLiquidity(
+      {
+        authority: params.authority,
+        globalConfig: this.globalConfig,
+        strategy: this.strategy,
+        strategyVaultX: this.strategyAcc.xVault,
+        strategyVaultY: this.strategyAcc.yVault,
+        position: params.position,
+        lbPair: positionInfo.lbPair,
+        binArrayBitmapExtension: maikerProgramId, // For testing we know no binArraybitmap extension is required
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        tokenXMint: this.xMint.address,
+        tokenYMint: this.yMint.address,
+        binArrayLower: lowerBinArrayPubKey,
+        binArrayUpper: upperBinArrayPubKey,
+        lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      },
+    )
+
+    return withdrawLiquidityIx
   }
 
   public createMeteoraClaimFeesInstruction(
@@ -804,26 +830,29 @@ export class MaikerSDK {
       throw new Error("Positions not fetched");
     }
 
-    const positionData = this.positions.get(position.toBase58());
+    const positionInfo = this.positions.get(position.toBase58());
 
-    if (!positionData) {
+    if (!positionInfo) {
       throw new Error("Position not found");
     }
 
-    const lbPairAcc = this.lbPairs.get(positionData.lbPair.toBase58());
+    const lbPairAcc = this.lbPairs.get(positionInfo.lbPair.toBase58());
 
     if (!lbPairAcc) {
       throw new Error("LB Pair not found");
     }
 
+    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.lowerBinId ?? 0));
+    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0));
+
     const [lowerBinArrayPubKey] = deriveBinArray(
-      positionData.lbPair,
-      new BN(positionData.positionData?.lowerBinId ?? 0),
+      positionInfo.lbPair,
+      lowerBinArrayIndex,
       dlmmProgramId
     );
     const [upperBinArrayPubKey] = deriveBinArray(
-      positionData.lbPair,
-      new BN(positionData.positionData?.upperBinId ?? 0),
+      positionInfo.lbPair,
+      upperBinArrayIndex,
       dlmmProgramId
     );
 
@@ -835,13 +864,13 @@ export class MaikerSDK {
         strategyVaultX: this.strategyAcc.xVault,
         strategyVaultY: this.strategyAcc.yVault,
         position,
-        lbPair: positionData.lbPair,
+        lbPair: positionInfo.lbPair,
         binArrayLower: lowerBinArrayPubKey,
         binArrayUpper: upperBinArrayPubKey,
         reserveX: lbPairAcc.reserveX,
         reserveY: lbPairAcc.reserveY,
-        tokenXMint: positionData.tokenX.publicKey,
-        tokenYMint: positionData.tokenY.publicKey,
+        tokenXMint: positionInfo.tokenX.publicKey,
+        tokenYMint: positionInfo.tokenY.publicKey,
         lbClmmProgram: dlmmProgramId,
         eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -857,27 +886,29 @@ export class MaikerSDK {
   ): TransactionInstruction {
     const { authority, position } = params;
 
-    const positionData = this.positions.get(position.toBase58());
+    const positionInfo = this.positions.get(position.toBase58());
 
-    if (!positionData) {
+    if (!positionInfo) {
       throw new Error("Position not found");
     }
 
-    const lbPairAcc = this.lbPairs.get(positionData.lbPair.toBase58());
+    const lbPairAcc = this.lbPairs.get(positionInfo.lbPair.toBase58());
 
     if (!lbPairAcc) {
       throw new Error("LB Pair not found");
     }
 
+    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.lowerBinId ?? 0));
+    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0));
+
     const [lowerBinArrayPubKey] = deriveBinArray(
-      positionData.lbPair,
-      new BN(positionData.positionData?.lowerBinId ?? 0),
+      positionInfo.lbPair,
+      lowerBinArrayIndex,
       dlmmProgramId
     );
-
     const [upperBinArrayPubKey] = deriveBinArray(
-      positionData.lbPair,
-      new BN(positionData.positionData?.upperBinId ?? 0),
+      positionInfo.lbPair,
+      upperBinArrayIndex,
       dlmmProgramId
     );
 
@@ -887,7 +918,7 @@ export class MaikerSDK {
         globalConfig: this.globalConfig,
         strategy: this.strategy,
         position,
-        lbPair: positionData.lbPair,
+        lbPair: positionInfo.lbPair,
         binArrayLower: lowerBinArrayPubKey,
         binArrayUpper: upperBinArrayPubKey,
         rentReceiver: this.strategyAcc.xVault,
