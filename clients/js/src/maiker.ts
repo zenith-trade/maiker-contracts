@@ -477,7 +477,6 @@ export class MaikerSDK {
    * Creates a deposit instruction
    */
   public async createDepositInstruction(
-    connection: Connection,
     params: DepositParams
   ): Promise<TransactionInstruction[]> {
     const { user, amount } = params;
@@ -488,7 +487,7 @@ export class MaikerSDK {
     const preIxs = [];
 
     // User Ata
-    const xUser = await getOrCreateATAInstruction(connection, this.xMint.address, user, user, true);
+    const xUser = await getOrCreateATAInstruction(this.connection, this.xMint.address, user, user, true);
     if (xUser.ix) preIxs.push(xUser.ix);
 
     const depositIx = maikerInstructions.deposit(
@@ -545,27 +544,32 @@ export class MaikerSDK {
    */
   public async createProcessWithdrawalInstruction(
     params: { user: PublicKey }
-  ): Promise<TransactionInstruction> {
+  ): Promise<TransactionInstruction[]> {
     const { user } = params;
 
     // Find pending withdrawal PDA
     const pendingWithdrawal = derivePendingWithdrawal(user, this.strategy);
 
+    const preIxs = [];
     // Get user X token account
-    const userTokenX = getAssociatedTokenAddress(this.xMint.address, user, false);
 
-    return maikerInstructions.processWithdrawal(
+    const xUser = await getOrCreateATAInstruction(this.connection, this.xMint.address, user, user, true);
+    if (xUser.ix) preIxs.push(xUser.ix);
+
+    const processWithdrawalIx = maikerInstructions.processWithdrawal(
       {
         user,
         strategy: this.strategy,
         globalConfig: this.globalConfig,
         pendingWithdrawal,
         strategyVaultX: this.strategyAcc.xVault,
-        userTokenX,
+        userTokenX: xUser.ataPubKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       }
     );
+
+    return [...preIxs, processWithdrawalIx];
   }
 
   /**
@@ -893,7 +897,7 @@ export class MaikerSDK {
    */
   public async getPendingWithdrawals(): Promise<PendingWithdrawalInfo[]> {
     if (!this.globalConfigAcc || !this.strategyAcc) {
-      await this.refresh();
+      throw new Error("Strategy not initialized");
     }
 
     // Find all pending withdrawal accounts for this strategy

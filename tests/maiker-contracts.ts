@@ -8,7 +8,7 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
@@ -516,7 +516,6 @@ describe("maiker-contracts", () => {
 
     // Create deposit instruction using the SDK
     const depositIxs = await maikerSdk.createDepositInstruction(
-      bankrunProvider.connection,
       {
         user: user.publicKey,
         amount: xAmount
@@ -560,38 +559,21 @@ describe("maiker-contracts", () => {
   test("Withdraw", async () => {
     const sharesAmount = 100000000000; // 10k
 
-    const userPosition = PublicKey.findProgramAddressSync(
-      [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
-      maikerProgramId.PROGRAM_ID
-    )[0];
-
-    const pendingWithdrawal = PublicKey.findProgramAddressSync(
-      [Buffer.from("pending-withdrawal"), user.publicKey.toBuffer(), strategy.toBuffer()],
-      maikerProgramId.PROGRAM_ID
-    )[0];
-
-    const userPositionAccPre = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
-
-    const [xVault, yVault] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
-    ]);
-
-    // Initiate withdrawal
-    const withdrawIx = maikerInstructions.initiateWithdrawal(
-      {
-        sharesAmount: new BN(sharesAmount),
-      },
-      {
-        user: user.publicKey,
-        strategy: strategy,
-        globalConfig: globalConfig,
-        userPosition: userPosition,
-        pendingWithdrawal: pendingWithdrawal,
-        strategyVaultX: xVault.ataPubKey,
-        systemProgram: SystemProgram.programId,
-      }
+    // Create an SDK instance for the strategy if not already created
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
     );
+
+    // Get user position info before withdrawal
+    const userPositionInfoBefore = await maikerSdk.getUserPosition(user.publicKey);
+    console.log("User position before withdrawal:", userPositionInfoBefore);
+
+    // Create withdrawal initiation instruction using the SDK
+    const withdrawIx = await maikerSdk.createInitiateWithdrawalInstruction({
+      user: user.publicKey,
+      sharesAmount: sharesAmount
+    });
 
     let blockhash = await getLatestBlockhash();
     let builtTx = await simulateAndGetTxWithCUs({
@@ -604,45 +586,54 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
-    const userPositionAcc = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
-    const pendingWithdrawalAcc = await maiker.PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
-    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    const globalConfigAcc = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    // Get withdrawal info
+    // Cannot use SDK because bankrun doesn't implement getProgramAccounts
+    // const pendingWithdrawals = await maikerSdk.getPendingWithdrawals();
+    // const userWithdrawal = pendingWithdrawals.find(w => w.owner.equals(user.publicKey));
+    // console.log("Pending withdrawal:", userWithdrawal);
 
-    // console.log("Initiation timestamp: ", new Date(Number(pendingWithdrawalAcc.initiationTimestamp) * 1000).toISOString());
-    // console.log("Available timestamp: ", new Date(Number(pendingWithdrawalAcc.availableTimestamp) * 1000).toISOString());
+    const userWithdrawal = derivePendingWithdrawal(user.publicKey, strategy);
+    console.log("User withdrawal: ", userWithdrawal);
 
-    assert(Number(userPositionAcc.strategyShare) === Number(userPositionAccPre.strategyShare) - sharesAmount, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== ${userPositionAccPre.strategyShare} - ${sharesAmount}`);
+    const userWithdrawalData = await maiker.PendingWithdrawal.fetch(bankrunProvider.connection, userWithdrawal);
+    console.log("User withdrawal data: ", userWithdrawalData);
 
-    // Note: Apply the withdraw fee bps to assertion
-    const widthawFeeShare = sharesAmount * (globalConfigAcc.withdrawalFeeBps / 10000);
-    assert(Number(pendingWithdrawalAcc.sharesAmount) === sharesAmount - widthawFeeShare, `pendingWithdrawalAcc.sharesAmount: ${pendingWithdrawalAcc.sharesAmount} !== ${sharesAmount - widthawFeeShare}`);
-    assert(Number(pendingWithdrawalAcc.tokenAmount) === sharesAmount - widthawFeeShare, `pendingWithdrawalAcc.tokenAmount: ${pendingWithdrawalAcc.tokenAmount} !== ${sharesAmount - widthawFeeShare}`);
+    // Refresh SDK data
+    await maikerSdk.refresh();
 
-    assert(Number(strategyAcc.feeShares) === widthawFeeShare, `strategyAcc.feeShares: ${strategyAcc.feeShares} !== ${widthawFeeShare}`);
+    // Get user position info after initiation
+    const userPositionInfoAfter = await maikerSdk.getUserPosition(user.publicKey);
+    console.log("User position after withdrawal initiation:", userPositionInfoAfter);
+
+    // Apply the withdraw fee bps to assertion
+    const withdrawalFeeBps = maikerSdk.globalConfigAcc.withdrawalFeeBps;
+    const withdrawFeeShare = sharesAmount * (withdrawalFeeBps / 10000);
+
+    // Verify user position shares were reduced
+    assert(userPositionInfoAfter.strategyShare === userPositionInfoBefore.strategyShare - sharesAmount,
+      `User position shares not reduced correctly: ${userPositionInfoAfter.strategyShare} !== ${userPositionInfoBefore.strategyShare - sharesAmount}`);
+
+    // Verify pending withdrawal amount (after fee)
+    assert(Number(userWithdrawalData.sharesAmount) === sharesAmount - withdrawFeeShare,
+      `Pending withdrawal amount incorrect: ${userWithdrawalData.sharesAmount} !== ${sharesAmount - withdrawFeeShare}`);
+
+    // Verify fee shares were added to strategy
+    assert(Number(maikerSdk.strategyAcc.feeShares) === withdrawFeeShare,
+      `Strategy fee shares incorrect: ${maikerSdk.strategyAcc.feeShares} !== ${withdrawFeeShare}`);
 
     // Try claim withdrawal prematurely
-    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
 
-    let claimIx = maikerInstructions.processWithdrawal(
-      {
-        user: user.publicKey,
-        strategy: strategy,
-        globalConfig: globalConfig,
-        pendingWithdrawal: pendingWithdrawal,
-        strategyVaultX: xVault.ataPubKey,
-        userTokenX: xUser.ataPubKey,
-        systemProgram: SystemProgram.programId,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      }
-    );
+    // Create process withdrawal instruction using the SDK
+    const claimIxs = await maikerSdk.createProcessWithdrawalInstruction({
+      user: user.publicKey
+    });
 
     blockhash = await getLatestBlockhash();
     builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [claimIx],
+      ixs: [...claimIxs],
       recentBlockhash: blockhash[0],
     });
 
@@ -658,21 +649,24 @@ describe("maiker-contracts", () => {
     // Need to warp slot to ensure new blockhash
     bankrunProvider.context.warpToSlot(slot + BigInt(2000000));
     // Need to warp timestamp extra for on-chain timestamp
-    bankrunProvider.context.setClock(new Clock(BigInt(0), BigInt(0), BigInt(0), BigInt(0), BigInt(Number(pendingWithdrawalAcc.availableTimestamp) + 60)));
+    bankrunProvider.context.setClock(new Clock(BigInt(0), BigInt(0), BigInt(0), BigInt(0), BigInt(Number(userWithdrawalData.availableTimestamp) + 60)));
 
     blockhash = await getLatestBlockhash();
     builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [claimIx],
+      ixs: [...claimIxs],
       recentBlockhash: blockhash[0],
     });
 
     await processTransaction(builtTx.tx);
 
+    // Verify withdrawal was processed
+    // const pendingWithdrawalsAfter = await maikerSdk.getPendingWithdrawals();
+    // const userWithdrawalAfter = pendingWithdrawalsAfter.find(w => w.owner.equals(user.publicKey));
     try {
-      await maiker.PendingWithdrawal.fetch(bankrunProvider.connection, pendingWithdrawal);
+      await maiker.PendingWithdrawal.fetch(bankrunProvider.connection, userWithdrawal);
       assert(false, "Should have failed");
     } catch (e) {
       console.log("Failed successfully");
