@@ -13,7 +13,6 @@ import DLMM, {
   isOverflowDefaultBinArrayBitmap,
   deriveBinArrayBitmapExtension,
   toWeightDistribution,
-  chunkedGetMultipleAccountInfos,
   LbPair,
   TokenReserve,
   PositionData,
@@ -54,8 +53,8 @@ import {
   StrategySetupParams,
   PositionInfo
 } from './types';
-import { deriveGlobalConfig, derivePendingWithdrawal, deriveUserPosition } from './utils';
-import { mulShr, Rounding } from './helpers';
+import { deriveGlobalConfig, derivePendingWithdrawal, deriveStrategy, deriveUserPosition } from './utils';
+import { chunkedGetMultipleAccountInfos, getOrCreateATAInstruction, mulShr, Rounding } from './helpers';
 
 /**
  * Main SDK class for the Maiker strategy contracts
@@ -178,33 +177,40 @@ export class MaikerSDK {
   public static async createStrategy(
     connection: Connection,
     params: StrategySetupParams
-  ): Promise<TransactionInstruction> {
+  ): Promise<TransactionInstruction[]> {
     const { creator, xMint, yMint } = params;
 
     // Find strategy PDA
-    const strategy = PublicKey.findProgramAddressSync(
-      [Buffer.from("strategy-config"), creator.toBuffer()],
-      maikerProgramId
-    )[0];
+    const strategy = deriveStrategy(creator);
 
-    // Get token vaults
-    const xVault = getAssociatedTokenAddress(xMint, strategy, true);
-    const yVault = getAssociatedTokenAddress(yMint, strategy, true);
+    const preIxs: TransactionInstruction[] = [];
+
+    // Vaults
+    const [xVault, yVault] = await Promise.all([
+      getOrCreateATAInstruction(connection, xMint, strategy, params.creator, true),
+      getOrCreateATAInstruction(connection, yMint, strategy, params.creator, true),
+    ]);
+
+    // Create Native Mint SOL ATA for sol escrow
+    if (xVault.ix) preIxs.push(xVault.ix);
+    if (yVault.ix) preIxs.push(yVault.ix);
 
     // Create instruction
-    return maikerInstructions.createStrategy(
+    const createStrategyIx = maikerInstructions.createStrategy(
       {
         creator,
         xMint,
         yMint,
-        xVault,
-        yVault,
+        xVault: xVault.ataPubKey,
+        yVault: yVault.ataPubKey,
         strategy,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       }
     );
+
+    return [...preIxs, createStrategyIx];
   }
 
   /**
@@ -468,16 +474,21 @@ export class MaikerSDK {
    * Creates a deposit instruction
    */
   public async createDepositInstruction(
+    connection: Connection,
     params: DepositParams
-  ): Promise<TransactionInstruction> {
+  ): Promise<TransactionInstruction[]> {
     const { user, amount } = params;
 
     const userPosition = deriveUserPosition(user, this.strategy);
 
-    // Get user X token account
-    const userTokenX = getAssociatedTokenAddress(this.xMint.address, user, false);
 
-    return maikerInstructions.deposit(
+    const preIxs = [];
+
+    // User Ata
+    const xUser = await getOrCreateATAInstruction(connection, this.xMint.address, user, user, true);
+    if (xUser.ix) preIxs.push(xUser.ix);
+
+    const depositIx = maikerInstructions.deposit(
       {
         amount: new BN(amount),
       },
@@ -486,12 +497,14 @@ export class MaikerSDK {
         strategy: this.strategy,
         globalConfig: this.globalConfig,
         userPosition,
-        userTokenX,
+        userTokenX: xUser.ataPubKey,
         strategyVaultX: this.strategyAcc.xVault,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       }
     );
+
+    return [...preIxs, depositIx];
   }
 
   /**

@@ -8,7 +8,7 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
@@ -16,6 +16,7 @@ import { BinAndAmount, BinArrayAccount, binIdToBinArrayIndex, calculateBidAskDis
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { readFileSync } from "fs";
 import path from "path";
+import { MaikerSDK } from "../clients/js/src";
 
 const PROGRAM_BIN_DIR = path.join(__dirname, "..", ".programsBin");
 
@@ -435,15 +436,8 @@ describe("maiker-contracts", () => {
   // anchor.setProvider(anchor.AnchorProvider.env());
   // const program = anchor.workspace.MaikerContracts as Program<MaikerContracts>;
 
-  const globalConfig = PublicKey.findProgramAddressSync(
-    [Buffer.from("global-config")],
-    maikerProgramId.PROGRAM_ID
-  )[0];
-
-  const strategy = PublicKey.findProgramAddressSync(
-    [Buffer.from("strategy-config"), creator.publicKey.toBuffer()],
-    maikerProgramId.PROGRAM_ID
-  )[0];
+  const globalConfig = deriveGlobalConfig();
+  const strategy = deriveStrategy(creator.publicKey);
 
   test("Is initialized!", async () => {
     const initializeIx = maikerInstructions.initialize(
@@ -479,30 +473,14 @@ describe("maiker-contracts", () => {
   });
 
   test("Create strategy", async () => {
-    const preIxs = [];
-
-    // Vaults
-    const [xVault, yVault] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, strategy, creator.publicKey, true),
-    ]);
-
-    // Create Native Mint SOL ATA for sol escrow
-    xVault.ix && preIxs.push(xVault.ix);
-    yVault.ix && preIxs.push(yVault.ix);
-
-    const createStrategyIx = maikerInstructions.createStrategy(
+    // Create a strategy using MaikerSDK's static method
+    const createStrategyIxs = await MaikerSDK.createStrategy(
+      bankrunProvider.connection,
       {
         creator: creator.publicKey,
         xMint: xMint,
-        yMint: yMint,
-        xVault: xVault.ataPubKey,
-        yVault: yVault.ataPubKey,
-        strategy: strategy,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      },
+        yMint: yMint
+      }
     );
 
     const blockhash = await getLatestBlockhash();
@@ -510,48 +488,39 @@ describe("maiker-contracts", () => {
       connection: bankrunProvider.connection,
       payerPublicKey: creator.publicKey,
       lookupTableAccounts: [],
-      ixs: [...preIxs, createStrategyIx],
+      ixs: [...createStrategyIxs],
       recentBlockhash: blockhash[0],
     });
 
     await processTransaction(builtTx.tx);
 
-    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    console.log("strategy: ", strategyAcc);
+    // Create an SDK instance for the strategy
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
+    );
+
+    console.log("strategy data:", maikerSdk.strategyAcc);
+    assert(maikerSdk.strategyAcc.xMint.equals(xMint), "X mint doesn't match");
+    assert(maikerSdk.strategyAcc.yMint.equals(yMint), "Y mint doesn't match");
   });
 
   test("Deposit", async () => {
     const xAmount = 1000000000000; // 1M
 
-    const userPosition = PublicKey.findProgramAddressSync(
-      [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
-      maikerProgramId.PROGRAM_ID
-    )[0];
+    // Create an SDK instance for the strategy if not already created
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
+    );
 
-    const preIxs = [];
-
-    // User Ata
-    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
-
-    xUser.ix && preIxs.push(xUser.ix);
-
-    // Vaults
-    const xVault = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, strategy, creator.publicKey, true);
-
-    const depositIx = maikerInstructions.deposit(
-      {
-        amount: new BN(xAmount),
-      },
+    // Create deposit instruction using the SDK
+    const depositIxs = await maikerSdk.createDepositInstruction(
+      bankrunProvider.connection,
       {
         user: user.publicKey,
-        strategy: strategy,
-        globalConfig: globalConfig,
-        userPosition: userPosition,
-        userTokenX: xUser.ataPubKey,
-        strategyVaultX: xVault.ataPubKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      },
+        amount: xAmount
+      }
     );
 
     const blockhash = await getLatestBlockhash();
@@ -559,21 +528,37 @@ describe("maiker-contracts", () => {
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [...preIxs, depositIx],
+      ixs: [...depositIxs],
       recentBlockhash: blockhash[0],
     });
 
     await processTransaction(builtTx.tx);
 
-    const strategyAcc = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    assert(Number(strategyAcc.strategyShares) === xAmount, `strategyShares: ${strategyAcc.strategyShares} !== ${xAmount}`);
+    console.log("Processed Tx");
 
-    const userPositionAcc = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
-    assert(Number(userPositionAcc.strategyShare) === xAmount, `userPositionAcc.strategyShare: ${userPositionAcc.strategyShare} !== ${xAmount}`);
-    assert(Number(userPositionAcc.lastShareValue) === SHARE_PRECISION, `userPositionAcc.lastShareValue: ${userPositionAcc.lastShareValue} !== ${SHARE_PRECISION}`);
+    // Refresh strategy data to get latest state
+    await maikerSdk.refresh();
+    console.log("Refresh working");
 
-    const xVaultTokenAcc = await getTokenAcc(xVault.ataPubKey);
-    assert(Number(xVaultTokenAcc.amount) === xAmount, `xVaultTokenAcc.amount: ${xVaultTokenAcc.amount} !== ${xAmount}`);
+    // Use SDK's getUserPosition to get position info
+    const userPositionInfo = await maikerSdk.getUserPosition(user.publicKey);
+    console.log("Fetching user position info working");
+
+
+    // Assertions
+    assert(Number(maikerSdk.strategyAcc.strategyShares) === xAmount,
+      `strategyShares: ${maikerSdk.strategyAcc.strategyShares} !== ${xAmount}`);
+
+    assert(userPositionInfo !== null, "User position not found");
+    assert(Number(userPositionInfo.strategyShare) === xAmount,
+      `userPositionInfo.strategyShare: ${userPositionInfo?.strategyShare} !== ${xAmount}`);
+    assert(userPositionInfo.shareValue === SHARE_PRECISION,
+      `userPositionInfo.shareValue: ${userPositionInfo?.shareValue} !== ${SHARE_PRECISION}`);
+
+    // Get token balance from the vault directly
+    const xVaultTokenAcc = await getTokenAcc(maikerSdk.strategyAcc.xVault);
+    assert(Number(xVaultTokenAcc.amount) === xAmount,
+      `xVaultTokenAcc.amount: ${xVaultTokenAcc.amount} !== ${xAmount}`);
   });
 
   test("Withdraw", async () => {
@@ -1236,8 +1221,6 @@ describe("maiker-contracts", () => {
         /** The lb_clmm program */
         lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
         eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
-        positionOwner: user.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
       }
     )
 
