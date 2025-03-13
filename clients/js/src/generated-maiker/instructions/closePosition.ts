@@ -16,8 +16,6 @@ export interface ClosePositionAccounts {
   /** The lb_clmm program */
   lbClmmProgram: PublicKey
   eventAuthority: PublicKey
-  positionOwner: PublicKey
-  tokenProgram: PublicKey
 }
 
 export function closePosition(
@@ -35,8 +33,6 @@ export function closePosition(
     { pubkey: accounts.rentReceiver, isSigner: false, isWritable: true },
     { pubkey: accounts.lbClmmProgram, isSigner: false, isWritable: false },
     { pubkey: accounts.eventAuthority, isSigner: false, isWritable: false },
-    { pubkey: accounts.positionOwner, isSigner: false, isWritable: true },
-    { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
   ]
   const identifier = Buffer.from([123, 134, 81, 0, 49, 68, 98, 98])
   const data = identifier

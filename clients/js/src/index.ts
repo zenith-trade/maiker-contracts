@@ -11,4 +11,9 @@ export * as dlmmTypes from "./generated-dlmm/types";
 export * as dlmmProgramId from "./generated-dlmm/programId";
 
 export * from "./utils";
+export * from "./helpers";
 export * from "./constants";
+export * from "./meteora/utils";
+
+export { MaikerSDK } from "./maiker";
+export * from "./types";

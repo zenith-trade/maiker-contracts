@@ -43,14 +43,6 @@ pub struct ClosePosition<'info> {
 
     /// CHECK: Event authority for lb_clmm
     pub event_authority: UncheckedAccount<'info>,
-
-    /// CHECK: Position owner
-    #[account(mut)]
-    pub position_owner: UncheckedAccount<'info>,
-
-    /// CHECK: Token program
-    #[account(address = anchor_spl::token::ID)]
-    pub token_program: Program<'info, anchor_spl::token::Token>,
 }
 
 pub fn close_position_handler(ctx: Context<ClosePosition>) -> Result<()> {
