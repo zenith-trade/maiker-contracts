@@ -882,43 +882,21 @@ describe("maiker-contracts", () => {
   });
 
   test("Get Position Value and deposit", async () => {
-    lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
+    );
 
-    const activeBin = lbPairAcc.activeId;
+    await maikerSdk.refresh();
 
-    const userPosition = PublicKey.findProgramAddressSync(
-      [Buffer.from("user-position"), user.publicKey.toBuffer(), strategy.toBuffer()],
-      maikerProgramId.PROGRAM_ID
-    )[0];
+    const userPosition = deriveUserPosition(user.publicKey, strategy);
 
-    const strategyAccPre = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    const userPositionAccPre = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
-    console.log("userPositionAccPre lastShareValue: ", userPositionAccPre.lastShareValue.toString());
+    const strategyAccPre = maikerSdk.strategyAcc;
+    const userPositionInfoPre = await maikerSdk.getUserPosition(user.publicKey);
 
-    const position = strategyAccPre.positions[0];
-
-    const price = getPriceOfBinByBinId(activeBin, lbPairAcc.binStep);
-    console.log("price: ", price);
-
-    await dlmmInstance.refetchStates();
-    const positionInfo = await dlmmInstance.getPosition(position);
-    console.log("positionInfo: ", positionInfo);
-
-    const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.lowerBinId));
-    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo.positionData.upperBinId));
-
-    const { lowerBinArray, upperBinArray } = await getOrCreateBinArraysInstructions(bankrunProvider.connection, lbPairPubkey, new BN(lowerBinArrayIndex), new BN(upperBinArrayIndex), master.publicKey);
-
-    const getPositionValueIx = maikerInstructions.getPositionValue(
-      {
-        position: position,
-        strategy: strategy,
-        lbPair: lbPairPubkey,
-        binArrayLower: lowerBinArray,
-        binArrayUpper: upperBinArray,
-        user: user.publicKey,
-      }
-    )
+    const getPositionValueIxs = await maikerSdk.createPositionValueInstructions({
+      user: user.publicKey,
+    })
 
     // Deposit
     const xAmount = 100_000_000_000; // 100k
@@ -943,37 +921,56 @@ describe("maiker-contracts", () => {
 
     // Build tx
     const blockhash = await getLatestBlockhash();
+
     const builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
       payerPublicKey: user.publicKey,
       lookupTableAccounts: [],
-      ixs: [getPositionValueIx, depositIx],
+      ixs: [...getPositionValueIxs, depositIx],
       recentBlockhash: blockhash[0],
     })
 
     await processTransaction(builtTx.tx);
 
-    const strategyAccPost = await maiker.StrategyConfig.fetch(bankrunProvider.connection, strategy);
-    // console.log("strategyAccPost: ", strategyAccPost.positionsValues[0].toString());
+    await maikerSdk.refresh();
+    const strategyAccPost = maikerSdk.strategyAcc;
 
     // All within client library
-    // TODO: Create helper function to calculate position value as well as total strategy value
-    // TODO: Create helper function to calculate share value
-    const positionValue = Math.round(Number(positionInfo.positionData.totalXAmount) + Number(positionInfo.positionData.totalYAmount) / price.toNumber());
-    console.log("positionValue: ", positionValue);
+    const positionValue = await maikerSdk.getStrategyValue();
+    // console.log("positionValue: ", positionValue);
 
-    const positionValueDiff = Math.abs(Number(strategyAccPost.positionsValues[0]) - positionValue);
-    const allowedDiff = positionValue * 0.0001; // 0.01% tolerance
-    assert(positionValueDiff <= allowedDiff, `Position value difference ${positionValueDiff} exceeds 0.01% tolerance of ${allowedDiff}. Expected ~${positionValue}, got ${strategyAccPost.positionsValues[0].toString()}`);
+    // Assert on-chain position value data
+    for (let i = 0; i < strategyAccPost.positionCount; i++) {
+      const positionPubkey = strategyAccPost.positions[i];
+      const onChainValue = strategyAccPost.positionsValues[i];
+      // console.log("onChainValue: ", onChainValue.toString());
+
+      const sdkPositionValue = positionValue.positionValues.find(p => p.pubkey === positionPubkey.toString());
+      // console.log("sdkPositionValue: ", sdkPositionValue.totalValue.toString());
+
+      const valueDiff = Math.abs(Number(onChainValue) - sdkPositionValue.totalValue);
+      const allowedDiff = sdkPositionValue.totalValue * 0.0001; // 0.01% tolerance
+
+      assert(valueDiff <= allowedDiff,
+        `Position ${positionPubkey.toString()} value difference ${valueDiff} exceeds 0.01% tolerance of ${allowedDiff}. Expected ~${sdkPositionValue.totalValue}, got ${onChainValue.toString()}`
+      );
+    }
+
+    const shareValue = maikerSdk.calculateShareValue(positionValue.totalValue);
+    // console.log("shareValue: ", shareValue);
 
     // Assert User Position Shares
-    // TODO: Update after client library implementation
-    const userPositionAccPost = await maiker.UserPosition.fetch(bankrunProvider.connection, userPosition);
-    console.log("userPositionAccPost Shares: ", userPositionAccPost.strategyShare.toString());
-    console.log("userPositionAccPre Shares: ", userPositionAccPre.strategyShare.toString());
+    const userPositionInfoPost = await maikerSdk.getUserPosition(user.publicKey);
+    const newSharesIssued = maikerSdk.calculateSharesForDeposit(xAmount, shareValue);
+    // console.log("newSharesIssued: ", newSharesIssued);
 
-    console.log("userPositionAccPost Last Share Value: ", userPositionAccPost.lastShareValue.toString());
-    console.log("userPositionAccPre Last Share Value: ", userPositionAccPre.lastShareValue.toString());
+    assert(isWithinOnePercent(BigInt(userPositionInfoPost.strategyShare), BigInt(userPositionInfoPre.strategyShare + newSharesIssued)), `userPositionInfoPost.strategyShare: ${userPositionInfoPost.strategyShare} !== ${userPositionInfoPre.strategyShare + newSharesIssued}`);
+    // console.log("userPositionAccPost Shares: ", userPositionInfoPost.strategyShare.toString());
+    // console.log("userPositionAccPre Shares: ", userPositionInfoPre.strategyShare.toString());
+
+    assert(userPositionInfoPost.lastShareValue === Math.floor(shareValue * SHARE_PRECISION), `userPositionInfoPost.lastShareValue: ${userPositionInfoPost.lastShareValue} !== ${Math.floor(shareValue * SHARE_PRECISION)}`);
+    // console.log("userPositionAccPost Last Share Value: ", userPositionInfoPost.lastShareValue.toString());
+    // console.log("userPositionAccPre Last Share Value: ", userPositionInfoPre.lastShareValue.toString());
   })
 
   // Rebalance close position flow: Claim Fees, Withdraw Liquidity, Close Position

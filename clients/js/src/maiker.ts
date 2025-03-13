@@ -900,30 +900,33 @@ export class MaikerSDK {
   /**
    * Creates instructions to get the value of a position
    */
-  public createPositionValueInstructions(params: { user: PublicKey }): TransactionInstruction[] {
-    const positionPubkeys = this.strategyAcc.positions
+  public async createPositionValueInstructions(params: { user: PublicKey }): Promise<TransactionInstruction[]> {
+    const positionPubkeys = this.strategyAcc.positions.filter(pubkey => !pubkey.equals(PublicKey.default));
 
-    const ixs = positionPubkeys.map((positionPubKey) => {
+    const getPositionValueIxs = positionPubkeys.map((positionPubKey) => {
       const positionData = this.positions.get(positionPubKey.toBase58());
 
       if (!positionData) {
         throw new Error("Position not found");
       }
 
-      const [lowerBinArray] = deriveBinArray(positionData.lbPair, new BN(positionData.positionData?.lowerBinId ?? 0), dlmmProgramId);
-      const [upperBinArray] = deriveBinArray(positionData.lbPair, new BN(positionData.positionData?.upperBinId ?? 0), dlmmProgramId);
+      const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionData.positionData?.lowerBinId || 0));
+      const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionData.positionData?.upperBinId || 0));
+
+      const binArrayLower = deriveBinArray(positionData.lbPair, new BN(lowerBinArrayIndex), dlmmProgramId)[0];
+      const binArrayUpper = deriveBinArray(positionData.lbPair, new BN(upperBinArrayIndex), dlmmProgramId)[0];
 
       return maikerInstructions.getPositionValue({
         strategy: this.strategy,
         position: positionPubKey,
         lbPair: positionData.lbPair,
-        binArrayLower: lowerBinArray,
-        binArrayUpper: upperBinArray,
+        binArrayLower,
+        binArrayUpper,
         user: params.user
       });
     });
 
-    return ixs;
+    return getPositionValueIxs;
   }
 
   /**
@@ -1080,20 +1083,20 @@ export class MaikerSDK {
       return {
         xTokenAmount: xBalance,
         yTokenAmount: yBalance,
-        xTokenValue: xBalance,
         yTokenValueInX: 0, // No positions, so we don't have a price
-        totalValue: xBalance
+        totalValue: xBalance,
+        positionValues: []
       };
     }
 
     // Get position value from fetched positions
-    const positionPubkeys = this.strategyAcc.positions;
+    const positionPubkeys = this.strategyAcc.positions.filter(pubkey => !pubkey.equals(PublicKey.default));
 
     // Calculate positions value
     const positions = Array.from(this.positions.values());
 
     // Verify that we have all positions loaded
-    if (positions.length !== positionPubkeys.length) {
+    if (positions.length !== this.strategyAcc.positionCount) {
       throw new Error("Missing positions data");
     }
 
@@ -1105,8 +1108,24 @@ export class MaikerSDK {
       throw new Error(`Missing data for positions: ${missingPositions.map(p => p.toString()).join(', ')}`);
     }
 
-    // Sum up the token amounts across all positions
-    const positionsValue = positions.reduce((acc, position) => {
+    let priceAccumulator = 0;
+
+    // Calculate value for each position
+    const positionValues = positions.map(position => {
+      const lbPair = this.lbPairs.get(position.lbPair.toBase58());
+
+      if (!lbPair) {
+        throw new Error("LB Pair not found");
+      }
+
+      const activeBin = lbPair.activeId;
+      const price = getPriceOfBinByBinId(activeBin, lbPair.binStep);
+      priceAccumulator += Number(price);
+
+      // console.log("Price: ", price);
+      // console.log("Total X Amount: ", position.positionData?.totalXAmount);
+      // console.log("Total Y Amount: ", position.positionData?.totalYAmount);
+
       const xAmount = parseFloat(position.positionData?.totalXAmount || "0");
       const yAmount = parseFloat(position.positionData?.totalYAmount || "0");
 
@@ -1114,23 +1133,31 @@ export class MaikerSDK {
       const feeX = position.positionData?.feeX ? position.positionData.feeX.toNumber() / (10 ** this.xMint.decimals) : 0;
       const feeY = position.positionData?.feeY ? position.positionData.feeY.toNumber() / (10 ** this.yMint.decimals) : 0;
 
-      acc.xAmount += xAmount + feeX;
-      acc.yAmount += yAmount + feeY;
-      return acc;
-    }, { xAmount: 0, yAmount: 0 });
+      const totalXAmount = xAmount + feeX;
+      const totalYAmount = yAmount + feeY;
+      const yValueInX = totalYAmount / Number(price);
+      const totalValue = totalXAmount + yValueInX;
 
-    const lbPair = this.lbPairs.get(positions[0].lbPair.toBase58());
+      return {
+        pubkey: position.pubkey.toString(),
+        xAmount: totalXAmount,
+        yAmount: totalYAmount,
+        yValueInX,
+        totalValue
+      };
+    });
 
-    if (!lbPair) {
-      throw new Error("LB Pair not found");
-    }
+    const averagePrice = priceAccumulator / positionValues.length;
 
-    const activeBin = lbPair.activeId;
-    const price = getPriceOfBinByBinId(activeBin, lbPair.binStep);
+    // Sum up the token amounts across all positions
+    const positionsValue = positionValues.reduce((acc, pos) => ({
+      xAmount: acc.xAmount + pos.xAmount,
+      yAmount: acc.yAmount + pos.yAmount
+    }), { xAmount: 0, yAmount: 0 });
 
     let totalYValueInX = 0;
     if (positionsValue.yAmount > 0) {
-      totalYValueInX = positionsValue.yAmount * Number(price);
+      totalYValueInX = positionsValue.yAmount / averagePrice;
     }
 
     // Total up everything
@@ -1141,10 +1168,23 @@ export class MaikerSDK {
     return {
       xTokenAmount: totalXAmount,
       yTokenAmount: totalYAmount,
-      xTokenValue: totalXAmount,
       yTokenValueInX: totalYValueInX,
-      totalValue
+      totalValue,
+      positionValues
     };
+  }
+
+  // Assertion helpers
+  public calculateShareValue(totalValue: number): number {
+    return totalValue / Number(this.strategyAcc.strategyShares || 1);
+  }
+
+  public calculateSharesForDeposit(depositValue: number, currentShareValue: number): number {
+    return Math.floor(depositValue / currentShareValue);
+  }
+
+  public calculateWithdrawalAmount(shares: number, currentShareValue: number): number {
+    return Math.floor(shares * currentShareValue);
   }
 
   /**

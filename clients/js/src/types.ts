@@ -59,9 +59,15 @@ export interface PositionLiquidityParams {
 export interface PositionValue {
   xTokenAmount: number;
   yTokenAmount: number;
-  xTokenValue: number;
   yTokenValueInX: number;
   totalValue: number;
+  positionValues: {
+    pubkey: string;
+    xAmount: number;
+    yAmount: number;
+    yValueInX: number;
+    totalValue: number;
+  }[];
 }
 
 /**
