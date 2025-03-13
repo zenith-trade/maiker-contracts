@@ -9,8 +9,7 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { base64, bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { getPriorityFees } from './priorityFeeHelius';
-// import { getMedianPrioritizationFeeByPercentile } from './priorityFeeTriton';
+import { getMedianPrioritizationFeeByPercentile, PriotitizationFeeLevels } from './priorityFeeTriton';
 
 const PLACEHOLDER_BLOCKHASH = 'Fdum64WVeej6DeL85REV9NvfSxEJNPZ74DBk7A8kTrKP';
 
@@ -143,17 +142,14 @@ export async function simulateAndGetTxWithCUs(
   });
 
   if (params.addPriorityFee && params.priorityFeeLevel) {
-    // console.log("Adding priority fee");
-    // TODO: Add Triton implementation
-
-    const serializedTransaction = tx.serialize();
-    const base58Transaction = bs58.encode(serializedTransaction);
-    const priorityFeeLevels = await getPriorityFees(base58Transaction);
+    const priorityFee = await getMedianPrioritizationFeeByPercentile(params.connection, {
+      percentile: PriotitizationFeeLevels.MEDIAN,
+    });
     // console.log(priorityFeeLevels, "Priority fee Levels");
 
     // Create priority fee instruction
     const setComputeUnitPriceIx = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: priorityFeeLevels[params.priorityFeeLevel],
+      microLamports: priorityFee,
     });
 
     // Add the priority fee instruction to the transaction
