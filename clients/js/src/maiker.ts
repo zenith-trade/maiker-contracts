@@ -229,8 +229,11 @@ export class MaikerSDK {
     const binArrayPubkeySetV2 = new Set<string>();
     const lbPairSetV2 = new Set<string>();
 
+    // Filter out default positions
+    const strategyPositions = this.strategyAcc.positions.filter((position) => !position.equals(PublicKey.default));
+
     const strategyPositionInfos = await chunkedGetMultipleAccountInfos(this.connection, [
-      ...this.strategyAcc.positions
+      ...strategyPositions
     ]);
 
     const positionsV2 = strategyPositionInfos.map((accInfo, idx) => ({
@@ -865,28 +868,24 @@ export class MaikerSDK {
   public async getUserPosition(user: PublicKey): Promise<UserPositionInfo | null> {
     const userPosition = deriveUserPosition(user, this.strategy);
 
-    try {
-      const userPositionData = await maiker.UserPosition.fetch(this.connection, userPosition);
+    const userPositionData = await maiker.UserPosition.fetch(this.connection, userPosition);
 
-      if (!userPositionData) {
-        return null;
-      }
-
-      const strategyValue = await this.getStrategyValue();
-      const shareValue = strategyValue.totalValue / Number(this.strategyAcc.strategyShares || 1);
-
-      return {
-        address: userPosition,
-        strategyShare: userPositionData.strategyShare.toString(),
-        shareValue,
-        lastShareValue: userPositionData.lastShareValue.toString(),
-        lastUpdateTimestamp: (userPositionData as unknown as { lastUpdateTimestamp: BN }).lastUpdateTimestamp.toString(),
-        valueInToken: Number(userPositionData.strategyShare) * shareValue / SHARE_PRECISION,
-      };
-    } catch (e) {
-      // User position doesn't exist
+    if (!userPositionData) {
       return null;
     }
+
+    const strategyValue = await this.getStrategyValue();
+
+    const shareValue = strategyValue.totalValue / Number(this.strategyAcc.strategyShares || 1);
+
+    return {
+      address: userPosition,
+      strategyShare: Number(userPositionData.strategyShare),
+      shareValue,
+      lastShareValue: Number(userPositionData.lastShareValue),
+      lastUpdateSlot: Number(userPositionData.lastUpdateSlot),
+      valueInToken: Number(userPositionData.strategyShare) * shareValue / SHARE_PRECISION,
+    };
   }
 
   /**
@@ -1087,10 +1086,12 @@ export class MaikerSDK {
   /**
    * Gets token balance for an account
    */
-  private async getTokenBalance(account: PublicKey): Promise<number> {
-    const balance = await this.connection.getTokenAccountBalance(account);
-    return Number(balance.value.amount);
+  private async getTokenBalance(pubkey: PublicKey): Promise<number> {
+    const accInfo = await this.connection.getAccountInfo(pubkey);
+    const tokenAcc = AccountLayout.decode(accInfo?.data || Buffer.from([]));
+    return Number(tokenAcc.amount);
   }
+
 
   // Meteora methods below
   private static getClaimableLMReward(

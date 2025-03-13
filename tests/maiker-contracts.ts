@@ -534,16 +534,12 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
-    console.log("Processed Tx");
-
     // Refresh strategy data to get latest state
     await maikerSdk.refresh();
-    console.log("Refresh working");
 
     // Use SDK's getUserPosition to get position info
     const userPositionInfo = await maikerSdk.getUserPosition(user.publicKey);
-    console.log("Fetching user position info working");
-
+    console.log("User position info: ", userPositionInfo);
 
     // Assertions
     assert(Number(maikerSdk.strategyAcc.strategyShares) === xAmount,
@@ -552,8 +548,8 @@ describe("maiker-contracts", () => {
     assert(userPositionInfo !== null, "User position not found");
     assert(Number(userPositionInfo.strategyShare) === xAmount,
       `userPositionInfo.strategyShare: ${userPositionInfo?.strategyShare} !== ${xAmount}`);
-    assert(userPositionInfo.shareValue === SHARE_PRECISION,
-      `userPositionInfo.shareValue: ${userPositionInfo?.shareValue} !== ${SHARE_PRECISION}`);
+    assert(userPositionInfo.lastShareValue === SHARE_PRECISION,
+      `userPositionInfo.shareValue: ${userPositionInfo?.lastShareValue} !== ${SHARE_PRECISION}`);
 
     // Get token balance from the vault directly
     const xVaultTokenAcc = await getTokenAcc(maikerSdk.strategyAcc.xVault);

@@ -69,10 +69,10 @@ export interface PositionValue {
  */
 export interface UserPositionInfo {
   address: PublicKey;
-  strategyShare: string;
+  strategyShare: number;
   shareValue: number;
-  lastShareValue: string;
-  lastUpdateTimestamp: string;
+  lastShareValue: number;
+  lastUpdateSlot: number;
   valueInToken: number;
 }
 
