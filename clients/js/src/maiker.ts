@@ -1,4 +1,4 @@
-import { Connection, PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
+import { Connection, PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction, SYSVAR_CLOCK_PUBKEY, AccountMeta } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync as getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getMint, Mint, AccountLayout, MintLayout } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 import Decimal from 'decimal.js';
@@ -225,7 +225,7 @@ export class MaikerSDK {
     await this.fetchPositions();
   }
 
-  private async fetchPositions(): Promise<Map<string, PositionInfo>> {
+  public async fetchPositions(): Promise<Map<string, PositionInfo>> {
     const binArrayPubkeySetV2 = new Set<string>();
     const lbPairSetV2 = new Set<string>();
 
@@ -442,32 +442,32 @@ export class MaikerSDK {
           tokenY,
           positionData
         });
+      } else {
+        // Default position data when bin arrays aren't available
+        const defaultPositionData = {
+          totalXAmount: '0',
+          totalYAmount: '0',
+          positionBinData: [],
+          lastUpdatedAt: new BN(0),
+          upperBinId,
+          lowerBinId,
+          feeX: new BN(0),
+          feeY: new BN(0),
+          rewardOne: new BN(0),
+          rewardTwo: new BN(0),
+          feeOwner,
+          totalClaimedFeeXAmount: new BN(0),
+          totalClaimedFeeYAmount: new BN(0),
+        };
+
+        this.positions.set(positionPubKey.toBase58(), {
+          pubkey: positionPubKey,
+          lbPair,
+          tokenX,
+          tokenY,
+          positionData: defaultPositionData
+        });
       }
-
-      // Default position data when bin arrays aren't available
-      const defaultPositionData = {
-        totalXAmount: '0',
-        totalYAmount: '0',
-        positionBinData: [],
-        lastUpdatedAt: new BN(0),
-        upperBinId,
-        lowerBinId,
-        feeX: new BN(0),
-        feeY: new BN(0),
-        rewardOne: new BN(0),
-        rewardTwo: new BN(0),
-        feeOwner,
-        totalClaimedFeeXAmount: new BN(0),
-        totalClaimedFeeYAmount: new BN(0),
-      };
-
-      this.positions.set(positionPubKey.toBase58(), {
-        pubkey: positionPubKey,
-        lbPair,
-        tokenX,
-        tokenY,
-        positionData: defaultPositionData
-      });
     });
 
     return this.positions;
@@ -570,6 +570,66 @@ export class MaikerSDK {
     );
 
     return [...preIxs, processWithdrawalIx];
+  }
+
+  public createSwapInstruction(
+    params: {
+      authority: PublicKey,
+      lbPair: PublicKey,
+      lbPairAcc: dlmm.lbPair,
+      amountIn: BN,
+      minAmountOut: BN,
+      xToY: boolean
+      activeBin: number
+    }
+  ): TransactionInstruction {
+    const { authority, lbPair, amountIn, minAmountOut, xToY, activeBin, lbPairAcc } = params;
+
+    const activeBinArrayIdx = binIdToBinArrayIndex(new BN(activeBin));
+
+    const [activeBinArray] = deriveBinArray(
+      lbPair,
+      activeBinArrayIdx,
+      dlmmProgramId
+    );
+
+    const activeBinArrayMeta: AccountMeta = {
+      isSigner: false,
+      isWritable: true,
+      pubkey: activeBinArray,
+    };
+
+    const swapIx = maikerInstructions.swapExactIn(
+      {
+        amountIn,
+        minAmountOut,
+        xToY,
+      },
+      {
+        authority,
+        globalConfig: this.globalConfig,
+        strategy: this.strategy,
+        lbPair,
+        binArrayBitmapExtension: dlmmProgramId, // We know it's not required here in test
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        strategyVaultX: this.strategyAcc.xVault,
+        strategyVaultY: this.strategyAcc.yVault,
+        tokenXMint: lbPairAcc.tokenXMint,
+        tokenYMint: lbPairAcc.tokenYMint,
+        oracle: lbPairAcc.oracle,
+        hostFeeIn: dlmmProgramId,
+        lbClmmProgram: dlmmProgramId,
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        tokenXProgram: TOKEN_PROGRAM_ID,
+        tokenYProgram: TOKEN_PROGRAM_ID
+      }
+    )
+
+    // Remaining accounts pushed directly
+    swapIx.keys.push(activeBinArrayMeta);
+
+    return swapIx
   }
 
   /**
