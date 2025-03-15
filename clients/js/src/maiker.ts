@@ -30,7 +30,7 @@ import { PROGRAM_ID as dlmmProgramId } from './generated-dlmm/programId';
 import { DLMM_EVENT_AUTHORITY_PDA, SHARE_PRECISION } from './constants';
 import { getOrCreateBinArraysInstructions } from './meteora/utils';
 import {
-  PositionValue,
+  StrategyValue,
   UserPositionInfo,
   PendingWithdrawalInfo,
   WithdrawalWindow,
@@ -71,7 +71,18 @@ export class MaikerSDK {
   /** Map of position addresses to their info */
   public positions: Map<string, PositionInfo> = new Map();
 
+  /** Map of lb pair addresses to their info */
   public lbPairs: Map<string, dlmm.lbPair> = new Map();
+
+  /** Strategy value */
+  public strategyValue: StrategyValue = {
+    xTokenAmount: 0,
+    yTokenAmount: 0,
+    yTokenValueInX: 0,
+    totalValue: 0,
+    positionValues: [],
+  };
+
 
   /**
    * Private constructor - use static factory methods to create instances
@@ -958,9 +969,7 @@ export class MaikerSDK {
       return null;
     }
 
-    const strategyValue = await this.getStrategyValue();
-
-    const shareValue = strategyValue.totalValue / Number(this.strategyAcc.strategyShares || 1);
+    const shareValue = this.strategyValue.totalValue / Number(this.strategyAcc.strategyShares || 1);
 
     return {
       address: userPosition,
@@ -973,9 +982,33 @@ export class MaikerSDK {
   }
 
   /**
+   * Gets pending withdrawal information for a user
+   */
+  public async getPendingWithdrawalUser(user: PublicKey): Promise<PendingWithdrawalInfo | null> {
+    const pendingWithdrawal = derivePendingWithdrawal(user, this.strategy);
+
+    const pendingWithdrawalData = await maiker.PendingWithdrawal.fetch(this.connection, pendingWithdrawal);
+
+    if (!pendingWithdrawalData) {
+      return null;
+    }
+
+    return {
+      address: pendingWithdrawal,
+      owner: pendingWithdrawalData.user,
+      strategy: pendingWithdrawalData.strategy,
+      sharesAmount: Number(pendingWithdrawalData.sharesAmount),
+      tokenAmount: Number(pendingWithdrawalData.tokenAmount),
+      initiationTimestamp: Number(pendingWithdrawalData.initiationTimestamp),
+      availableTimestamp: Number(pendingWithdrawalData.availableTimestamp),
+      isReady: Date.now() / 1000 > Number(pendingWithdrawalData.availableTimestamp),
+    };
+  }
+
+  /**
    * Gets all pending withdrawals for the strategy
    */
-  public async getPendingWithdrawals(): Promise<PendingWithdrawalInfo[]> {
+  public async getPendingWithdrawalsStrategy(): Promise<PendingWithdrawalInfo[]> {
     if (!this.globalConfigAcc || !this.strategyAcc) {
       throw new Error("Strategy not initialized");
     }
@@ -998,37 +1031,20 @@ export class MaikerSDK {
       }
     );
 
-    // Parse accounts
-    const pendingWithdrawals: PendingWithdrawalInfo[] = [];
-
-    // Use map instead of for...of
     return pendingWithdrawalAccounts.map(account => {
-      try {
-        const pendingWithdrawal = maiker.PendingWithdrawal.decode(account.account.data);
-        // Cast to add missing properties if they exist but are not in type definition
-        const withdrawal = pendingWithdrawal as unknown as {
-          owner: PublicKey;
-          strategy: PublicKey;
-          sharesAmount: BN;
-          tokenAmount: BN;
-          initiationTimestamp: BN;
-          availableTimestamp: BN;
-        };
+      const pendingWithdrawal = maiker.PendingWithdrawal.decode(account.account.data);
 
-        return {
-          address: account.pubkey,
-          owner: withdrawal.owner,
-          strategy: withdrawal.strategy,
-          sharesAmount: withdrawal.sharesAmount.toString(),
-          tokenAmount: withdrawal.tokenAmount.toString(),
-          initiationTimestamp: withdrawal.initiationTimestamp.toString(),
-          availableTimestamp: withdrawal.availableTimestamp.toString(),
-          isReady: Date.now() / 1000 > Number(withdrawal.availableTimestamp),
-        };
-      } catch (e) {
-        console.error('Failed to decode pending withdrawal:', e);
-        return null;
-      }
+      return {
+        address: account.pubkey,
+        owner: pendingWithdrawal.user,
+        strategy: pendingWithdrawal.strategy,
+        sharesAmount: Number(pendingWithdrawal.sharesAmount),
+        tokenAmount: Number(pendingWithdrawal.tokenAmount),
+        initiationTimestamp: Number(pendingWithdrawal.initiationTimestamp),
+        availableTimestamp: Number(pendingWithdrawal.availableTimestamp),
+        isReady: Date.now() / 1000 > Number(pendingWithdrawal.availableTimestamp),
+      };
+
     }).filter((item): item is PendingWithdrawalInfo => item !== null);
   }
 
@@ -1036,7 +1052,7 @@ export class MaikerSDK {
    * Groups pending withdrawals by withdrawal window
    */
   public async getPendingWithdrawalsByWindow(): Promise<WithdrawalWindow[]> {
-    const pendingWithdrawals = await this.getPendingWithdrawals();
+    const pendingWithdrawals = await this.getPendingWithdrawalsStrategy();
 
     // Group by availableTimestamp
     const withdrawalsByTimestamp: { [timestamp: string]: PendingWithdrawalInfo[] } = {};
@@ -1052,20 +1068,20 @@ export class MaikerSDK {
     // Convert to array of withdrawal windows
     return Object.entries(withdrawalsByTimestamp).map(([timestamp, withdrawals]) => {
       const totalShares = withdrawals.reduce(
-        (sum, w) => sum + BigInt(w.sharesAmount),
-        BigInt(0)
+        (sum, w) => sum + w.sharesAmount,
+        0
       );
 
       const totalTokens = withdrawals.reduce(
-        (sum, w) => sum + BigInt(w.tokenAmount),
-        BigInt(0)
+        (sum, w) => sum + w.tokenAmount,
+        0
       );
 
       return {
-        timestamp,
+        timestamp: Number(timestamp),
         withdrawals,
-        totalShares: totalShares.toString(),
-        totalTokens: totalTokens.toString(),
+        totalShares,
+        totalTokens,
         isReady: Date.now() / 1000 > Number(timestamp),
       };
     });
@@ -1074,7 +1090,7 @@ export class MaikerSDK {
   /**
    * Gets all positions for the strategy
    */
-  public async getPositions(): Promise<PositionInfo[]> {
+  public getPositions(): PositionInfo[] {
     if (!this.positions) {
       return [];
     }
@@ -1085,7 +1101,7 @@ export class MaikerSDK {
   /**
    * Calculates the current value of the strategy
    */
-  public async getStrategyValue(): Promise<PositionValue> {
+  public async getStrategyValue(): Promise<StrategyValue> {
     if (!this.strategyAcc) {
       throw new Error("Strategy not initialized");
     }
@@ -1181,6 +1197,14 @@ export class MaikerSDK {
     const totalXAmount = xBalance + positionsValue.xAmount;
     const totalYAmount = yBalance + positionsValue.yAmount;
     const totalValue = totalXAmount + totalYValueInX;
+
+    this.strategyValue = {
+      xTokenAmount: totalXAmount,
+      yTokenAmount: totalYAmount,
+      yTokenValueInX: totalYValueInX,
+      totalValue,
+      positionValues
+    };
 
     return {
       xTokenAmount: totalXAmount,

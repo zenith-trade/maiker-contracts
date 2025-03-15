@@ -56,7 +56,7 @@ export interface PositionLiquidityParams {
 /**
  * Value of a strategy position
  */
-export interface PositionValue {
+export interface StrategyValue {
   xTokenAmount: number;
   yTokenAmount: number;
   yTokenValueInX: number;
@@ -89,10 +89,10 @@ export interface PendingWithdrawalInfo {
   address: PublicKey;
   owner: PublicKey;
   strategy: PublicKey;
-  sharesAmount: string;
-  tokenAmount: string;
-  initiationTimestamp: string;
-  availableTimestamp: string;
+  sharesAmount: number;
+  tokenAmount: number;
+  initiationTimestamp: number;
+  availableTimestamp: number;
   isReady: boolean;
 }
 
@@ -100,10 +100,10 @@ export interface PendingWithdrawalInfo {
  * Grouped pending withdrawals by withdrawal window
  */
 export interface WithdrawalWindow {
-  timestamp: string;
+  timestamp: number;
   withdrawals: PendingWithdrawalInfo[];
-  totalShares: string;
-  totalTokens: string;
+  totalShares: number;
+  totalTokens: number;
   isReady: boolean;
 }
 
