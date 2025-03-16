@@ -14,7 +14,7 @@
         "validator:debug": "amman start --config ./configs/validator.cjs",
         "validator:logs": "CI=1 amman logs",
         "validator:stop": "amman stop",
-        "cli": "ts-node --transpile-only ./cli/index.ts"
+        "cli": "ts-node ./cli/index.ts"
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.28.0",

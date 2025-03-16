@@ -5,12 +5,6 @@ import { initGlobalConfigCommand } from './commands/initGlobalConfig';
 import { createStrategyCommand } from './commands/createStrategy';
 import { updateGlobalConfigCommand } from './commands/updateGlobalConfig';
 
-// Add this block right here, after imports
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    // Don't exit here, just log the error
-});
-
 // Create a clean exit function
 const cleanExit = (code = 0) => {
     setTimeout(() => process.exit(code), 100);
@@ -52,10 +46,16 @@ if (process.argv.length <= 2) {
 
 // Parse arguments
 try {
-    program.parse(process.argv);
+    // Run the program and store the promise
+    const commandPromise = program.parseAsync(process.argv);
 
-    // If execution reaches here and we've run a command, exit cleanly
-    cleanExit(0);
+    // Wait for commands to complete before exiting
+    commandPromise.then(() => {
+        cleanExit(0);
+    }).catch((err) => {
+        console.error('Error in command execution:', err);
+        cleanExit(1);
+    });
 } catch (error) {
     console.error('Error in command execution:', error);
     cleanExit(1);

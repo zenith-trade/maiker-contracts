@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { BinAndAmount, PositionData, TokenReserve } from '@meteora-ag/dlmm';
-import { dlmm } from 'src';
+import * as dlmm from './generated-dlmm/accounts';
 
 /**
  * Strategy context containing key addresses and data

@@ -8,12 +8,15 @@ skip-lint = false
 [programs.localnet]
 maiker_contracts = "27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx"
 
+[programs.devnet]
+maiker_contracts = "27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
-wallet = "/Users/kulture/.config/solana/id.json"
+cluster = "devnet"
+wallet = "./keys/private/devnet-deployer.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
