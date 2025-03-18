@@ -1020,31 +1020,36 @@ export class MaikerSDK {
         filters: [
           {
             memcmp: {
-              offset: 8, // Skip discriminator
+              offset: 8 + 32, // Skip discriminator
               bytes: this.strategy.toBase58(), // Filter by strategy
             },
           },
           {
-            dataSize: maiker.PendingWithdrawal.layout.span, // Filter by account size
+            dataSize: 8 + maiker.PendingWithdrawal.layout.span, // Filter by account size
           },
         ],
       }
     );
 
     return pendingWithdrawalAccounts.map(account => {
-      const pendingWithdrawal = maiker.PendingWithdrawal.decode(account.account.data);
+      try {
+        const pendingWithdrawal = maiker.PendingWithdrawal.decode(account.account.data);
 
-      return {
-        address: account.pubkey,
-        owner: pendingWithdrawal.user,
-        strategy: pendingWithdrawal.strategy,
-        sharesAmount: Number(pendingWithdrawal.sharesAmount),
-        tokenAmount: Number(pendingWithdrawal.tokenAmount),
-        initiationTimestamp: Number(pendingWithdrawal.initiationTimestamp),
-        availableTimestamp: Number(pendingWithdrawal.availableTimestamp),
-        isReady: Date.now() / 1000 > Number(pendingWithdrawal.availableTimestamp),
-      };
+        return {
+          address: account.pubkey,
+          owner: pendingWithdrawal.user,
+          strategy: pendingWithdrawal.strategy,
+          sharesAmount: Number(pendingWithdrawal.sharesAmount),
+          tokenAmount: Number(pendingWithdrawal.tokenAmount),
+          initiationTimestamp: Number(pendingWithdrawal.initiationTimestamp),
+          availableTimestamp: Number(pendingWithdrawal.availableTimestamp),
+          isReady: Date.now() / 1000 > Number(pendingWithdrawal.availableTimestamp),
+        };
+      } catch (e) {
+        console.log("Error decoding pending withdrawal: ", e);
 
+        return null;
+      }
     }).filter((item): item is PendingWithdrawalInfo => item !== null);
   }
 

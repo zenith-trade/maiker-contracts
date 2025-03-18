@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { initGlobalConfigCommand } from './commands/initGlobalConfig';
 import { createStrategyCommand } from './commands/createStrategy';
 import { updateGlobalConfigCommand } from './commands/updateGlobalConfig';
+import { getPendingWithdrawalsForStrategy } from './commands/getPendingWithdrawalsForStrategy';
 
 // Create a clean exit function
 const cleanExit = (code = 0) => {
@@ -37,6 +38,7 @@ program
 initGlobalConfigCommand(program);
 createStrategyCommand(program);
 updateGlobalConfigCommand(program);
+getPendingWithdrawalsForStrategy(program);
 
 // If no args provided, show help and exit cleanly
 if (process.argv.length <= 2) {
