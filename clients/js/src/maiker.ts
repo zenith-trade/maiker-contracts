@@ -658,7 +658,11 @@ export class MaikerSDK {
   }> {
     const { authority, position, totalXAmount, totalYAmount, binDistribution, lbPair } = params;
 
-    const lbPairAcc = this.lbPairs.get(lbPair.toBase58());
+    let lbPairAcc = params.lbPairAcc;
+
+    if (!lbPairAcc) {
+      lbPairAcc = this.lbPairs.get(lbPair.toBase58());
+    }
 
     if (!lbPairAcc) {
       throw new Error("LB Pair not found");

@@ -50,7 +50,7 @@ export interface PositionLiquidityParams {
   totalYAmount: BN;
   binDistribution: BinAndAmount[];
   lbPair: PublicKey;
-  lbPairAcc: dlmm.lbPair;
+  lbPairAcc?: dlmm.lbPair;
 }
 
 /**
