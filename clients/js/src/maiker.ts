@@ -926,6 +926,31 @@ export class MaikerSDK {
   }
 
   /**
+   * Creates instruction to claim protocol fees
+   */
+  public createClaimProtocolFeesInstruction(
+    params: {
+      sharesToClaim: number | null,
+    }
+  ): TransactionInstruction {
+    const { sharesToClaim } = params;
+
+    return maikerInstructions.claimFees(
+      {
+        sharesToClaim: sharesToClaim ? new BN(sharesToClaim) : null,
+      },
+      {
+        authority: this.globalConfigAcc.admin,
+        globalConfig: this.globalConfig,
+        strategy: this.strategy,
+        strategyVaultX: this.strategyAcc.xVault,
+        treasuryX: this.globalConfigAcc.treasury,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }
+    );
+  }
+
+  /**
    * Creates instructions to get the value of a position
    */
   public async createPositionValueInstructions(params: { user: PublicKey }): Promise<TransactionInstruction[]> {
