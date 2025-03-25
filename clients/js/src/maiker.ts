@@ -656,9 +656,9 @@ export class MaikerSDK {
     instruction: TransactionInstruction,
     preInstructions: TransactionInstruction[]
   }> {
-    const { authority, position, totalXAmount, totalYAmount, binDistribution, lbPair } = params;
+    const { authority, position, totalXAmount, totalYAmount, binDistribution, lbPair, lbPairAcc: initialLbPairAcc } = params;
 
-    let lbPairAcc = params.lbPairAcc;
+    let lbPairAcc = initialLbPairAcc;
 
     if (!lbPairAcc) {
       lbPairAcc = this.lbPairs.get(lbPair.toBase58());
@@ -724,6 +724,10 @@ export class MaikerSDK {
       ? deriveBinArrayBitmapExtension(lbPair, dlmmProgramId)[0]
       : null;
 
+
+    // Check if the token order is reversed
+    const isReversed = !this.xMint.address.equals(lbPairAcc.tokenXMint);
+
     // Create add liquidity instruction
     const instruction = maikerInstructions.addLiquidity(
       {
@@ -735,10 +739,10 @@ export class MaikerSDK {
         globalConfig: this.globalConfig,
         strategy: this.strategy,
         lbPair,
-        tokenXMint: this.xMint.address,
-        tokenYMint: this.yMint.address,
-        strategyVaultX: this.strategyAcc.xVault,
-        strategyVaultY: this.strategyAcc.yVault,
+        tokenXMint: lbPairAcc.tokenXMint,
+        tokenYMint: lbPairAcc.tokenYMint,
+        strategyVaultX: isReversed ? this.strategyAcc.yVault : this.strategyAcc.xVault,
+        strategyVaultY: isReversed ? this.strategyAcc.xVault : this.strategyAcc.yVault,
         reserveX: lbPairAcc.reserveX,
         reserveY: lbPairAcc.reserveY,
         binArrayLower: lowerBinArray,
