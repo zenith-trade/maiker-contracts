@@ -796,21 +796,22 @@ export class MaikerSDK {
       dlmmProgramId
     );
 
+    const isReversed = !this.xMint.address.equals(lbPairAcc.tokenXMint);
 
     const withdrawLiquidityIx = maikerInstructions.removeLiquidity(
       {
         authority: params.authority,
         globalConfig: this.globalConfig,
         strategy: this.strategy,
-        strategyVaultX: this.strategyAcc.xVault,
-        strategyVaultY: this.strategyAcc.yVault,
+        strategyVaultX: isReversed ? this.strategyAcc.yVault : this.strategyAcc.xVault,
+        strategyVaultY: isReversed ? this.strategyAcc.xVault : this.strategyAcc.yVault,
         position: params.position,
         lbPair: positionInfo.lbPair,
         binArrayBitmapExtension: maikerProgramId, // For testing we know no binArraybitmap extension is required
         reserveX: lbPairAcc.reserveX,
         reserveY: lbPairAcc.reserveY,
-        tokenXMint: this.xMint.address,
-        tokenYMint: this.yMint.address,
+        tokenXMint: lbPairAcc.tokenXMint,
+        tokenYMint: lbPairAcc.tokenYMint,
         binArrayLower: lowerBinArrayPubKey,
         binArrayUpper: upperBinArrayPubKey,
         lbClmmProgram: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
@@ -861,21 +862,23 @@ export class MaikerSDK {
       dlmmProgramId
     );
 
+    const isReversed = !this.xMint.address.equals(lbPairAcc.tokenXMint);
+
     return maikerInstructions.claimFee(
       {
         authority,
         globalConfig: this.globalConfig,
         strategy: this.strategy,
-        strategyVaultX: this.strategyAcc.xVault,
-        strategyVaultY: this.strategyAcc.yVault,
+        strategyVaultX: isReversed ? this.strategyAcc.yVault : this.strategyAcc.xVault,
+        strategyVaultY: isReversed ? this.strategyAcc.xVault : this.strategyAcc.yVault,
         position,
         lbPair: positionInfo.lbPair,
         binArrayLower: lowerBinArrayPubKey,
         binArrayUpper: upperBinArrayPubKey,
         reserveX: lbPairAcc.reserveX,
         reserveY: lbPairAcc.reserveY,
-        tokenXMint: positionInfo.tokenX.publicKey,
-        tokenYMint: positionInfo.tokenY.publicKey,
+        tokenXMint: lbPairAcc.tokenXMint,
+        tokenYMint: lbPairAcc.tokenYMint,
         lbClmmProgram: dlmmProgramId,
         eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
         tokenProgram: TOKEN_PROGRAM_ID,

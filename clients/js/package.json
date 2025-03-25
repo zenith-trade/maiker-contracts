@@ -1,6 +1,6 @@
 {
   "name": "@builderz/maiker-sdk",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Maiker SDK",
   "main": "dist/src/index.js",
   "types": "dist/types/src/index.d.ts",
