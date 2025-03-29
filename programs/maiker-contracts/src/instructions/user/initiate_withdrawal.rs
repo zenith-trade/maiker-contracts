@@ -109,8 +109,10 @@ pub fn initiate_withdrawal_handler(
         .checked_add(withdrawal_fee_shares)
         .ok_or(MaikerError::ArithmeticOverflow)?;
     strategy.add_fee_shares(total_fee_shares)?;
+
+    // Removed as it creates issues with the share value calculation. Now instead we reduce the total strategy shares in the process_withdrawal instruction
     // 3. Reduce total strategy shares by effective_shares_to_withdraw
-    strategy.burn_shares(effective_shares_to_withdraw)?;
+    // strategy.burn_shares(effective_shares_to_withdraw)?;
 
     // Emit event for withdrawal initiation
     emit!(InitiateWithdrawEvent {

@@ -78,6 +78,9 @@ pub fn process_withdrawal_handler(ctx: Context<ProcessWithdrawal>) -> Result<()>
         )?;
     }
 
+    // Reduce total strategy shares by effective_shares_to_withdraw
+    strategy.burn_shares(pending_withdrawal.shares_amount)?;
+
     // Emit event
     emit!(ProcessWithdrawEvent {
         user: ctx.accounts.user.key(),
