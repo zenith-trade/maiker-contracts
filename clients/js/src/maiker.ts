@@ -699,8 +699,12 @@ export class MaikerSDK {
 
     // Check bin arrays
     const preInstructions: TransactionInstruction[] = [];
+
     const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(lowerBinId));
-    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(upperBinId));
+    const upperBinArrayIndex = BN.max(
+      lowerBinArrayIndex.add(new BN(1)),
+      binIdToBinArrayIndex(new BN(upperBinId))
+    );
 
     // Get or create bin arrays
     const { instructions, lowerBinArray, upperBinArray } = await getOrCreateBinArraysInstructions(
