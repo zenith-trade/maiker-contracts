@@ -787,7 +787,10 @@ export class MaikerSDK {
     }
 
     const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.lowerBinId ?? 0));
-    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0));
+    const upperBinArrayIndex = BN.max(
+      lowerBinArrayIndex.add(new BN(1)),
+      binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0))
+    );
 
     const [lowerBinArrayPubKey] = deriveBinArray(
       positionInfo.lbPair,
@@ -853,7 +856,10 @@ export class MaikerSDK {
     }
 
     const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.lowerBinId ?? 0));
-    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0));
+    const upperBinArrayIndex = BN.max(
+      lowerBinArrayIndex.add(new BN(1)),
+      binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0))
+    );
 
     const [lowerBinArrayPubKey] = deriveBinArray(
       positionInfo.lbPair,
@@ -911,7 +917,10 @@ export class MaikerSDK {
     }
 
     const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.lowerBinId ?? 0));
-    const upperBinArrayIndex = binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0));
+    const upperBinArrayIndex = BN.max(
+      lowerBinArrayIndex.add(new BN(1)),
+      binIdToBinArrayIndex(new BN(positionInfo?.positionData?.upperBinId ?? 0))
+    );
 
     const [lowerBinArrayPubKey] = deriveBinArray(
       positionInfo.lbPair,
