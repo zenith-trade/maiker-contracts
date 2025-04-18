@@ -52,7 +52,7 @@ impl UserPosition {
         }
 
         // Calculate value gain percentage (in basis points)
-        let value_gain_percentage = current_share_value
+        let value_gain_bps = current_share_value
             .checked_sub(self.last_share_value)
             .ok_or(MaikerError::ArithmeticOverflow)?
             .checked_mul(10000)
@@ -60,19 +60,18 @@ impl UserPosition {
             .checked_div(self.last_share_value)
             .ok_or(MaikerError::ArithmeticOverflow)?;
 
-        msg!("Value gain percentage: {}", value_gain_percentage);
+        msg!("Value gain bps: {}", value_gain_bps);
 
         // Calculate performance fee shares
-        let performance_fee_shares = self
-            .strategy_share
-            .checked_mul(value_gain_percentage)
+        let performance_fee_shares = (self.strategy_share as u128)
+            .checked_mul(value_gain_bps as u128)
             .ok_or(MaikerError::ArithmeticOverflow)?
-            .checked_mul(performance_fee_bps as u64)
+            .checked_mul(performance_fee_bps as u128)
             .ok_or(MaikerError::ArithmeticOverflow)?
-            .checked_div(100_000_000)
+            .checked_div(100_000_000 as u128)
             .ok_or(MaikerError::ArithmeticOverflow)?;
 
-        Ok(performance_fee_shares) // TODO: Check if this is correct. This may be on the value not on the shares itself
+        Ok(performance_fee_shares as u64) // TODO: Check if this is correct. This may be on the value not on the shares itself
     }
 
     /// Calculate withdrawal fees. Returns the withdrawal fee shares to be deducted
