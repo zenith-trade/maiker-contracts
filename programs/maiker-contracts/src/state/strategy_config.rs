@@ -1,6 +1,5 @@
+use crate::{validate, MaikerError, MAX_POSITIONS, SHARE_PRECISION};
 use anchor_lang::prelude::*;
-
-use crate::{MaikerError, MAX_POSITIONS, SHARE_PRECISION};
 
 #[account]
 #[derive(InitSpace)]
@@ -26,6 +25,14 @@ pub struct StrategyConfig {
 
     // Rebalancing info
     pub last_rebalance_time: i64,
+
+    // Swap state
+    pub is_swapping: bool,                  // Flag indicating an active swap
+    pub swap_amount_in: u64,                // Amount provided in begin_swap
+    pub swap_source_mint: Pubkey,           // Mint of the input token
+    pub swap_destination_mint: Pubkey,      // Mint of the output token
+    pub swap_initial_in_amount_admin: u64,  // Amount of the input token provided in begin_swap
+    pub swap_initial_out_amount_admin: u64, // Amount of the output token provided in begin_swap
 
     // For PDA derivation
     pub bump: u8,
@@ -62,6 +69,12 @@ impl StrategyConfig {
         self.positions_values = [0; MAX_POSITIONS];
         self.last_position_update = [0; MAX_POSITIONS];
         self.last_rebalance_time = 0;
+        self.is_swapping = false; // Initialize swap state
+        self.swap_amount_in = 0;
+        self.swap_source_mint = Pubkey::default();
+        self.swap_destination_mint = Pubkey::default();
+        self.swap_initial_in_amount_admin = 0;
+        self.swap_initial_out_amount_admin = 0;
         self.bump = bump;
     }
 
@@ -116,39 +129,6 @@ impl StrategyConfig {
 
         Ok(())
     }
-
-    // /// Removes a position from the strategy and shifts all elements down
-    // /// Returns true if the position was found and removed, false otherwise
-    // pub fn remove_position(&mut self, position: Pubkey) -> bool {
-    //     // Find the position in the array
-    //     let mut found = false;
-
-    //     for i in 0..self.position_count as usize {
-    //         if self.positions[i] == position {
-    //             found = true;
-
-    //             // Shift all elements after this position down by one
-    //             for j in i..(self.position_count as usize - 1) {
-    //                 self.positions[j] = self.positions[j + 1];
-    //                 self.positions_values[j] = self.positions_values[j + 1];
-    //                 self.last_position_update[j] = self.last_position_update[j + 1];
-    //             }
-
-    //             // Clear the last position
-    //             let last_index = self.position_count as usize - 1;
-    //             self.positions[last_index] = Pubkey::default();
-    //             self.positions_values[last_index] = 0;
-    //             self.last_position_update[last_index] = 0;
-
-    //             // Decrement the count
-    //             self.position_count -= 1;
-
-    //             break;
-    //         }
-    //     }
-
-    //     found
-    // }
 
     /// Removes a position from the strategy by swapping with the last position
     /// This is more gas efficient but does not preserve position order
@@ -287,5 +267,67 @@ impl StrategyConfig {
             .ok_or(MaikerError::ArithmeticOverflow)? as u64;
 
         Ok(token_amount)
+    }
+
+    /// Starts tracking an active swap
+    pub fn begin_swap(
+        &mut self,
+        amount_in: u64,
+        source_mint: Pubkey,
+        destination_mint: Pubkey,
+        initial_in_amount_admin: u64,
+        initial_out_amount_admin: u64,
+    ) -> Result<()> {
+        validate!(
+            !self.is_swapping,
+            MaikerError::InvalidSwap,
+            "Swap already in progress"
+        );
+        self.is_swapping = true;
+        self.swap_amount_in = amount_in;
+        self.swap_source_mint = source_mint;
+        self.swap_destination_mint = destination_mint;
+        self.swap_initial_in_amount_admin = initial_in_amount_admin;
+        self.swap_initial_out_amount_admin = initial_out_amount_admin;
+        Ok(())
+    }
+
+    /// Ends tracking an active swap, verifying parameters
+    pub fn end_swap(
+        &mut self,
+        expected_amount_in: u64,
+        expected_source_mint: Pubkey,
+        expected_destination_mint: Pubkey,
+    ) -> Result<()> {
+        validate!(
+            self.is_swapping,
+            MaikerError::InvalidSwap,
+            "No swap in progress"
+        );
+        validate!(
+            self.swap_amount_in == expected_amount_in,
+            MaikerError::InvalidSwap,
+            "Mismatched swap amount in"
+        );
+        validate!(
+            self.swap_source_mint == expected_source_mint,
+            MaikerError::InvalidSwap,
+            "Mismatched swap source mint"
+        );
+        validate!(
+            self.swap_destination_mint == expected_destination_mint,
+            MaikerError::InvalidSwap,
+            "Mismatched swap destination mint"
+        );
+
+        // Clear swap state
+        self.is_swapping = false;
+        self.swap_amount_in = 0;
+        self.swap_source_mint = Pubkey::default();
+        self.swap_destination_mint = Pubkey::default();
+        self.swap_initial_in_amount_admin = 0;
+        self.swap_initial_out_amount_admin = 0;
+
+        Ok(())
     }
 }

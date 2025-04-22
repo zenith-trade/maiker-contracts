@@ -1,6 +1,7 @@
 use crate::state::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
+use lb_clmm::cpi::{accounts::ModifyLiquidity, remove_all_liquidity};
 
 #[derive(Accounts)]
 pub struct RemoveLiquidity<'info> {

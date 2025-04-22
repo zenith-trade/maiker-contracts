@@ -44,19 +44,10 @@ pub enum MaikerError {
     #[msg("Position not found")]
     PositionNotFound,
 
-    // Swap related errors (6000 - 6099 range)
-    #[msg("Swap already in progress")]
-    SwapInProgress, // 6000
+    // Swap errors
+    #[msg("Invalid swap instruction")]
+    InvalidSwap,
 
-    #[msg("No swap is currently in progress")]
-    NoSwapInProgress, // 6001
-
-    #[msg("Invalid instruction sequence: BeginSwap must be followed by EndSwap")]
-    InvalidSwapInstructionSequence, // 6002
-
-    #[msg("Swap amount mismatch or invalid vault state")]
-    InvalidSwapState, // 6003
-
-    #[msg("Amount specified in begin_swap does not match amount transferred out")]
-    SwapAmountMismatch, // 6004
+    #[msg("Non-zero transfer fee")]
+    NonZeroTransferFee,
 }

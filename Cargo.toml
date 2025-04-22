@@ -2,7 +2,6 @@
 members = [
     "programs/*",
     "packages/*",
-    # "clients-codama/rust/"
 ]
 exclude = [
     "clients-codama/rust/"

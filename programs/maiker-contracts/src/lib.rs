@@ -1,17 +1,21 @@
 use anchor_lang::prelude::*;
 
 pub mod constants;
+pub mod controllers;
 pub mod error;
 pub mod events;
+pub mod ids;
 pub mod instructions;
+pub mod macros;
 pub mod state;
 
 pub use constants::*;
+pub use controllers::*;
 pub use error::*;
 pub use events::*;
+pub use ids::*;
 pub use instructions::*;
 pub use state::*;
-
 declare_id!("27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx");
 
 #[program]
@@ -99,18 +103,11 @@ pub mod maiker_contracts {
         instructions::swap_exact_in_handler(ctx, amount_in, min_amount_out, x_to_y)
     }
 
-    pub fn begin_swap<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, FlashSwapStart<'info>>,
-        x_to_y: bool,
-        amount_in: u64,
-    ) -> Result<()> {
+    pub fn begin_swap(ctx: Context<FlashSwap>, x_to_y: bool, amount_in: u64) -> Result<()> {
         instructions::begin_swap_handler(ctx, x_to_y, amount_in)
     }
 
-    pub fn end_swap<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, FlashSwapEnd<'info>>,
-        x_to_y: bool,
-    ) -> Result<()> {
+    pub fn end_swap(ctx: Context<FlashSwap>, x_to_y: bool) -> Result<()> {
         instructions::end_swap_handler(ctx, x_to_y)
     }
 }
