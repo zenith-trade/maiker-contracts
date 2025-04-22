@@ -98,4 +98,19 @@ pub mod maiker_contracts {
     ) -> Result<()> {
         instructions::swap_exact_in_handler(ctx, amount_in, min_amount_out, x_to_y)
     }
+
+    pub fn begin_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, FlashSwapStart<'info>>,
+        x_to_y: bool,
+        amount_in: u64,
+    ) -> Result<()> {
+        instructions::begin_swap_handler(ctx, x_to_y, amount_in)
+    }
+
+    pub fn end_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, FlashSwapEnd<'info>>,
+        x_to_y: bool,
+    ) -> Result<()> {
+        instructions::end_swap_handler(ctx, x_to_y)
+    }
 }
