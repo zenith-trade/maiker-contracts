@@ -1,13 +1,14 @@
-use anchor_lang::prelude::*;
-use lb_clmm::{
+use crate::{
+    extensions::{BinArrayExtension, PositionExtension},
     math::{
         price_math::get_price_from_id,
         u128x128_math::Rounding,
         u64x64_math::SCALE_OFFSET,
         utils_math::{safe_mul_div_cast, safe_mul_shr_cast, safe_shl_div_cast},
     },
-    state::{bin::BinArray, lb_pair::LbPair, position::PositionV2},
 };
+use anchor_lang::prelude::*;
+use dlmm_interface::{BinArrayAccount, LbPairAccount, PositionV2Account};
 
 use crate::{MaikerError, StrategyConfig};
 
@@ -16,21 +17,14 @@ pub struct GetPositionValue<'info> {
     #[account(mut)]
     pub strategy: Account<'info, StrategyConfig>,
 
-    #[account(
-        has_one = lb_pair,
-    )]
-    pub position: AccountLoader<'info, PositionV2>,
+    pub position: UncheckedAccount<'info>,
 
-    pub lb_pair: AccountLoader<'info, LbPair>,
+    pub lb_pair: UncheckedAccount<'info>,
 
-    #[account(
-        has_one = lb_pair
-    )]
-    pub bin_array_lower: AccountLoader<'info, BinArray>,
-    #[account(
-        has_one = lb_pair
-    )]
-    pub bin_array_upper: AccountLoader<'info, BinArray>,
+    pub bin_array_lower: UncheckedAccount<'info>,
+
+    pub bin_array_upper: UncheckedAccount<'info>,
+
     pub user: Signer<'info>,
 }
 
@@ -43,10 +37,12 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
         MaikerError::InvalidPosition
     );
 
-    let position = ctx.accounts.position.load()?;
-    let lb_pair = ctx.accounts.lb_pair.load()?;
-    let bin_array_lower = ctx.accounts.bin_array_lower.load()?;
-    let bin_array_upper = ctx.accounts.bin_array_upper.load()?;
+    let position = PositionV2Account::deserialize(&*ctx.accounts.position.data.borrow())?.0;
+    let lb_pair = LbPairAccount::deserialize(&*ctx.accounts.lb_pair.data.borrow())?.0;
+    let bin_array_lower =
+        BinArrayAccount::deserialize(&*ctx.accounts.bin_array_lower.data.borrow())?.0;
+    let bin_array_upper =
+        BinArrayAccount::deserialize(&*ctx.accounts.bin_array_upper.data.borrow())?.0;
 
     let active_bin_id = lb_pair.active_id;
 

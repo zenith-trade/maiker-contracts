@@ -98,7 +98,7 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             strategy.key(),
             new_shares,
             slot,
-            *ctx.bumps.get("user_position").unwrap(),
+            ctx.bumps.user_position,
         );
     } else {
         // Calculate performance fee if share value has increased

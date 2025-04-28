@@ -1,6 +1,12 @@
 use anchor_lang::prelude::*;
 
 #[constant]
+pub const BASIS_POINT_MAX: i32 = 10000;
+
+#[constant]
+pub const MAX_BIN_PER_ARRAY: usize = 70;
+
+#[constant]
 pub const ANCHOR_DISCRIMINATOR: usize = 8;
 
 #[constant]

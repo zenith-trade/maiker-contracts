@@ -99,7 +99,7 @@ pub fn initiate_withdrawal_handler(
         token_amount,
         current_timestamp,
         available_timestamp,
-        *ctx.bumps.get("pending_withdrawal").unwrap(),
+        ctx.bumps.pending_withdrawal,
     );
 
     // 1. Reduce user position shares by shares_amount from input

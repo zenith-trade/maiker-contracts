@@ -24,7 +24,7 @@ pub fn initialize_handler(
     global_config_args: GlobalConfigArgs,
 ) -> Result<()> {
     let global_config = &mut ctx.accounts.global_config;
-    let bump = *ctx.bumps.get("global_config").unwrap();
+    let bump = ctx.bumps.global_config;
 
     global_config.initialize_global_config(global_config_args, ctx.accounts.admin.key(), bump);
 

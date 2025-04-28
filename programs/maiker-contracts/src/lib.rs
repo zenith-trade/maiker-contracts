@@ -4,9 +4,11 @@ pub mod constants;
 pub mod controllers;
 pub mod error;
 pub mod events;
+pub mod extensions;
 pub mod ids;
 pub mod instructions;
 pub mod macros;
+pub mod math;
 pub mod state;
 
 pub use constants::*;

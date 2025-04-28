@@ -43,7 +43,7 @@ pub fn create_strategy_handler(ctx: Context<CreateStrategy>) -> Result<()> {
     let strategy = &mut ctx.accounts.strategy;
     let clock = Clock::get()?;
 
-    let strategy_bump = *ctx.bumps.get("strategy").unwrap();
+    let strategy_bump = ctx.bumps.strategy;
 
     // Initialize strategy
     strategy.initialize_strategy(

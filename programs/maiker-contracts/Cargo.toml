@@ -16,6 +16,9 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = { version = "0.28.0", features = ["init-if-needed", "event-cpi"] }
-anchor-spl = { version = "0.28.0" }
-lb_clmm = { path = "../../packages/lb_clmm", features = ["cpi"] }
+anchor-lang = { workspace = true, features = ["init-if-needed", "event-cpi"] }
+anchor-spl = { workspace = true }
+dlmm_interface = { workspace = true }
+
+ruint = { workspace = true }
+num-traits = { workspace = true }
