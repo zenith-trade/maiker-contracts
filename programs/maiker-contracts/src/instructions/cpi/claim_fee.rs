@@ -1,6 +1,7 @@
 use crate::state::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
+use dlmm_interface::{claim_fee_invoke_signed, ClaimFeeAccounts};
 
 #[derive(Accounts)]
 pub struct ClaimFee<'info> {
@@ -63,8 +64,9 @@ pub struct ClaimFee<'info> {
     pub token_y_mint: UncheckedAccount<'info>,
 
     /// The lb_clmm program
-    #[account(address = lb_clmm::ID)]
-    pub lb_clmm_program: Program<'info, lb_clmm::program::LbClmm>,
+    /// CHECK: The lb_clmm program
+    #[account(address = dlmm_interface::ID)]
+    pub lb_clmm_program: UncheckedAccount<'info>,
 
     /// CHECK: Event authority for lb_clmm
     pub event_authority: UncheckedAccount<'info>,
@@ -78,30 +80,24 @@ pub fn claim_fee_handler(ctx: Context<ClaimFee>) -> Result<()> {
     let strategy_signer = ctx.accounts.strategy.get_pda_signer();
     let strategy_signer_seeds = &[&strategy_signer[..]];
 
-    let accounts = lb_clmm::cpi::accounts::ClaimFee {
-        lb_pair: ctx.accounts.lb_pair.to_account_info(),
-        position: ctx.accounts.position.to_account_info(),
-        sender: ctx.accounts.strategy.to_account_info(),
-        token_x_mint: ctx.accounts.token_x_mint.to_account_info(),
-        token_y_mint: ctx.accounts.token_y_mint.to_account_info(),
-        reserve_x: ctx.accounts.reserve_x.to_account_info(),
-        reserve_y: ctx.accounts.reserve_y.to_account_info(),
-        user_token_x: ctx.accounts.strategy_vault_x.to_account_info(),
-        user_token_y: ctx.accounts.strategy_vault_y.to_account_info(),
-        bin_array_lower: ctx.accounts.bin_array_lower.to_account_info(),
-        bin_array_upper: ctx.accounts.bin_array_upper.to_account_info(),
-        token_program: ctx.accounts.token_program.to_account_info(),
-        event_authority: ctx.accounts.event_authority.to_account_info(),
-        program: ctx.accounts.lb_clmm_program.to_account_info(),
+    let accounts = ClaimFeeAccounts {
+        lb_pair: &ctx.accounts.lb_pair.to_account_info(),
+        position: &ctx.accounts.position.to_account_info(),
+        bin_array_lower: &ctx.accounts.bin_array_lower.to_account_info(),
+        bin_array_upper: &ctx.accounts.bin_array_upper.to_account_info(),
+        sender: &ctx.accounts.strategy.to_account_info(),
+        reserve_x: &ctx.accounts.reserve_x.to_account_info(),
+        reserve_y: &ctx.accounts.reserve_y.to_account_info(),
+        user_token_x: &ctx.accounts.strategy_vault_x.to_account_info(),
+        user_token_y: &ctx.accounts.strategy_vault_y.to_account_info(),
+        token_x_mint: &ctx.accounts.token_x_mint.to_account_info(),
+        token_y_mint: &ctx.accounts.token_y_mint.to_account_info(),
+        token_program: &ctx.accounts.token_program.to_account_info(),
+        event_authority: &ctx.accounts.event_authority.to_account_info(),
+        program: &ctx.accounts.lb_clmm_program.to_account_info(),
     };
 
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.lb_clmm_program.to_account_info(),
-        accounts,
-        strategy_signer_seeds,
-    );
-
-    lb_clmm::cpi::claim_fee(cpi_ctx)?;
+    claim_fee_invoke_signed(accounts, strategy_signer_seeds)?;
 
     Ok(())
 }

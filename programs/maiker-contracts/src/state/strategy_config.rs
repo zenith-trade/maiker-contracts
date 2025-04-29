@@ -282,7 +282,7 @@ impl StrategyConfig {
             !self.is_swapping,
             MaikerError::InvalidSwap,
             "Swap already in progress"
-        );
+        )?;
         self.is_swapping = true;
         self.swap_amount_in = amount_in;
         self.swap_source_mint = source_mint;
@@ -303,22 +303,22 @@ impl StrategyConfig {
             self.is_swapping,
             MaikerError::InvalidSwap,
             "No swap in progress"
-        );
+        )?;
         validate!(
             self.swap_amount_in == expected_amount_in,
             MaikerError::InvalidSwap,
             "Mismatched swap amount in"
-        );
+        )?;
         validate!(
             self.swap_source_mint == expected_source_mint,
             MaikerError::InvalidSwap,
             "Mismatched swap source mint"
-        );
+        )?;
         validate!(
             self.swap_destination_mint == expected_destination_mint,
             MaikerError::InvalidSwap,
             "Mismatched swap destination mint"
-        );
+        )?;
 
         // Clear swap state
         self.is_swapping = false;

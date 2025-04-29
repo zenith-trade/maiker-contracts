@@ -5,7 +5,7 @@ members = [
 ]
 exclude = [
     "clients-codama/rust/",
-    "packages/commons"
+    "packages/lb_clmm"
 ]
 
 [workspace.dependencies]

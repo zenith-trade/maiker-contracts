@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
+use dlmm_interface::{swap_invoke_signed, SwapAccounts, SwapIxArgs};
 
 use crate::{GlobalConfig, StrategyConfig};
 
@@ -60,8 +61,9 @@ pub struct Swap<'info> {
     pub host_fee_in: Option<UncheckedAccount<'info>>,
 
     /// The lb_clmm program
-    #[account(address = lb_clmm::ID)]
-    pub lb_clmm_program: Program<'info, lb_clmm::program::LbClmm>,
+    /// CHECK: The lb_clmm program
+    #[account(address = dlmm_interface::ID)]
+    pub lb_clmm_program: UncheckedAccount<'info>,
 
     /// CHECK: The event authority for the lb_clmm program
     pub event_authority: UncheckedAccount<'info>,
@@ -97,43 +99,57 @@ pub fn swap_exact_in_handler<'a, 'b, 'c, 'info>(
         )
     };
 
-    // Create the accounts struct for the CPI
-    let accounts = lb_clmm::cpi::accounts::Swap {
-        lb_pair: ctx.accounts.lb_pair.to_account_info(),
-        bin_array_bitmap_extension: ctx
-            .accounts
-            .bin_array_bitmap_extension
-            .as_ref()
-            .map(|account| account.to_account_info()),
-        reserve_x: ctx.accounts.reserve_x.to_account_info(),
-        reserve_y: ctx.accounts.reserve_y.to_account_info(),
-        user_token_in,
-        user_token_out,
-        token_x_mint: ctx.accounts.token_x_mint.to_account_info(),
-        token_y_mint: ctx.accounts.token_y_mint.to_account_info(),
-        oracle: ctx.accounts.oracle.to_account_info(),
-        host_fee_in: ctx
-            .accounts
-            .host_fee_in
-            .as_ref()
-            .map(|account| account.to_account_info()),
-        user: ctx.accounts.strategy.to_account_info(), // Strategy PDA is the "user" doing the swap
-        token_x_program: ctx.accounts.token_x_program.to_account_info(),
-        token_y_program: ctx.accounts.token_y_program.to_account_info(),
-        event_authority: ctx.accounts.event_authority.to_account_info(),
-        program: ctx.accounts.lb_clmm_program.to_account_info(),
+    // Store account infos in variables
+    let lb_pair_info = ctx.accounts.lb_pair.to_account_info();
+    let program_info = ctx.accounts.lb_clmm_program.to_account_info();
+    let reserve_x_info = ctx.accounts.reserve_x.to_account_info();
+    let reserve_y_info = ctx.accounts.reserve_y.to_account_info();
+    let token_x_mint_info = ctx.accounts.token_x_mint.to_account_info();
+    let token_y_mint_info = ctx.accounts.token_y_mint.to_account_info();
+    let oracle_info = ctx.accounts.oracle.to_account_info();
+    let strategy_info = ctx.accounts.strategy.to_account_info();
+    let token_x_program_info = ctx.accounts.token_x_program.to_account_info();
+    let token_y_program_info = ctx.accounts.token_y_program.to_account_info();
+    let event_authority_info = ctx.accounts.event_authority.to_account_info();
+
+    // Get bitmap extension info
+    let bitmap_extension_info = if let Some(account) = &ctx.accounts.bin_array_bitmap_extension {
+        account.to_account_info()
+    } else {
+        program_info.clone()
     };
 
-    // Create the CPI context with the strategy's signer seeds
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.lb_clmm_program.to_account_info(),
-        accounts,
-        strategy_signer_seeds,
-    )
-    .with_remaining_accounts(ctx.remaining_accounts.to_vec());
+    // Get host fee info
+    let host_fee_info = if let Some(account) = &ctx.accounts.host_fee_in {
+        account.to_account_info()
+    } else {
+        program_info.clone()
+    };
 
-    // Call the swap function on the lb_clmm program
-    lb_clmm::cpi::swap(cpi_ctx, amount_in, min_amount_out)?;
+    let accounts = SwapAccounts {
+        lb_pair: &lb_pair_info,
+        bin_array_bitmap_extension: &bitmap_extension_info,
+        reserve_x: &reserve_x_info,
+        reserve_y: &reserve_y_info,
+        user_token_in: &user_token_in,
+        user_token_out: &user_token_out,
+        token_x_mint: &token_x_mint_info,
+        token_y_mint: &token_y_mint_info,
+        oracle: &oracle_info,
+        host_fee_in: &host_fee_info,
+        user: &strategy_info,
+        token_x_program: &token_x_program_info,
+        token_y_program: &token_y_program_info,
+        event_authority: &event_authority_info,
+        program: &program_info,
+    };
+
+    let args = SwapIxArgs {
+        amount_in,
+        min_amount_out,
+    };
+
+    swap_invoke_signed(accounts, args, strategy_signer_seeds)?;
 
     Ok(())
 }

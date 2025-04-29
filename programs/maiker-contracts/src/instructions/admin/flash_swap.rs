@@ -107,7 +107,7 @@ pub fn begin_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool, amount_in: u64
         current_ix.program_id == *ctx.program_id,
         MaikerError::InvalidSwap,
         "Invalid program id"
-    );
+    )?;
 
     // The only other maiker program ix allowed is SwapEnd
     let mut index = current_index + 1;
@@ -126,7 +126,7 @@ pub fn begin_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool, amount_in: u64
                 !found_end,
                 MaikerError::InvalidSwap,
                 "End Swap must be the last ix"
-            );
+            )?;
             found_end = true;
 
             // must be the SwapEnd instruction
@@ -135,68 +135,68 @@ pub fn begin_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool, amount_in: u64
                 ix.data[0..8] == discriminator,
                 MaikerError::InvalidSwap,
                 "Invalid discriminator"
-            );
+            )?;
 
             // Assert accounts are equal
             validate!(
                 ctx.accounts.authority.key() == ix.accounts[0].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid authority"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.global_config.key() == ix.accounts[1].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid global config"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.strategy.key() == ix.accounts[2].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid strategy"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.in_vault.key() == ix.accounts[3].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid vault x"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.out_vault.key() == ix.accounts[4].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid vault y"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.in_admin_ata.key() == ix.accounts[5].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid vault x admin"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.out_admin_ata.key() == ix.accounts[6].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid vault y admin"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.in_mint.key() == ix.accounts[7].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid in mint"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.token_program.key() == ix.accounts[8].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid token program"
-            );
+            )?;
 
             validate!(
                 ctx.accounts.instructions_sysvar.key() == ix.accounts[9].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid instructions sysvar"
-            );
+            )?;
         } else {
             if found_end {
                 if ix.program_id == lighthouse::id() {

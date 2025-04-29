@@ -71,7 +71,7 @@ pub mod maiker_contracts {
     // CPI instructions
     pub fn add_liquidity(
         ctx: Context<AddLiquidity>,
-        liquidity_parameter: LiquidityParameterByWeight,
+        liquidity_parameter: state::LiquidityParameterByWeight,
     ) -> Result<()> {
         instructions::add_liquidity_handler(ctx, liquidity_parameter)
     }

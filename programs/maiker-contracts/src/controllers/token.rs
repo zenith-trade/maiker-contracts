@@ -4,9 +4,7 @@ use anchor_spl::token_2022::spl_token_2022::extension::{
     BaseStateWithExtensions, StateWithExtensions,
 };
 use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
-use anchor_spl::token_interface::{
-    self, Mint, TokenAccount, TokenInterface, Transfer, TransferChecked,
-};
+use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 
 use crate::{MaikerError, StrategyConfig};
 

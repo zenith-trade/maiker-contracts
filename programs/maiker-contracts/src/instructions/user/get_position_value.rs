@@ -17,12 +17,16 @@ pub struct GetPositionValue<'info> {
     #[account(mut)]
     pub strategy: Account<'info, StrategyConfig>,
 
+    /// CHECK: The position account
     pub position: UncheckedAccount<'info>,
 
+    /// CHECK: The lb_pair account
     pub lb_pair: UncheckedAccount<'info>,
 
+    /// CHECK: The bin array lower account
     pub bin_array_lower: UncheckedAccount<'info>,
 
+    /// CHECK: The bin array upper account
     pub bin_array_upper: UncheckedAccount<'info>,
 
     pub user: Signer<'info>,

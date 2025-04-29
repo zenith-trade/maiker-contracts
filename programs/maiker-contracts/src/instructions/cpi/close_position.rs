@@ -1,5 +1,6 @@
 use crate::state::*;
 use anchor_lang::prelude::*;
+use dlmm_interface::{close_position_invoke_signed, ClosePositionAccounts};
 
 #[derive(Accounts)]
 pub struct ClosePosition<'info> {
@@ -38,8 +39,9 @@ pub struct ClosePosition<'info> {
     pub rent_receiver: UncheckedAccount<'info>,
 
     /// The lb_clmm program
-    #[account(address = lb_clmm::ID)]
-    pub lb_clmm_program: Program<'info, lb_clmm::program::LbClmm>,
+    /// CHECK: The lb_clmm program
+    #[account(address = dlmm_interface::ID)]
+    pub lb_clmm_program: UncheckedAccount<'info>,
 
     /// CHECK: Event authority for lb_clmm
     pub event_authority: UncheckedAccount<'info>,
@@ -51,24 +53,18 @@ pub fn close_position_handler(ctx: Context<ClosePosition>) -> Result<()> {
     let strategy_signer = strategy.get_pda_signer();
     let strategy_signer_seeds = &[&strategy_signer[..]];
 
-    let accounts = lb_clmm::cpi::accounts::ClosePosition {
-        sender: strategy.to_account_info(),
-        position: ctx.accounts.position.to_account_info(),
-        lb_pair: ctx.accounts.lb_pair.to_account_info(),
-        bin_array_lower: ctx.accounts.bin_array_lower.to_account_info(),
-        bin_array_upper: ctx.accounts.bin_array_upper.to_account_info(),
-        rent_receiver: ctx.accounts.rent_receiver.to_account_info(),
-        event_authority: ctx.accounts.event_authority.to_account_info(),
-        program: ctx.accounts.lb_clmm_program.to_account_info(),
+    let accounts = ClosePositionAccounts {
+        sender: &strategy.to_account_info(),
+        position: &ctx.accounts.position.to_account_info(),
+        lb_pair: &ctx.accounts.lb_pair.to_account_info(),
+        bin_array_lower: &ctx.accounts.bin_array_lower.to_account_info(),
+        bin_array_upper: &ctx.accounts.bin_array_upper.to_account_info(),
+        rent_receiver: &ctx.accounts.rent_receiver.to_account_info(),
+        event_authority: &ctx.accounts.event_authority.to_account_info(),
+        program: &ctx.accounts.lb_clmm_program.to_account_info(),
     };
 
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.lb_clmm_program.to_account_info(),
-        accounts,
-        strategy_signer_seeds,
-    );
-
-    lb_clmm::cpi::close_position(cpi_ctx)?;
+    close_position_invoke_signed(accounts, strategy_signer_seeds)?;
 
     // Update the strategy's positions array by removing the closed position using the remove_position method
     strategy.remove_position(ctx.accounts.position.key())?;
