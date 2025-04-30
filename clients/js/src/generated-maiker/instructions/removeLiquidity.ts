@@ -39,7 +39,7 @@ export function removeLiquidity(
     {
       pubkey: accounts.binArrayBitmapExtension,
       isSigner: false,
-      isWritable: false,
+      isWritable: true,
     },
     { pubkey: accounts.reserveX, isSigner: false, isWritable: true },
     { pubkey: accounts.reserveY, isSigner: false, isWritable: true },
@@ -47,7 +47,7 @@ export function removeLiquidity(
     { pubkey: accounts.tokenYMint, isSigner: false, isWritable: false },
     { pubkey: accounts.binArrayLower, isSigner: false, isWritable: true },
     { pubkey: accounts.binArrayUpper, isSigner: false, isWritable: true },
-    { pubkey: accounts.lbClmmProgram, isSigner: false, isWritable: false },
+    { pubkey: accounts.lbClmmProgram, isSigner: false, isWritable: true },
     { pubkey: accounts.eventAuthority, isSigner: false, isWritable: false },
     { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
   ]

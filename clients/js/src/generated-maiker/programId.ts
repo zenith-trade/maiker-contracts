@@ -1,10 +1,5 @@
 import { PublicKey } from "@solana/web3.js"
 
-// Program ID defined in the provided IDL. Do not edit, it will get overwritten.
-export const PROGRAM_ID_IDL = new PublicKey(
-  "27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx"
-)
-
 // Program ID passed with the cli --program-id flag when running the code generator. Do not edit, it will get overwritten.
 export const PROGRAM_ID_CLI = new PublicKey(
   "27mwfhSgaW1BDyYHcnfRnthvrCUZefXnwawH2YYbx2xx"

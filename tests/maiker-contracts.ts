@@ -1023,9 +1023,6 @@ describe("maiker-contracts", () => {
       recentBlockhash: blockhash[0],
     })
 
-    const simulation = await bankrunProvider.context.banksClient.simulateTransaction(builtTx.tx);
-    console.log("simulation: ", simulation.meta.logMessages);
-
     await processTransaction(builtTx.tx);
 
     // Assert

@@ -70,7 +70,8 @@ pub struct RemoveLiquidity<'info> {
     pub bin_array_upper: UncheckedAccount<'info>,
 
     /// CHECK: The lb_clmm program
-    #[account(address = dlmm_interface::ID)]
+    #[account(mut, address = dlmm_interface::ID)]
+    // Has to be marked as mut because when we CPI into it, it was to be writable
     pub lb_clmm_program: UncheckedAccount<'info>,
 
     /// CHECK: Event authority for lb_clmm
