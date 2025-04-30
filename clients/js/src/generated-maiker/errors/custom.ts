@@ -13,6 +13,8 @@ export type CustomError =
   | InvalidWithdrawalInterval
   | WithdrawalNotReady
   | PositionNotFound
+  | InvalidSwap
+  | NonZeroTransferFee
 
 export class ArithmeticOverflow extends Error {
   static readonly code = 6000
@@ -171,6 +173,28 @@ export class PositionNotFound extends Error {
   }
 }
 
+export class InvalidSwap extends Error {
+  static readonly code = 6014
+  readonly code = 6014
+  readonly name = "InvalidSwap"
+  readonly msg = "Invalid swap instruction"
+
+  constructor(readonly logs?: string[]) {
+    super("6014: Invalid swap instruction")
+  }
+}
+
+export class NonZeroTransferFee extends Error {
+  static readonly code = 6015
+  readonly code = 6015
+  readonly name = "NonZeroTransferFee"
+  readonly msg = "Non-zero transfer fee"
+
+  constructor(readonly logs?: string[]) {
+    super("6015: Non-zero transfer fee")
+  }
+}
+
 export function fromCode(code: number, logs?: string[]): CustomError | null {
   switch (code) {
     case 6000:
@@ -201,6 +225,10 @@ export function fromCode(code: number, logs?: string[]): CustomError | null {
       return new WithdrawalNotReady(logs)
     case 6013:
       return new PositionNotFound(logs)
+    case 6014:
+      return new InvalidSwap(logs)
+    case 6015:
+      return new NonZeroTransferFee(logs)
   }
 
   return null

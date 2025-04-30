@@ -1,7 +1,9 @@
 use crate::state::*;
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::program::invoke_signed};
 use anchor_spl::token::{Token, TokenAccount};
-use dlmm_interface::{remove_all_liquidity_invoke_signed, RemoveAllLiquidityAccounts};
+use dlmm_interface::{
+    remove_all_liquidity_ix, RemoveAllLiquidityAccounts, REMOVE_ALL_LIQUIDITY_IX_ACCOUNTS_LEN,
+};
 
 #[derive(Accounts)]
 pub struct RemoveLiquidity<'info> {
@@ -42,6 +44,7 @@ pub struct RemoveLiquidity<'info> {
     pub lb_pair: UncheckedAccount<'info>,
 
     /// CHECK: Bin array bitmap extension account
+    #[account(mut)]
     pub bin_array_bitmap_extension: Option<UncheckedAccount<'info>>,
 
     /// CHECK: Reserve account for token X
@@ -66,7 +69,6 @@ pub struct RemoveLiquidity<'info> {
     #[account(mut)]
     pub bin_array_upper: UncheckedAccount<'info>,
 
-    /// CHECK: lb_clmm program
     /// CHECK: The lb_clmm program
     #[account(address = dlmm_interface::ID)]
     pub lb_clmm_program: UncheckedAccount<'info>,
@@ -110,7 +112,13 @@ pub fn remove_all_liquidity_handler(ctx: Context<RemoveLiquidity>) -> Result<()>
         program: &ctx.accounts.lb_clmm_program.to_account_info(),
     };
 
-    remove_all_liquidity_invoke_signed(accounts, strategy_signer_seeds)?;
+    // remove_all_liquidity_invoke_signed(accounts, strategy_signer_seeds)?;
+
+    let keys = accounts.into();
+    let account_infos: [AccountInfo; REMOVE_ALL_LIQUIDITY_IX_ACCOUNTS_LEN] = accounts.into();
+    let ix = remove_all_liquidity_ix(keys)?;
+
+    invoke_signed(&ix, &account_infos, strategy_signer_seeds)?;
 
     Ok(())
 }

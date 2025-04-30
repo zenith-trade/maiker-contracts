@@ -22,3 +22,4 @@ dlmm_interface = { workspace = true }
 
 ruint = { workspace = true }
 num-traits = { workspace = true }
+bytemuck = { workspace = true, features = ["min_const_generics"] }

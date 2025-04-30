@@ -17,6 +17,12 @@ export interface StrategyConfigFields {
   positionsValues: Array<BN>
   lastPositionUpdate: Array<BN>
   lastRebalanceTime: BN
+  isSwapping: boolean
+  swapAmountIn: BN
+  swapSourceMint: PublicKey
+  swapDestinationMint: PublicKey
+  swapInitialInAmountAdmin: BN
+  swapInitialOutAmountAdmin: BN
   bump: number
 }
 
@@ -33,6 +39,12 @@ export interface StrategyConfigJSON {
   positionsValues: Array<string>
   lastPositionUpdate: Array<string>
   lastRebalanceTime: string
+  isSwapping: boolean
+  swapAmountIn: string
+  swapSourceMint: string
+  swapDestinationMint: string
+  swapInitialInAmountAdmin: string
+  swapInitialOutAmountAdmin: string
   bump: number
 }
 
@@ -49,6 +61,12 @@ export class StrategyConfig {
   readonly positionsValues: Array<BN>
   readonly lastPositionUpdate: Array<BN>
   readonly lastRebalanceTime: BN
+  readonly isSwapping: boolean
+  readonly swapAmountIn: BN
+  readonly swapSourceMint: PublicKey
+  readonly swapDestinationMint: PublicKey
+  readonly swapInitialInAmountAdmin: BN
+  readonly swapInitialOutAmountAdmin: BN
   readonly bump: number
 
   static readonly discriminator = Buffer.from([
@@ -68,6 +86,12 @@ export class StrategyConfig {
     borsh.array(borsh.u64(), 10, "positionsValues"),
     borsh.array(borsh.u64(), 10, "lastPositionUpdate"),
     borsh.i64("lastRebalanceTime"),
+    borsh.bool("isSwapping"),
+    borsh.u64("swapAmountIn"),
+    borsh.publicKey("swapSourceMint"),
+    borsh.publicKey("swapDestinationMint"),
+    borsh.u64("swapInitialInAmountAdmin"),
+    borsh.u64("swapInitialOutAmountAdmin"),
     borsh.u8("bump"),
   ])
 
@@ -84,6 +108,12 @@ export class StrategyConfig {
     this.positionsValues = fields.positionsValues
     this.lastPositionUpdate = fields.lastPositionUpdate
     this.lastRebalanceTime = fields.lastRebalanceTime
+    this.isSwapping = fields.isSwapping
+    this.swapAmountIn = fields.swapAmountIn
+    this.swapSourceMint = fields.swapSourceMint
+    this.swapDestinationMint = fields.swapDestinationMint
+    this.swapInitialInAmountAdmin = fields.swapInitialInAmountAdmin
+    this.swapInitialOutAmountAdmin = fields.swapInitialOutAmountAdmin
     this.bump = fields.bump
   }
 
@@ -143,6 +173,12 @@ export class StrategyConfig {
       positionsValues: dec.positionsValues,
       lastPositionUpdate: dec.lastPositionUpdate,
       lastRebalanceTime: dec.lastRebalanceTime,
+      isSwapping: dec.isSwapping,
+      swapAmountIn: dec.swapAmountIn,
+      swapSourceMint: dec.swapSourceMint,
+      swapDestinationMint: dec.swapDestinationMint,
+      swapInitialInAmountAdmin: dec.swapInitialInAmountAdmin,
+      swapInitialOutAmountAdmin: dec.swapInitialOutAmountAdmin,
       bump: dec.bump,
     })
   }
@@ -163,6 +199,12 @@ export class StrategyConfig {
         item.toString()
       ),
       lastRebalanceTime: this.lastRebalanceTime.toString(),
+      isSwapping: this.isSwapping,
+      swapAmountIn: this.swapAmountIn.toString(),
+      swapSourceMint: this.swapSourceMint.toString(),
+      swapDestinationMint: this.swapDestinationMint.toString(),
+      swapInitialInAmountAdmin: this.swapInitialInAmountAdmin.toString(),
+      swapInitialOutAmountAdmin: this.swapInitialOutAmountAdmin.toString(),
       bump: this.bump,
     }
   }
@@ -181,6 +223,12 @@ export class StrategyConfig {
       positionsValues: obj.positionsValues.map((item) => new BN(item)),
       lastPositionUpdate: obj.lastPositionUpdate.map((item) => new BN(item)),
       lastRebalanceTime: new BN(obj.lastRebalanceTime),
+      isSwapping: obj.isSwapping,
+      swapAmountIn: new BN(obj.swapAmountIn),
+      swapSourceMint: new PublicKey(obj.swapSourceMint),
+      swapDestinationMint: new PublicKey(obj.swapDestinationMint),
+      swapInitialInAmountAdmin: new BN(obj.swapInitialInAmountAdmin),
+      swapInitialOutAmountAdmin: new BN(obj.swapInitialOutAmountAdmin),
       bump: obj.bump,
     })
   }

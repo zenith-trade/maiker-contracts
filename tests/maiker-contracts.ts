@@ -764,7 +764,7 @@ describe("maiker-contracts", () => {
     // Refresh SDK to get updated data
     await maikerSdk.refresh();
 
-    const positionInfosPre = await maikerSdk.getPositions();
+    const positionInfosPre = await maikerSdk.fetchPositions();
     console.log("Position Infos pre add liquidity: ", positionInfosPre);
 
     // Assert
@@ -989,7 +989,7 @@ describe("maiker-contracts", () => {
 
     const positionPubkey = strategyAccPre.positions[0];
 
-    const positionInfos = await maikerSdk.getPositions();
+    const positionInfos = maikerSdk.getPositions();
     const positionInfo = positionInfos.find(p => p.pubkey.equals(positionPubkey));
     // console.log("positionInfo: ", positionInfo);
 
@@ -1022,6 +1022,9 @@ describe("maiker-contracts", () => {
       ixs: [claimFeeIx, removeLiquidityIx, closePositionIx],
       recentBlockhash: blockhash[0],
     })
+
+    const simulation = await bankrunProvider.context.banksClient.simulateTransaction(builtTx.tx);
+    console.log("simulation: ", simulation.meta.logMessages);
 
     await processTransaction(builtTx.tx);
 

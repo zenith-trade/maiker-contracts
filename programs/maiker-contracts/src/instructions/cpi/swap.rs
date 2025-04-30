@@ -1,6 +1,9 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{instruction::Instruction, program::invoke_signed},
+};
 use anchor_spl::token::{Token, TokenAccount};
-use dlmm_interface::{swap_invoke_signed, SwapAccounts, SwapIxArgs};
+use dlmm_interface::{SwapAccounts, SwapIxArgs, SwapIxData, SwapKeys, SWAP_IX_ACCOUNTS_LEN};
 
 use crate::{GlobalConfig, StrategyConfig};
 
@@ -143,13 +146,43 @@ pub fn swap_exact_in_handler<'a, 'b, 'c, 'info>(
         event_authority: &event_authority_info,
         program: &program_info,
     };
+    let keys: SwapKeys = accounts.into();
+    let metas: [AccountMeta; SWAP_IX_ACCOUNTS_LEN] = keys.into();
+    let account_info: [AccountInfo<'info>; SWAP_IX_ACCOUNTS_LEN] = accounts.into();
+
+    let accs = [
+        account_info.as_ref(),
+        ctx.remaining_accounts.to_vec().as_slice(),
+    ]
+    .concat();
+
+    let mets = [
+        metas.as_ref(),
+        ctx.remaining_accounts
+            .iter()
+            .map(|acc| AccountMeta {
+                pubkey: *acc.key,
+                is_signer: acc.is_signer,
+                is_writable: acc.is_writable,
+            })
+            .collect::<Vec<AccountMeta>>()
+            .as_slice(),
+    ]
+    .concat();
 
     let args = SwapIxArgs {
         amount_in,
         min_amount_out,
     };
 
-    swap_invoke_signed(accounts, args, strategy_signer_seeds)?;
+    let data: SwapIxData = args.into();
+    let ix = Instruction {
+        program_id: program_info.key(),
+        accounts: mets,
+        data: data.try_to_vec()?,
+    };
+
+    invoke_signed(&ix, &accs, strategy_signer_seeds)?;
 
     Ok(())
 }

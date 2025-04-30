@@ -17,7 +17,7 @@
         "cli": "ts-node ./cli/index.ts"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "^0.28.0",
+        "@coral-xyz/anchor": "^0.29.0",
         "@solana/spl-token": "^0.4.12",
         "@solana/web3.js": "^1.98.0",
         "anchor-bankrun": "^0.5.0",

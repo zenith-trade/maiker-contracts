@@ -8,7 +8,8 @@ use crate::{
     },
 };
 use anchor_lang::prelude::*;
-use dlmm_interface::{BinArrayAccount, LbPairAccount, PositionV2Account};
+use bytemuck::from_bytes;
+use dlmm_interface::{BinArray, LbPair, PositionV2};
 
 use crate::{MaikerError, StrategyConfig};
 
@@ -41,12 +42,19 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
         MaikerError::InvalidPosition
     );
 
-    let position = PositionV2Account::deserialize(&*ctx.accounts.position.data.borrow())?.0;
-    let lb_pair = LbPairAccount::deserialize(&*ctx.accounts.lb_pair.data.borrow())?.0;
-    let bin_array_lower =
-        BinArrayAccount::deserialize(&*ctx.accounts.bin_array_lower.data.borrow())?.0;
-    let bin_array_upper =
-        BinArrayAccount::deserialize(&*ctx.accounts.bin_array_upper.data.borrow())?.0;
+    let bin_array_lower_data = &ctx.accounts.bin_array_lower.data.borrow()[8..];
+    let bin_array_upper_data = &ctx.accounts.bin_array_upper.data.borrow()[8..];
+
+    let bin_array_lower = from_bytes::<BinArray>(bin_array_lower_data);
+    let bin_array_upper = from_bytes::<BinArray>(bin_array_upper_data);
+
+    // Zero-copy access to position data - skip the 8-byte discriminator
+    let position_data = &ctx.accounts.position.data.borrow()[8..];
+    let position = from_bytes::<PositionV2>(position_data);
+
+    // Zero-copy access to lb_pair data - skip the 8-byte discriminator
+    let lb_pair_data = &ctx.accounts.lb_pair.data.borrow()[8..];
+    let lb_pair = from_bytes::<LbPair>(lb_pair_data);
 
     let active_bin_id = lb_pair.active_id;
 
@@ -68,9 +76,9 @@ pub fn get_position_value_handler(ctx: Context<GetPositionValue>) -> Result<()> 
         }
 
         // Determine which bin array contains this bin and get the bin
-        let bin = if bin_array_lower.is_bin_id_within_range(bin_id).is_ok() {
+        let bin = if bin_array_lower.is_bin_id_within_range(bin_id)? {
             bin_array_lower.get_bin(bin_id)?
-        } else if bin_array_upper.is_bin_id_within_range(bin_id).is_ok() {
+        } else if bin_array_upper.is_bin_id_within_range(bin_id)? {
             bin_array_upper.get_bin(bin_id)?
         } else {
             // Bin not found in either array
