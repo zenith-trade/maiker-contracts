@@ -54,8 +54,6 @@ ureq = "2.0.0"
 
 itertools = "0.10.0"
 
-commons = { path = "./packages/commons" }
-
 dlmm_interface = { path = "./packages/dlmm_interface" }
 
 [profile.release]
