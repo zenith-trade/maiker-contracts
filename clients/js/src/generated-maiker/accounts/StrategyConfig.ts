@@ -10,6 +10,7 @@ export interface StrategyConfigFields {
   yMint: PublicKey
   xVault: PublicKey
   yVault: PublicKey
+  mTokenMint: PublicKey
   strategyShares: BN
   feeShares: BN
   positionCount: number
@@ -32,6 +33,7 @@ export interface StrategyConfigJSON {
   yMint: string
   xVault: string
   yVault: string
+  mTokenMint: string
   strategyShares: string
   feeShares: string
   positionCount: number
@@ -54,6 +56,7 @@ export class StrategyConfig {
   readonly yMint: PublicKey
   readonly xVault: PublicKey
   readonly yVault: PublicKey
+  readonly mTokenMint: PublicKey
   readonly strategyShares: BN
   readonly feeShares: BN
   readonly positionCount: number
@@ -79,6 +82,7 @@ export class StrategyConfig {
     borsh.publicKey("yMint"),
     borsh.publicKey("xVault"),
     borsh.publicKey("yVault"),
+    borsh.publicKey("mTokenMint"),
     borsh.u64("strategyShares"),
     borsh.u64("feeShares"),
     borsh.u8("positionCount"),
@@ -101,6 +105,7 @@ export class StrategyConfig {
     this.yMint = fields.yMint
     this.xVault = fields.xVault
     this.yVault = fields.yVault
+    this.mTokenMint = fields.mTokenMint
     this.strategyShares = fields.strategyShares
     this.feeShares = fields.feeShares
     this.positionCount = fields.positionCount
@@ -166,6 +171,7 @@ export class StrategyConfig {
       yMint: dec.yMint,
       xVault: dec.xVault,
       yVault: dec.yVault,
+      mTokenMint: dec.mTokenMint,
       strategyShares: dec.strategyShares,
       feeShares: dec.feeShares,
       positionCount: dec.positionCount,
@@ -190,6 +196,7 @@ export class StrategyConfig {
       yMint: this.yMint.toString(),
       xVault: this.xVault.toString(),
       yVault: this.yVault.toString(),
+      mTokenMint: this.mTokenMint.toString(),
       strategyShares: this.strategyShares.toString(),
       feeShares: this.feeShares.toString(),
       positionCount: this.positionCount,
@@ -216,6 +223,7 @@ export class StrategyConfig {
       yMint: new PublicKey(obj.yMint),
       xVault: new PublicKey(obj.xVault),
       yVault: new PublicKey(obj.yVault),
+      mTokenMint: new PublicKey(obj.mTokenMint),
       strategyShares: new BN(obj.strategyShares),
       feeShares: new BN(obj.feeShares),
       positionCount: obj.positionCount,

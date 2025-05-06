@@ -3,6 +3,18 @@ export type MaikerContracts = {
   "name": "maiker_contracts",
   "constants": [
     {
+      "name": "BASIS_POINT_MAX",
+      "type": "i32",
+      "value": "10000"
+    },
+    {
+      "name": "MAX_BIN_PER_ARRAY",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "70"
+    },
+    {
       "name": "ANCHOR_DISCRIMINATOR",
       "type": {
         "defined": "usize"
@@ -80,6 +92,16 @@ export type MaikerContracts = {
           "isSigner": false
         },
         {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "metadata",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "strategy",
           "isMut": true,
           "isSigner": false
@@ -98,9 +120,26 @@ export type MaikerContracts = {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenMetadataProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "CreateStrategyMetadataParams"
+          }
+        }
+      ]
     },
     {
       "name": "deposit",
@@ -136,7 +175,22 @@ export type MaikerContracts = {
           "isSigner": false
         },
         {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userMTokenAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -229,6 +283,16 @@ export type MaikerContracts = {
         },
         {
           "name": "userTokenX",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userMTokenAta",
           "isMut": true,
           "isSigner": false
         },
@@ -491,12 +555,12 @@ export type MaikerContracts = {
           "isSigner": false
         },
         {
-          "name": "userTokenX",
+          "name": "strategyVaultX",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userTokenY",
+          "name": "strategyVaultY",
           "isMut": true,
           "isSigner": false
         },
@@ -512,7 +576,7 @@ export type MaikerContracts = {
         },
         {
           "name": "binArrayBitmapExtension",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false,
           "isOptional": true
         },
@@ -548,7 +612,7 @@ export type MaikerContracts = {
         },
         {
           "name": "lbClmmProgram",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -708,16 +772,6 @@ export type MaikerContracts = {
           "name": "eventAuthority",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "positionOwner",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": []
@@ -727,7 +781,7 @@ export type MaikerContracts = {
       "accounts": [
         {
           "name": "authority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -743,7 +797,7 @@ export type MaikerContracts = {
         {
           "name": "position",
           "isMut": true,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "lbPair",
@@ -782,6 +836,266 @@ export type MaikerContracts = {
         {
           "name": "width",
           "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "swapExactIn",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "The authority of the strategy"
+          ]
+        },
+        {
+          "name": "globalConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "strategy",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lbPair",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "binArrayBitmapExtension",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "reserveX",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "reserveY",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "strategyVaultX",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The strategy vault for token X, which will be used for swapping"
+          ]
+        },
+        {
+          "name": "strategyVaultY",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The strategy vault for token Y, which will be used for swapping"
+          ]
+        },
+        {
+          "name": "tokenXMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenYMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "hostFeeIn",
+          "isMut": true,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "lbClmmProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The lb_clmm program"
+          ]
+        },
+        {
+          "name": "eventAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenXProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The token program for token X"
+          ]
+        },
+        {
+          "name": "tokenYProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The token program for token Y"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "amountIn",
+          "type": "u64"
+        },
+        {
+          "name": "minAmountOut",
+          "type": "u64"
+        },
+        {
+          "name": "xToY",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "beginSwap",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "globalConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "strategy",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "xToY",
+          "type": "bool"
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endSwap",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "globalConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "strategy",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "xToY",
+          "type": "bool"
         }
       ]
     }
@@ -881,6 +1195,10 @@ export type MaikerContracts = {
             "type": "publicKey"
           },
           {
+            "name": "mTokenMint",
+            "type": "publicKey"
+          },
+          {
             "name": "strategyShares",
             "type": "u64"
           },
@@ -914,7 +1232,7 @@ export type MaikerContracts = {
             "name": "lastPositionUpdate",
             "type": {
               "array": [
-                "i64",
+                "u64",
                 10
               ]
             }
@@ -922,6 +1240,30 @@ export type MaikerContracts = {
           {
             "name": "lastRebalanceTime",
             "type": "i64"
+          },
+          {
+            "name": "isSwapping",
+            "type": "bool"
+          },
+          {
+            "name": "swapAmountIn",
+            "type": "u64"
+          },
+          {
+            "name": "swapSourceMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "swapDestinationMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "swapInitialInAmountAdmin",
+            "type": "u64"
+          },
+          {
+            "name": "swapInitialOutAmountAdmin",
+            "type": "u64"
           },
           {
             "name": "bump",
@@ -952,8 +1294,8 @@ export type MaikerContracts = {
             "type": "u64"
           },
           {
-            "name": "lastUpdateTimestamp",
-            "type": "i64"
+            "name": "lastUpdateSlot",
+            "type": "u64"
           },
           {
             "name": "bump",
@@ -1039,10 +1381,6 @@ export type MaikerContracts = {
         "kind": "struct",
         "fields": [
           {
-            "name": "admin",
-            "type": "publicKey"
-          },
-          {
             "name": "performanceFeeBps",
             "type": "u16"
           },
@@ -1063,6 +1401,40 @@ export type MaikerContracts = {
             "type": {
               "option": "publicKey"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateStrategyMetadataParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Rounding",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Up"
+          },
+          {
+            "name": "Down"
           }
         ]
       }
@@ -1089,6 +1461,11 @@ export type MaikerContracts = {
         },
         {
           "name": "yMint",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "mTokenMint",
           "type": "publicKey",
           "index": false
         },
@@ -1345,6 +1722,26 @@ export type MaikerContracts = {
       "code": 6012,
       "name": "WithdrawalNotReady",
       "msg": "Withdrawal is not ready yet"
+    },
+    {
+      "code": 6013,
+      "name": "PositionNotFound",
+      "msg": "Position not found"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidSwap",
+      "msg": "Invalid swap instruction"
+    },
+    {
+      "code": 6015,
+      "name": "NonZeroTransferFee",
+      "msg": "Non-zero transfer fee"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidMetadataParam",
+      "msg": "Invalid metadata parameter: name, symbol, or uri is empty or too long"
     }
   ]
 };
@@ -1354,6 +1751,18 @@ export const IDL: MaikerContracts = {
   "name": "maiker_contracts",
   "constants": [
     {
+      "name": "BASIS_POINT_MAX",
+      "type": "i32",
+      "value": "10000"
+    },
+    {
+      "name": "MAX_BIN_PER_ARRAY",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "70"
+    },
+    {
       "name": "ANCHOR_DISCRIMINATOR",
       "type": {
         "defined": "usize"
@@ -1431,6 +1840,16 @@ export const IDL: MaikerContracts = {
           "isSigner": false
         },
         {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "metadata",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "strategy",
           "isMut": true,
           "isSigner": false
@@ -1449,9 +1868,26 @@ export const IDL: MaikerContracts = {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenMetadataProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "CreateStrategyMetadataParams"
+          }
+        }
+      ]
     },
     {
       "name": "deposit",
@@ -1487,7 +1923,22 @@ export const IDL: MaikerContracts = {
           "isSigner": false
         },
         {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userMTokenAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -1580,6 +2031,16 @@ export const IDL: MaikerContracts = {
         },
         {
           "name": "userTokenX",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userMTokenAta",
           "isMut": true,
           "isSigner": false
         },
@@ -1842,12 +2303,12 @@ export const IDL: MaikerContracts = {
           "isSigner": false
         },
         {
-          "name": "userTokenX",
+          "name": "strategyVaultX",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userTokenY",
+          "name": "strategyVaultY",
           "isMut": true,
           "isSigner": false
         },
@@ -1863,7 +2324,7 @@ export const IDL: MaikerContracts = {
         },
         {
           "name": "binArrayBitmapExtension",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false,
           "isOptional": true
         },
@@ -1899,7 +2360,7 @@ export const IDL: MaikerContracts = {
         },
         {
           "name": "lbClmmProgram",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2059,16 +2520,6 @@ export const IDL: MaikerContracts = {
           "name": "eventAuthority",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "positionOwner",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": []
@@ -2078,7 +2529,7 @@ export const IDL: MaikerContracts = {
       "accounts": [
         {
           "name": "authority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -2094,7 +2545,7 @@ export const IDL: MaikerContracts = {
         {
           "name": "position",
           "isMut": true,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "lbPair",
@@ -2133,6 +2584,266 @@ export const IDL: MaikerContracts = {
         {
           "name": "width",
           "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "swapExactIn",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "The authority of the strategy"
+          ]
+        },
+        {
+          "name": "globalConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "strategy",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lbPair",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "binArrayBitmapExtension",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "reserveX",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "reserveY",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "strategyVaultX",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The strategy vault for token X, which will be used for swapping"
+          ]
+        },
+        {
+          "name": "strategyVaultY",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The strategy vault for token Y, which will be used for swapping"
+          ]
+        },
+        {
+          "name": "tokenXMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenYMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "hostFeeIn",
+          "isMut": true,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "lbClmmProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The lb_clmm program"
+          ]
+        },
+        {
+          "name": "eventAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenXProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The token program for token X"
+          ]
+        },
+        {
+          "name": "tokenYProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The token program for token Y"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "amountIn",
+          "type": "u64"
+        },
+        {
+          "name": "minAmountOut",
+          "type": "u64"
+        },
+        {
+          "name": "xToY",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "beginSwap",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "globalConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "strategy",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "xToY",
+          "type": "bool"
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endSwap",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "globalConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "strategy",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outAdminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "xToY",
+          "type": "bool"
         }
       ]
     }
@@ -2232,6 +2943,10 @@ export const IDL: MaikerContracts = {
             "type": "publicKey"
           },
           {
+            "name": "mTokenMint",
+            "type": "publicKey"
+          },
+          {
             "name": "strategyShares",
             "type": "u64"
           },
@@ -2265,7 +2980,7 @@ export const IDL: MaikerContracts = {
             "name": "lastPositionUpdate",
             "type": {
               "array": [
-                "i64",
+                "u64",
                 10
               ]
             }
@@ -2273,6 +2988,30 @@ export const IDL: MaikerContracts = {
           {
             "name": "lastRebalanceTime",
             "type": "i64"
+          },
+          {
+            "name": "isSwapping",
+            "type": "bool"
+          },
+          {
+            "name": "swapAmountIn",
+            "type": "u64"
+          },
+          {
+            "name": "swapSourceMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "swapDestinationMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "swapInitialInAmountAdmin",
+            "type": "u64"
+          },
+          {
+            "name": "swapInitialOutAmountAdmin",
+            "type": "u64"
           },
           {
             "name": "bump",
@@ -2303,8 +3042,8 @@ export const IDL: MaikerContracts = {
             "type": "u64"
           },
           {
-            "name": "lastUpdateTimestamp",
-            "type": "i64"
+            "name": "lastUpdateSlot",
+            "type": "u64"
           },
           {
             "name": "bump",
@@ -2390,10 +3129,6 @@ export const IDL: MaikerContracts = {
         "kind": "struct",
         "fields": [
           {
-            "name": "admin",
-            "type": "publicKey"
-          },
-          {
             "name": "performanceFeeBps",
             "type": "u16"
           },
@@ -2414,6 +3149,40 @@ export const IDL: MaikerContracts = {
             "type": {
               "option": "publicKey"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateStrategyMetadataParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Rounding",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Up"
+          },
+          {
+            "name": "Down"
           }
         ]
       }
@@ -2440,6 +3209,11 @@ export const IDL: MaikerContracts = {
         },
         {
           "name": "yMint",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "mTokenMint",
           "type": "publicKey",
           "index": false
         },
@@ -2696,6 +3470,26 @@ export const IDL: MaikerContracts = {
       "code": 6012,
       "name": "WithdrawalNotReady",
       "msg": "Withdrawal is not ready yet"
+    },
+    {
+      "code": 6013,
+      "name": "PositionNotFound",
+      "msg": "Position not found"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidSwap",
+      "msg": "Invalid swap instruction"
+    },
+    {
+      "code": 6015,
+      "name": "NonZeroTransferFee",
+      "msg": "Non-zero transfer fee"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidMetadataParam",
+      "msg": "Invalid metadata parameter: name, symbol, or uri is empty or too long"
     }
   ]
 };

@@ -1,6 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import { PROGRAM_ID as maikerProgramId } from '../generated-maiker/programId';
 
+export const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+
 /**
  * PDA constants for seeding
  */
@@ -9,6 +11,8 @@ export const PDA_SEEDS = {
     STRATEGY_CONFIG: "strategy-config",
     USER_POSITION: "user-position",
     PENDING_WITHDRAWAL: "pending-withdrawal",
+    M_TOKEN_MINT: "m-token",
+    M_TOKEN_METADATA: "metadata",
 };
 
 /**
@@ -59,4 +63,23 @@ export function derivePendingWithdrawal(
         maikerProgramId
     );
     return pendingWithdrawal;
+}
+
+export function deriveMTokenMint(strategy: PublicKey): PublicKey {
+    const [mTokenMint] = PublicKey.findProgramAddressSync(
+        [Buffer.from(PDA_SEEDS.M_TOKEN_MINT), strategy.toBuffer()],
+        maikerProgramId
+    );
+    return mTokenMint;
+}
+
+export function deriveMTokenMetadata(mTokenMint: PublicKey): PublicKey {
+    const [mTokenMetadata] = PublicKey.findProgramAddressSync(
+        [Buffer.from(PDA_SEEDS.M_TOKEN_METADATA),
+            TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+             mTokenMint.toBuffer()
+            ],
+        TOKEN_METADATA_PROGRAM_ID
+    );
+    return mTokenMetadata;
 }

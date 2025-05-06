@@ -6,7 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getI32Decoder, getI32Encoder, getStructDecoder, getStructEncoder, transformEncoder, type Address, type Codec, type Decoder, type Encoder, type IAccountMeta, type IAccountSignerMeta, type IInstruction, type IInstructionWithAccounts, type IInstructionWithData, type ReadonlyAccount, type ReadonlySignerAccount, type ReadonlyUint8Array, type TransactionSigner, type WritableAccount } from '@solana/kit';
+import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getI32Decoder, getI32Encoder, getStructDecoder, getStructEncoder, transformEncoder, type Address, type Codec, type Decoder, type Encoder, type IAccountMeta, type IAccountSignerMeta, type IInstruction, type IInstructionWithAccounts, type IInstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type TransactionSigner, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { MAIKER_CONTRACTS_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
@@ -20,7 +20,7 @@ export type InitializePositionInstruction<
     TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram>
       & IInstructionWithData<Uint8Array>
-        & IInstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountPosition extends string ? WritableAccount<TAccountPosition> : TAccountPosition, TAccountLbPair extends string ? ReadonlyAccount<TAccountLbPair> : TAccountLbPair, TAccountLbClmmProgram extends string ? ReadonlyAccount<TAccountLbClmmProgram> : TAccountLbClmmProgram, TAccountEventAuthority extends string ? ReadonlyAccount<TAccountEventAuthority> : TAccountEventAuthority, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, TAccountRent extends string ? ReadonlyAccount<TAccountRent> : TAccountRent, ...TRemainingAccounts]>
+        & IInstructionWithAccounts<[TAccountAuthority extends string ? WritableSignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountPosition extends string ? WritableSignerAccount<TAccountPosition> & IAccountSignerMeta<TAccountPosition> : TAccountPosition, TAccountLbPair extends string ? ReadonlyAccount<TAccountLbPair> : TAccountLbPair, TAccountLbClmmProgram extends string ? ReadonlyAccount<TAccountLbClmmProgram> : TAccountLbClmmProgram, TAccountEventAuthority extends string ? ReadonlyAccount<TAccountEventAuthority> : TAccountEventAuthority, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, TAccountRent extends string ? ReadonlyAccount<TAccountRent> : TAccountRent, ...TRemainingAccounts]>
   ;
 
 
@@ -66,7 +66,7 @@ export type InitializePositionInput<TAccountAuthority extends string = string,
   authority: TransactionSigner<TAccountAuthority>;
 globalConfig: Address<TAccountGlobalConfig>;
 strategy: Address<TAccountStrategy>;
-position: Address<TAccountPosition>;
+position: TransactionSigner<TAccountPosition>;
 lbPair: Address<TAccountLbPair>;
 /** The lb_clmm program */
 lbClmmProgram: Address<TAccountLbClmmProgram>;
@@ -83,7 +83,7 @@ export  function getInitializePositionInstruction<TAccountAuthority extends stri
 
       // Original accounts.
     const originalAccounts = {
-              authority: { value: input.authority ?? null, isWritable: false },
+              authority: { value: input.authority ?? null, isWritable: true },
               globalConfig: { value: input.globalConfig ?? null, isWritable: false },
               strategy: { value: input.strategy ?? null, isWritable: true },
               position: { value: input.position ?? null, isWritable: true },

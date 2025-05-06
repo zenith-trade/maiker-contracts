@@ -2,6 +2,7 @@ import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { BinAndAmount, PositionData, TokenReserve } from '@meteora-ag/dlmm';
 import * as dlmm from './generated-dlmm/accounts';
+import type { CreateStrategyMetadataParamsFields } from "./generated-maiker/types/CreateStrategyMetadataParams";
 
 /**
  * Strategy context containing key addresses and data
@@ -22,6 +23,7 @@ export interface StrategySetupParams {
   creator: PublicKey;
   xMint: PublicKey;
   yMint: PublicKey;
+  metadata: CreateStrategyMetadataParamsFields;
 }
 
 /**

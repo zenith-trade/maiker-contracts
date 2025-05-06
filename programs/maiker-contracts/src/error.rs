@@ -50,4 +50,7 @@ pub enum MaikerError {
 
     #[msg("Non-zero transfer fee")]
     NonZeroTransferFee,
+    
+    #[msg("Invalid metadata parameter: name, symbol, or uri is empty or too long")]
+    InvalidMetadataParam,
 }

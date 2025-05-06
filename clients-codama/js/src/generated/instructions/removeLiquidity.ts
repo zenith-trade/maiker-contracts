@@ -16,11 +16,11 @@ export function getRemoveLiquidityDiscriminatorBytes() { return fixEncoderSize(g
 
 export type RemoveLiquidityInstruction<
   TProgram extends string = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS,
-      TAccountAuthority extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountUserTokenX extends string | IAccountMeta<string> = string, TAccountUserTokenY extends string | IAccountMeta<string> = string, TAccountPosition extends string | IAccountMeta<string> = string, TAccountLbPair extends string | IAccountMeta<string> = string, TAccountBinArrayBitmapExtension extends string | IAccountMeta<string> = string, TAccountReserveX extends string | IAccountMeta<string> = string, TAccountReserveY extends string | IAccountMeta<string> = string, TAccountTokenXMint extends string | IAccountMeta<string> = string, TAccountTokenYMint extends string | IAccountMeta<string> = string, TAccountBinArrayLower extends string | IAccountMeta<string> = string, TAccountBinArrayUpper extends string | IAccountMeta<string> = string, TAccountLbClmmProgram extends string | IAccountMeta<string> = string, TAccountEventAuthority extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      TAccountAuthority extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountStrategyVaultX extends string | IAccountMeta<string> = string, TAccountStrategyVaultY extends string | IAccountMeta<string> = string, TAccountPosition extends string | IAccountMeta<string> = string, TAccountLbPair extends string | IAccountMeta<string> = string, TAccountBinArrayBitmapExtension extends string | IAccountMeta<string> = string, TAccountReserveX extends string | IAccountMeta<string> = string, TAccountReserveY extends string | IAccountMeta<string> = string, TAccountTokenXMint extends string | IAccountMeta<string> = string, TAccountTokenYMint extends string | IAccountMeta<string> = string, TAccountBinArrayLower extends string | IAccountMeta<string> = string, TAccountBinArrayUpper extends string | IAccountMeta<string> = string, TAccountLbClmmProgram extends string | IAccountMeta<string> = string, TAccountEventAuthority extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram>
       & IInstructionWithData<Uint8Array>
-        & IInstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountUserTokenX extends string ? WritableAccount<TAccountUserTokenX> : TAccountUserTokenX, TAccountUserTokenY extends string ? WritableAccount<TAccountUserTokenY> : TAccountUserTokenY, TAccountPosition extends string ? WritableAccount<TAccountPosition> : TAccountPosition, TAccountLbPair extends string ? WritableAccount<TAccountLbPair> : TAccountLbPair, TAccountBinArrayBitmapExtension extends string ? ReadonlyAccount<TAccountBinArrayBitmapExtension> : TAccountBinArrayBitmapExtension, TAccountReserveX extends string ? WritableAccount<TAccountReserveX> : TAccountReserveX, TAccountReserveY extends string ? WritableAccount<TAccountReserveY> : TAccountReserveY, TAccountTokenXMint extends string ? ReadonlyAccount<TAccountTokenXMint> : TAccountTokenXMint, TAccountTokenYMint extends string ? ReadonlyAccount<TAccountTokenYMint> : TAccountTokenYMint, TAccountBinArrayLower extends string ? WritableAccount<TAccountBinArrayLower> : TAccountBinArrayLower, TAccountBinArrayUpper extends string ? WritableAccount<TAccountBinArrayUpper> : TAccountBinArrayUpper, TAccountLbClmmProgram extends string ? ReadonlyAccount<TAccountLbClmmProgram> : TAccountLbClmmProgram, TAccountEventAuthority extends string ? ReadonlyAccount<TAccountEventAuthority> : TAccountEventAuthority, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>
+        & IInstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountStrategyVaultX extends string ? WritableAccount<TAccountStrategyVaultX> : TAccountStrategyVaultX, TAccountStrategyVaultY extends string ? WritableAccount<TAccountStrategyVaultY> : TAccountStrategyVaultY, TAccountPosition extends string ? WritableAccount<TAccountPosition> : TAccountPosition, TAccountLbPair extends string ? WritableAccount<TAccountLbPair> : TAccountLbPair, TAccountBinArrayBitmapExtension extends string ? WritableAccount<TAccountBinArrayBitmapExtension> : TAccountBinArrayBitmapExtension, TAccountReserveX extends string ? WritableAccount<TAccountReserveX> : TAccountReserveX, TAccountReserveY extends string ? WritableAccount<TAccountReserveY> : TAccountReserveY, TAccountTokenXMint extends string ? ReadonlyAccount<TAccountTokenXMint> : TAccountTokenXMint, TAccountTokenYMint extends string ? ReadonlyAccount<TAccountTokenYMint> : TAccountTokenYMint, TAccountBinArrayLower extends string ? WritableAccount<TAccountBinArrayLower> : TAccountBinArrayLower, TAccountBinArrayUpper extends string ? WritableAccount<TAccountBinArrayUpper> : TAccountBinArrayUpper, TAccountLbClmmProgram extends string ? WritableAccount<TAccountLbClmmProgram> : TAccountLbClmmProgram, TAccountEventAuthority extends string ? ReadonlyAccount<TAccountEventAuthority> : TAccountEventAuthority, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>
   ;
 
 
@@ -55,8 +55,8 @@ export function getRemoveLiquidityInstructionDataCodec(): Codec<RemoveLiquidityI
 export type RemoveLiquidityInput<TAccountAuthority extends string = string,
   TAccountGlobalConfig extends string = string,
   TAccountStrategy extends string = string,
-  TAccountUserTokenX extends string = string,
-  TAccountUserTokenY extends string = string,
+  TAccountStrategyVaultX extends string = string,
+  TAccountStrategyVaultY extends string = string,
   TAccountPosition extends string = string,
   TAccountLbPair extends string = string,
   TAccountBinArrayBitmapExtension extends string = string,
@@ -74,8 +74,8 @@ export type RemoveLiquidityInput<TAccountAuthority extends string = string,
   authority: TransactionSigner<TAccountAuthority>;
 globalConfig: Address<TAccountGlobalConfig>;
 strategy: Address<TAccountStrategy>;
-userTokenX: Address<TAccountUserTokenX>;
-userTokenY: Address<TAccountUserTokenY>;
+strategyVaultX: Address<TAccountStrategyVaultX>;
+strategyVaultY: Address<TAccountStrategyVaultY>;
 position: Address<TAccountPosition>;
 lbPair: Address<TAccountLbPair>;
 binArrayBitmapExtension?: Address<TAccountBinArrayBitmapExtension>;
@@ -91,7 +91,7 @@ tokenProgram?: Address<TAccountTokenProgram>;
 }
 
 
-export  function getRemoveLiquidityInstruction<TAccountAuthority extends string, TAccountGlobalConfig extends string, TAccountStrategy extends string, TAccountUserTokenX extends string, TAccountUserTokenY extends string, TAccountPosition extends string, TAccountLbPair extends string, TAccountBinArrayBitmapExtension extends string, TAccountReserveX extends string, TAccountReserveY extends string, TAccountTokenXMint extends string, TAccountTokenYMint extends string, TAccountBinArrayLower extends string, TAccountBinArrayUpper extends string, TAccountLbClmmProgram extends string, TAccountEventAuthority extends string, TAccountTokenProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: RemoveLiquidityInput<TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountUserTokenX, TAccountUserTokenY, TAccountPosition, TAccountLbPair, TAccountBinArrayBitmapExtension, TAccountReserveX, TAccountReserveY, TAccountTokenXMint, TAccountTokenYMint, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountLbClmmProgram, TAccountEventAuthority, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): RemoveLiquidityInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountUserTokenX, TAccountUserTokenY, TAccountPosition, TAccountLbPair, TAccountBinArrayBitmapExtension, TAccountReserveX, TAccountReserveY, TAccountTokenXMint, TAccountTokenYMint, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountLbClmmProgram, TAccountEventAuthority, TAccountTokenProgram> {
+export  function getRemoveLiquidityInstruction<TAccountAuthority extends string, TAccountGlobalConfig extends string, TAccountStrategy extends string, TAccountStrategyVaultX extends string, TAccountStrategyVaultY extends string, TAccountPosition extends string, TAccountLbPair extends string, TAccountBinArrayBitmapExtension extends string, TAccountReserveX extends string, TAccountReserveY extends string, TAccountTokenXMint extends string, TAccountTokenYMint extends string, TAccountBinArrayLower extends string, TAccountBinArrayUpper extends string, TAccountLbClmmProgram extends string, TAccountEventAuthority extends string, TAccountTokenProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: RemoveLiquidityInput<TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountStrategyVaultY, TAccountPosition, TAccountLbPair, TAccountBinArrayBitmapExtension, TAccountReserveX, TAccountReserveY, TAccountTokenXMint, TAccountTokenYMint, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountLbClmmProgram, TAccountEventAuthority, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): RemoveLiquidityInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountStrategyVaultY, TAccountPosition, TAccountLbPair, TAccountBinArrayBitmapExtension, TAccountReserveX, TAccountReserveY, TAccountTokenXMint, TAccountTokenYMint, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountLbClmmProgram, TAccountEventAuthority, TAccountTokenProgram> {
   // Program address.
   const programAddress = config?.programAddress ?? MAIKER_CONTRACTS_PROGRAM_ADDRESS;
 
@@ -100,18 +100,18 @@ export  function getRemoveLiquidityInstruction<TAccountAuthority extends string,
               authority: { value: input.authority ?? null, isWritable: false },
               globalConfig: { value: input.globalConfig ?? null, isWritable: false },
               strategy: { value: input.strategy ?? null, isWritable: true },
-              userTokenX: { value: input.userTokenX ?? null, isWritable: true },
-              userTokenY: { value: input.userTokenY ?? null, isWritable: true },
+              strategyVaultX: { value: input.strategyVaultX ?? null, isWritable: true },
+              strategyVaultY: { value: input.strategyVaultY ?? null, isWritable: true },
               position: { value: input.position ?? null, isWritable: true },
               lbPair: { value: input.lbPair ?? null, isWritable: true },
-              binArrayBitmapExtension: { value: input.binArrayBitmapExtension ?? null, isWritable: false },
+              binArrayBitmapExtension: { value: input.binArrayBitmapExtension ?? null, isWritable: true },
               reserveX: { value: input.reserveX ?? null, isWritable: true },
               reserveY: { value: input.reserveY ?? null, isWritable: true },
               tokenXMint: { value: input.tokenXMint ?? null, isWritable: false },
               tokenYMint: { value: input.tokenYMint ?? null, isWritable: false },
               binArrayLower: { value: input.binArrayLower ?? null, isWritable: true },
               binArrayUpper: { value: input.binArrayUpper ?? null, isWritable: true },
-              lbClmmProgram: { value: input.lbClmmProgram ?? null, isWritable: false },
+              lbClmmProgram: { value: input.lbClmmProgram ?? null, isWritable: true },
               eventAuthority: { value: input.eventAuthority ?? null, isWritable: false },
               tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
           };
@@ -133,8 +133,8 @@ accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as A
                   getAccountMeta(accounts.authority),
                   getAccountMeta(accounts.globalConfig),
                   getAccountMeta(accounts.strategy),
-                  getAccountMeta(accounts.userTokenX),
-                  getAccountMeta(accounts.userTokenY),
+                  getAccountMeta(accounts.strategyVaultX),
+                  getAccountMeta(accounts.strategyVaultY),
                   getAccountMeta(accounts.position),
                   getAccountMeta(accounts.lbPair),
                   getAccountMeta(accounts.binArrayBitmapExtension),
@@ -149,7 +149,7 @@ accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as A
                   getAccountMeta(accounts.tokenProgram),
                       ]      ,    programAddress,
           data: getRemoveLiquidityInstructionDataEncoder().encode({}),
-      } as RemoveLiquidityInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountUserTokenX, TAccountUserTokenY, TAccountPosition, TAccountLbPair, TAccountBinArrayBitmapExtension, TAccountReserveX, TAccountReserveY, TAccountTokenXMint, TAccountTokenYMint, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountLbClmmProgram, TAccountEventAuthority, TAccountTokenProgram>;
+      } as RemoveLiquidityInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountStrategyVaultY, TAccountPosition, TAccountLbPair, TAccountBinArrayBitmapExtension, TAccountReserveX, TAccountReserveY, TAccountTokenXMint, TAccountTokenYMint, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountLbClmmProgram, TAccountEventAuthority, TAccountTokenProgram>;
 
       return instruction;
   }
@@ -164,8 +164,8 @@ export type ParsedRemoveLiquidityInstruction<
                       authority: TAccountMetas[0],
                       globalConfig: TAccountMetas[1],
                       strategy: TAccountMetas[2],
-                      userTokenX: TAccountMetas[3],
-                      userTokenY: TAccountMetas[4],
+                      strategyVaultX: TAccountMetas[3],
+                      strategyVaultY: TAccountMetas[4],
                       position: TAccountMetas[5],
                       lbPair: TAccountMetas[6],
                       binArrayBitmapExtension?: TAccountMetas[7] | undefined,
@@ -210,8 +210,8 @@ export function parseRemoveLiquidityInstruction<
                               authority: getNextAccount(),
                                         globalConfig: getNextAccount(),
                                         strategy: getNextAccount(),
-                                        userTokenX: getNextAccount(),
-                                        userTokenY: getNextAccount(),
+                                        strategyVaultX: getNextAccount(),
+                                        strategyVaultY: getNextAccount(),
                                         position: getNextAccount(),
                                         lbPair: getNextAccount(),
                                         binArrayBitmapExtension: getNextOptionalAccount(),

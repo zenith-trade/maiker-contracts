@@ -7,6 +7,7 @@ pub struct CreateStrategyEvent {
     pub creator: Pubkey,
     pub x_mint: Pubkey,
     pub y_mint: Pubkey,
+    pub m_token_mint: Pubkey,
     pub timestamp: i64,
 }
 

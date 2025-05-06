@@ -15,7 +15,10 @@ export interface DepositAccounts {
   userPosition: PublicKey
   userTokenX: PublicKey
   strategyVaultX: PublicKey
+  mTokenMint: PublicKey
+  userMTokenAta: PublicKey
   tokenProgram: PublicKey
+  associatedTokenProgram: PublicKey
   systemProgram: PublicKey
 }
 
@@ -33,7 +36,14 @@ export function deposit(
     { pubkey: accounts.userPosition, isSigner: false, isWritable: true },
     { pubkey: accounts.userTokenX, isSigner: false, isWritable: true },
     { pubkey: accounts.strategyVaultX, isSigner: false, isWritable: true },
+    { pubkey: accounts.mTokenMint, isSigner: false, isWritable: true },
+    { pubkey: accounts.userMTokenAta, isSigner: false, isWritable: true },
     { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
+    {
+      pubkey: accounts.associatedTokenProgram,
+      isSigner: false,
+      isWritable: false,
+    },
     { pubkey: accounts.systemProgram, isSigner: false, isWritable: false },
   ]
   const identifier = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182])

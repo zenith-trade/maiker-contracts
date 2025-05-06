@@ -37,6 +37,7 @@ impl InitializePosition {
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
+    #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
@@ -44,7 +45,7 @@ impl InitializePosition {
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
         let mut accounts = Vec::with_capacity(9 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
         ));
@@ -58,7 +59,7 @@ impl InitializePosition {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.position,
-            false,
+            true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.lb_pair,
@@ -123,10 +124,10 @@ pub struct InitializePositionInstructionArgs {
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` authority
+///   0. `[writable, signer]` authority
 ///   1. `[]` global_config
 ///   2. `[writable]` strategy
-///   3. `[writable]` position
+///   3. `[writable, signer]` position
 ///   4. `[]` lb_pair
 ///   5. `[]` lb_clmm_program
 ///   6. `[]` event_authority
@@ -349,6 +350,7 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
     ) -> solana_program::entrypoint::ProgramResult {
         self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
     }
+    #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed_with_remaining_accounts(
@@ -361,7 +363,7 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
         )],
     ) -> solana_program::entrypoint::ProgramResult {
         let mut accounts = Vec::with_capacity(9 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
@@ -375,7 +377,7 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.position.key,
-            false,
+            true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.lb_pair.key,
@@ -440,10 +442,10 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` authority
+///   0. `[writable, signer]` authority
 ///   1. `[]` global_config
 ///   2. `[writable]` strategy
-///   3. `[writable]` position
+///   3. `[writable, signer]` position
 ///   4. `[]` lb_pair
 ///   5. `[]` lb_clmm_program
 ///   6. `[]` event_authority

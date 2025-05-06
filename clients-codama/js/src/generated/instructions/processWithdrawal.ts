@@ -16,11 +16,11 @@ export function getProcessWithdrawalDiscriminatorBytes() { return fixEncoderSize
 
 export type ProcessWithdrawalInstruction<
   TProgram extends string = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS,
-      TAccountUser extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountPendingWithdrawal extends string | IAccountMeta<string> = string, TAccountStrategyVaultX extends string | IAccountMeta<string> = string, TAccountUserTokenX extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountSystemProgram extends string | IAccountMeta<string> = "11111111111111111111111111111111",
+      TAccountUser extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountPendingWithdrawal extends string | IAccountMeta<string> = string, TAccountStrategyVaultX extends string | IAccountMeta<string> = string, TAccountUserTokenX extends string | IAccountMeta<string> = string, TAccountMTokenMint extends string | IAccountMeta<string> = string, TAccountUserMTokenAta extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountSystemProgram extends string | IAccountMeta<string> = "11111111111111111111111111111111",
     TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram>
       & IInstructionWithData<Uint8Array>
-        & IInstructionWithAccounts<[TAccountUser extends string ? WritableSignerAccount<TAccountUser> & IAccountSignerMeta<TAccountUser> : TAccountUser, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountPendingWithdrawal extends string ? WritableAccount<TAccountPendingWithdrawal> : TAccountPendingWithdrawal, TAccountStrategyVaultX extends string ? WritableAccount<TAccountStrategyVaultX> : TAccountStrategyVaultX, TAccountUserTokenX extends string ? WritableAccount<TAccountUserTokenX> : TAccountUserTokenX, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>
+        & IInstructionWithAccounts<[TAccountUser extends string ? WritableSignerAccount<TAccountUser> & IAccountSignerMeta<TAccountUser> : TAccountUser, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountPendingWithdrawal extends string ? WritableAccount<TAccountPendingWithdrawal> : TAccountPendingWithdrawal, TAccountStrategyVaultX extends string ? WritableAccount<TAccountStrategyVaultX> : TAccountStrategyVaultX, TAccountUserTokenX extends string ? WritableAccount<TAccountUserTokenX> : TAccountUserTokenX, TAccountMTokenMint extends string ? WritableAccount<TAccountMTokenMint> : TAccountMTokenMint, TAccountUserMTokenAta extends string ? WritableAccount<TAccountUserMTokenAta> : TAccountUserMTokenAta, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>
   ;
 
 
@@ -58,6 +58,8 @@ export type ProcessWithdrawalInput<TAccountUser extends string = string,
   TAccountPendingWithdrawal extends string = string,
   TAccountStrategyVaultX extends string = string,
   TAccountUserTokenX extends string = string,
+  TAccountMTokenMint extends string = string,
+  TAccountUserMTokenAta extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   >
@@ -68,12 +70,14 @@ globalConfig: Address<TAccountGlobalConfig>;
 pendingWithdrawal: Address<TAccountPendingWithdrawal>;
 strategyVaultX: Address<TAccountStrategyVaultX>;
 userTokenX: Address<TAccountUserTokenX>;
+mTokenMint: Address<TAccountMTokenMint>;
+userMTokenAta: Address<TAccountUserMTokenAta>;
 tokenProgram?: Address<TAccountTokenProgram>;
 systemProgram?: Address<TAccountSystemProgram>;
 }
 
 
-export  function getProcessWithdrawalInstruction<TAccountUser extends string, TAccountStrategy extends string, TAccountGlobalConfig extends string, TAccountPendingWithdrawal extends string, TAccountStrategyVaultX extends string, TAccountUserTokenX extends string, TAccountTokenProgram extends string, TAccountSystemProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: ProcessWithdrawalInput<TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountPendingWithdrawal, TAccountStrategyVaultX, TAccountUserTokenX, TAccountTokenProgram, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): ProcessWithdrawalInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountPendingWithdrawal, TAccountStrategyVaultX, TAccountUserTokenX, TAccountTokenProgram, TAccountSystemProgram> {
+export  function getProcessWithdrawalInstruction<TAccountUser extends string, TAccountStrategy extends string, TAccountGlobalConfig extends string, TAccountPendingWithdrawal extends string, TAccountStrategyVaultX extends string, TAccountUserTokenX extends string, TAccountMTokenMint extends string, TAccountUserMTokenAta extends string, TAccountTokenProgram extends string, TAccountSystemProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: ProcessWithdrawalInput<TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountPendingWithdrawal, TAccountStrategyVaultX, TAccountUserTokenX, TAccountMTokenMint, TAccountUserMTokenAta, TAccountTokenProgram, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): ProcessWithdrawalInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountPendingWithdrawal, TAccountStrategyVaultX, TAccountUserTokenX, TAccountMTokenMint, TAccountUserMTokenAta, TAccountTokenProgram, TAccountSystemProgram> {
   // Program address.
   const programAddress = config?.programAddress ?? MAIKER_CONTRACTS_PROGRAM_ADDRESS;
 
@@ -85,6 +89,8 @@ export  function getProcessWithdrawalInstruction<TAccountUser extends string, TA
               pendingWithdrawal: { value: input.pendingWithdrawal ?? null, isWritable: true },
               strategyVaultX: { value: input.strategyVaultX ?? null, isWritable: true },
               userTokenX: { value: input.userTokenX ?? null, isWritable: true },
+              mTokenMint: { value: input.mTokenMint ?? null, isWritable: true },
+              userMTokenAta: { value: input.userMTokenAta ?? null, isWritable: true },
               tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
               systemProgram: { value: input.systemProgram ?? null, isWritable: false },
           };
@@ -112,11 +118,13 @@ accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11
                   getAccountMeta(accounts.pendingWithdrawal),
                   getAccountMeta(accounts.strategyVaultX),
                   getAccountMeta(accounts.userTokenX),
+                  getAccountMeta(accounts.mTokenMint),
+                  getAccountMeta(accounts.userMTokenAta),
                   getAccountMeta(accounts.tokenProgram),
                   getAccountMeta(accounts.systemProgram),
                       ]      ,    programAddress,
           data: getProcessWithdrawalInstructionDataEncoder().encode({}),
-      } as ProcessWithdrawalInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountPendingWithdrawal, TAccountStrategyVaultX, TAccountUserTokenX, TAccountTokenProgram, TAccountSystemProgram>;
+      } as ProcessWithdrawalInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountPendingWithdrawal, TAccountStrategyVaultX, TAccountUserTokenX, TAccountMTokenMint, TAccountUserMTokenAta, TAccountTokenProgram, TAccountSystemProgram>;
 
       return instruction;
   }
@@ -134,8 +142,10 @@ export type ParsedProcessWithdrawalInstruction<
                       pendingWithdrawal: TAccountMetas[3],
                       strategyVaultX: TAccountMetas[4],
                       userTokenX: TAccountMetas[5],
-                      tokenProgram: TAccountMetas[6],
-                      systemProgram: TAccountMetas[7],
+                      mTokenMint: TAccountMetas[6],
+                      userMTokenAta: TAccountMetas[7],
+                      tokenProgram: TAccountMetas[8],
+                      systemProgram: TAccountMetas[9],
           };
         data: ProcessWithdrawalInstructionData;
   };
@@ -148,7 +158,7 @@ export function parseProcessWithdrawalInstruction<
           & IInstructionWithAccounts<TAccountMetas>
               & IInstructionWithData<Uint8Array>
     ): ParsedProcessWithdrawalInstruction<TProgram , TAccountMetas> {
-      if (instruction.accounts.length < 8) {
+      if (instruction.accounts.length < 10) {
       // TODO: Coded error.
       throw new Error('Not enough accounts');
     }
@@ -167,6 +177,8 @@ export function parseProcessWithdrawalInstruction<
                                         pendingWithdrawal: getNextAccount(),
                                         strategyVaultX: getNextAccount(),
                                         userTokenX: getNextAccount(),
+                                        mTokenMint: getNextAccount(),
+                                        userMTokenAta: getNextAccount(),
                                         tokenProgram: getNextAccount(),
                                         systemProgram: getNextAccount(),
                         },

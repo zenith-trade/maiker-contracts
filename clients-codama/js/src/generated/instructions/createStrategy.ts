@@ -6,7 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, transformEncoder, type Address, type Codec, type Decoder, type Encoder, type IAccountMeta, type IAccountSignerMeta, type IInstruction, type IInstructionWithAccounts, type IInstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type TransactionSigner, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
+import { addDecoderSizePrefix, addEncoderSizePrefix, combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU32Decoder, getU32Encoder, getUtf8Decoder, getUtf8Encoder, transformEncoder, type Address, type Codec, type Decoder, type Encoder, type IAccountMeta, type IAccountSignerMeta, type IInstruction, type IInstructionWithAccounts, type IInstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type TransactionSigner, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { MAIKER_CONTRACTS_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
@@ -16,30 +16,30 @@ export function getCreateStrategyDiscriminatorBytes() { return fixEncoderSize(ge
 
 export type CreateStrategyInstruction<
   TProgram extends string = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS,
-      TAccountCreator extends string | IAccountMeta<string> = string, TAccountXMint extends string | IAccountMeta<string> = string, TAccountYMint extends string | IAccountMeta<string> = string, TAccountXVault extends string | IAccountMeta<string> = string, TAccountYVault extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountAssociatedTokenProgram extends string | IAccountMeta<string> = string, TAccountSystemProgram extends string | IAccountMeta<string> = "11111111111111111111111111111111",
+      TAccountCreator extends string | IAccountMeta<string> = string, TAccountXMint extends string | IAccountMeta<string> = string, TAccountYMint extends string | IAccountMeta<string> = string, TAccountXVault extends string | IAccountMeta<string> = string, TAccountYVault extends string | IAccountMeta<string> = string, TAccountMTokenMint extends string | IAccountMeta<string> = string, TAccountMetadata extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountAssociatedTokenProgram extends string | IAccountMeta<string> = string, TAccountSystemProgram extends string | IAccountMeta<string> = "11111111111111111111111111111111", TAccountRent extends string | IAccountMeta<string> = "SysvarRent111111111111111111111111111111111", TAccountTokenMetadataProgram extends string | IAccountMeta<string> = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
     TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram>
       & IInstructionWithData<Uint8Array>
-        & IInstructionWithAccounts<[TAccountCreator extends string ? WritableSignerAccount<TAccountCreator> & IAccountSignerMeta<TAccountCreator> : TAccountCreator, TAccountXMint extends string ? ReadonlyAccount<TAccountXMint> : TAccountXMint, TAccountYMint extends string ? ReadonlyAccount<TAccountYMint> : TAccountYMint, TAccountXVault extends string ? ReadonlyAccount<TAccountXVault> : TAccountXVault, TAccountYVault extends string ? ReadonlyAccount<TAccountYVault> : TAccountYVault, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, TAccountAssociatedTokenProgram extends string ? ReadonlyAccount<TAccountAssociatedTokenProgram> : TAccountAssociatedTokenProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>
+        & IInstructionWithAccounts<[TAccountCreator extends string ? WritableSignerAccount<TAccountCreator> & IAccountSignerMeta<TAccountCreator> : TAccountCreator, TAccountXMint extends string ? ReadonlyAccount<TAccountXMint> : TAccountXMint, TAccountYMint extends string ? ReadonlyAccount<TAccountYMint> : TAccountYMint, TAccountXVault extends string ? ReadonlyAccount<TAccountXVault> : TAccountXVault, TAccountYVault extends string ? ReadonlyAccount<TAccountYVault> : TAccountYVault, TAccountMTokenMint extends string ? WritableAccount<TAccountMTokenMint> : TAccountMTokenMint, TAccountMetadata extends string ? WritableAccount<TAccountMetadata> : TAccountMetadata, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, TAccountAssociatedTokenProgram extends string ? ReadonlyAccount<TAccountAssociatedTokenProgram> : TAccountAssociatedTokenProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, TAccountRent extends string ? ReadonlyAccount<TAccountRent> : TAccountRent, TAccountTokenMetadataProgram extends string ? ReadonlyAccount<TAccountTokenMetadataProgram> : TAccountTokenMetadataProgram, ...TRemainingAccounts]>
   ;
 
 
 
-export type CreateStrategyInstructionData = { discriminator: ReadonlyUint8Array;  };
+export type CreateStrategyInstructionData = { discriminator: ReadonlyUint8Array; name: string; symbol: string; uri: string;  };
 
-export type CreateStrategyInstructionDataArgs = {  };
+export type CreateStrategyInstructionDataArgs = { name: string; symbol: string; uri: string;  };
 
 
 
 
 export function getCreateStrategyInstructionDataEncoder(): Encoder<CreateStrategyInstructionDataArgs> {
-  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]), (value) => ({ ...value, discriminator: CREATE_STRATEGY_DISCRIMINATOR }));
+  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())], ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())], ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())]]), (value) => ({ ...value, discriminator: CREATE_STRATEGY_DISCRIMINATOR }));
 }
 
 
 
 export function getCreateStrategyInstructionDataDecoder(): Decoder<CreateStrategyInstructionData> {
-  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)]]);
+  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())], ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())], ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())]]);
 }
 
 
@@ -57,10 +57,14 @@ export type CreateStrategyInput<TAccountCreator extends string = string,
   TAccountYMint extends string = string,
   TAccountXVault extends string = string,
   TAccountYVault extends string = string,
+  TAccountMTokenMint extends string = string,
+  TAccountMetadata extends string = string,
   TAccountStrategy extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountAssociatedTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
+  TAccountRent extends string = string,
+  TAccountTokenMetadataProgram extends string = string,
   >
 =  {
   creator: TransactionSigner<TAccountCreator>;
@@ -68,14 +72,20 @@ xMint: Address<TAccountXMint>;
 yMint: Address<TAccountYMint>;
 xVault: Address<TAccountXVault>;
 yVault: Address<TAccountYVault>;
+mTokenMint: Address<TAccountMTokenMint>;
+metadata: Address<TAccountMetadata>;
 strategy: Address<TAccountStrategy>;
 tokenProgram?: Address<TAccountTokenProgram>;
 associatedTokenProgram: Address<TAccountAssociatedTokenProgram>;
 systemProgram?: Address<TAccountSystemProgram>;
+rent?: Address<TAccountRent>;
+tokenMetadataProgram?: Address<TAccountTokenMetadataProgram>;name: CreateStrategyInstructionDataArgs["name"];
+symbol: CreateStrategyInstructionDataArgs["symbol"];
+uri: CreateStrategyInstructionDataArgs["uri"];
 }
 
 
-export  function getCreateStrategyInstruction<TAccountCreator extends string, TAccountXMint extends string, TAccountYMint extends string, TAccountXVault extends string, TAccountYVault extends string, TAccountStrategy extends string, TAccountTokenProgram extends string, TAccountAssociatedTokenProgram extends string, TAccountSystemProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: CreateStrategyInput<TAccountCreator, TAccountXMint, TAccountYMint, TAccountXVault, TAccountYVault, TAccountStrategy, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): CreateStrategyInstruction<TProgramAddress, TAccountCreator, TAccountXMint, TAccountYMint, TAccountXVault, TAccountYVault, TAccountStrategy, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram> {
+export  function getCreateStrategyInstruction<TAccountCreator extends string, TAccountXMint extends string, TAccountYMint extends string, TAccountXVault extends string, TAccountYVault extends string, TAccountMTokenMint extends string, TAccountMetadata extends string, TAccountStrategy extends string, TAccountTokenProgram extends string, TAccountAssociatedTokenProgram extends string, TAccountSystemProgram extends string, TAccountRent extends string, TAccountTokenMetadataProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: CreateStrategyInput<TAccountCreator, TAccountXMint, TAccountYMint, TAccountXVault, TAccountYVault, TAccountMTokenMint, TAccountMetadata, TAccountStrategy, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram, TAccountRent, TAccountTokenMetadataProgram>, config?: { programAddress?: TProgramAddress } ): CreateStrategyInstruction<TProgramAddress, TAccountCreator, TAccountXMint, TAccountYMint, TAccountXVault, TAccountYVault, TAccountMTokenMint, TAccountMetadata, TAccountStrategy, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram, TAccountRent, TAccountTokenMetadataProgram> {
   // Program address.
   const programAddress = config?.programAddress ?? MAIKER_CONTRACTS_PROGRAM_ADDRESS;
 
@@ -86,13 +96,19 @@ export  function getCreateStrategyInstruction<TAccountCreator extends string, TA
               yMint: { value: input.yMint ?? null, isWritable: false },
               xVault: { value: input.xVault ?? null, isWritable: false },
               yVault: { value: input.yVault ?? null, isWritable: false },
+              mTokenMint: { value: input.mTokenMint ?? null, isWritable: true },
+              metadata: { value: input.metadata ?? null, isWritable: true },
               strategy: { value: input.strategy ?? null, isWritable: true },
               tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
               associatedTokenProgram: { value: input.associatedTokenProgram ?? null, isWritable: false },
               systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+              rent: { value: input.rent ?? null, isWritable: false },
+              tokenMetadataProgram: { value: input.tokenMetadataProgram ?? null, isWritable: false },
           };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
   
+      // Original args.
+    const args = { ...input,  };
   
   
   // Resolve default values.
@@ -101,6 +117,12 @@ accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as A
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+}
+if (!accounts.rent.value) {
+accounts.rent.value = 'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
+}
+if (!accounts.tokenMetadataProgram.value) {
+accounts.tokenMetadataProgram.value = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s' as Address<'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'>;
 }
 
 
@@ -114,13 +136,17 @@ accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11
                   getAccountMeta(accounts.yMint),
                   getAccountMeta(accounts.xVault),
                   getAccountMeta(accounts.yVault),
+                  getAccountMeta(accounts.mTokenMint),
+                  getAccountMeta(accounts.metadata),
                   getAccountMeta(accounts.strategy),
                   getAccountMeta(accounts.tokenProgram),
                   getAccountMeta(accounts.associatedTokenProgram),
                   getAccountMeta(accounts.systemProgram),
+                  getAccountMeta(accounts.rent),
+                  getAccountMeta(accounts.tokenMetadataProgram),
                       ]      ,    programAddress,
-          data: getCreateStrategyInstructionDataEncoder().encode({}),
-      } as CreateStrategyInstruction<TProgramAddress, TAccountCreator, TAccountXMint, TAccountYMint, TAccountXVault, TAccountYVault, TAccountStrategy, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram>;
+          data: getCreateStrategyInstructionDataEncoder().encode(args as CreateStrategyInstructionDataArgs),
+      } as CreateStrategyInstruction<TProgramAddress, TAccountCreator, TAccountXMint, TAccountYMint, TAccountXVault, TAccountYVault, TAccountMTokenMint, TAccountMetadata, TAccountStrategy, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram, TAccountRent, TAccountTokenMetadataProgram>;
 
       return instruction;
   }
@@ -137,10 +163,14 @@ export type ParsedCreateStrategyInstruction<
                       yMint: TAccountMetas[2],
                       xVault: TAccountMetas[3],
                       yVault: TAccountMetas[4],
-                      strategy: TAccountMetas[5],
-                      tokenProgram: TAccountMetas[6],
-                      associatedTokenProgram: TAccountMetas[7],
-                      systemProgram: TAccountMetas[8],
+                      mTokenMint: TAccountMetas[5],
+                      metadata: TAccountMetas[6],
+                      strategy: TAccountMetas[7],
+                      tokenProgram: TAccountMetas[8],
+                      associatedTokenProgram: TAccountMetas[9],
+                      systemProgram: TAccountMetas[10],
+                      rent: TAccountMetas[11],
+                      tokenMetadataProgram: TAccountMetas[12],
           };
         data: CreateStrategyInstructionData;
   };
@@ -153,7 +183,7 @@ export function parseCreateStrategyInstruction<
           & IInstructionWithAccounts<TAccountMetas>
               & IInstructionWithData<Uint8Array>
     ): ParsedCreateStrategyInstruction<TProgram , TAccountMetas> {
-      if (instruction.accounts.length < 9) {
+      if (instruction.accounts.length < 13) {
       // TODO: Coded error.
       throw new Error('Not enough accounts');
     }
@@ -171,10 +201,14 @@ export function parseCreateStrategyInstruction<
                                         yMint: getNextAccount(),
                                         xVault: getNextAccount(),
                                         yVault: getNextAccount(),
+                                        mTokenMint: getNextAccount(),
+                                        metadata: getNextAccount(),
                                         strategy: getNextAccount(),
                                         tokenProgram: getNextAccount(),
                                         associatedTokenProgram: getNextAccount(),
                                         systemProgram: getNextAccount(),
+                                        rent: getNextAccount(),
+                                        tokenMetadataProgram: getNextAccount(),
                         },
               data: getCreateStrategyInstructionDataDecoder().decode(instruction.data),
       };

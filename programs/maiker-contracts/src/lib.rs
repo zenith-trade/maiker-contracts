@@ -33,8 +33,8 @@ pub mod maiker_contracts {
     }
 
     // User instructions
-    pub fn create_strategy(ctx: Context<CreateStrategy>) -> Result<()> {
-        instructions::create_strategy_handler(ctx)
+    pub fn create_strategy(ctx: Context<CreateStrategy>, params: CreateStrategyMetadataParams) -> Result<()> {
+        instructions::create_strategy_handler(ctx, params)
     }
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {

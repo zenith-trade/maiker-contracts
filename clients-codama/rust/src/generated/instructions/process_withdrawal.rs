@@ -23,6 +23,10 @@ pub struct ProcessWithdrawal {
 
     pub user_token_x: solana_program::pubkey::Pubkey,
 
+    pub m_token_mint: solana_program::pubkey::Pubkey,
+
+    pub user_m_token_ata: solana_program::pubkey::Pubkey,
+
     pub token_program: solana_program::pubkey::Pubkey,
 
     pub system_program: solana_program::pubkey::Pubkey,
@@ -32,12 +36,13 @@ impl ProcessWithdrawal {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(&[])
     }
+    #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.user, true,
         ));
@@ -59,6 +64,14 @@ impl ProcessWithdrawal {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.user_token_x,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.m_token_mint,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.user_m_token_ata,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -110,8 +123,10 @@ impl Default for ProcessWithdrawalInstructionData {
 ///   3. `[writable]` pending_withdrawal
 ///   4. `[writable]` strategy_vault_x
 ///   5. `[writable]` user_token_x
-///   6. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
-///   7. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   6. `[writable]` m_token_mint
+///   7. `[writable]` user_m_token_ata
+///   8. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
+///   9. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct ProcessWithdrawalBuilder {
     user: Option<solana_program::pubkey::Pubkey>,
@@ -120,6 +135,8 @@ pub struct ProcessWithdrawalBuilder {
     pending_withdrawal: Option<solana_program::pubkey::Pubkey>,
     strategy_vault_x: Option<solana_program::pubkey::Pubkey>,
     user_token_x: Option<solana_program::pubkey::Pubkey>,
+    m_token_mint: Option<solana_program::pubkey::Pubkey>,
+    user_m_token_ata: Option<solana_program::pubkey::Pubkey>,
     token_program: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
@@ -165,6 +182,19 @@ impl ProcessWithdrawalBuilder {
         self.user_token_x = Some(user_token_x);
         self
     }
+    #[inline(always)]
+    pub fn m_token_mint(&mut self, m_token_mint: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.m_token_mint = Some(m_token_mint);
+        self
+    }
+    #[inline(always)]
+    pub fn user_m_token_ata(
+        &mut self,
+        user_m_token_ata: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.user_m_token_ata = Some(user_m_token_ata);
+        self
+    }
     /// `[optional account, default to 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA']`
     #[inline(always)]
     pub fn token_program(&mut self, token_program: solana_program::pubkey::Pubkey) -> &mut Self {
@@ -206,6 +236,8 @@ impl ProcessWithdrawalBuilder {
                 .expect("pending_withdrawal is not set"),
             strategy_vault_x: self.strategy_vault_x.expect("strategy_vault_x is not set"),
             user_token_x: self.user_token_x.expect("user_token_x is not set"),
+            m_token_mint: self.m_token_mint.expect("m_token_mint is not set"),
+            user_m_token_ata: self.user_m_token_ata.expect("user_m_token_ata is not set"),
             token_program: self.token_program.unwrap_or(solana_program::pubkey!(
                 "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
             )),
@@ -232,6 +264,10 @@ pub struct ProcessWithdrawalCpiAccounts<'a, 'b> {
 
     pub user_token_x: &'b solana_program::account_info::AccountInfo<'a>,
 
+    pub m_token_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub user_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
+
     pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
@@ -254,6 +290,10 @@ pub struct ProcessWithdrawalCpi<'a, 'b> {
 
     pub user_token_x: &'b solana_program::account_info::AccountInfo<'a>,
 
+    pub m_token_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub user_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
+
     pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
@@ -272,6 +312,8 @@ impl<'a, 'b> ProcessWithdrawalCpi<'a, 'b> {
             pending_withdrawal: accounts.pending_withdrawal,
             strategy_vault_x: accounts.strategy_vault_x,
             user_token_x: accounts.user_token_x,
+            m_token_mint: accounts.m_token_mint,
+            user_m_token_ata: accounts.user_m_token_ata,
             token_program: accounts.token_program,
             system_program: accounts.system_program,
         }
@@ -298,6 +340,7 @@ impl<'a, 'b> ProcessWithdrawalCpi<'a, 'b> {
     ) -> solana_program::entrypoint::ProgramResult {
         self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
     }
+    #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed_with_remaining_accounts(
@@ -309,7 +352,7 @@ impl<'a, 'b> ProcessWithdrawalCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.user.key,
             true,
@@ -334,6 +377,14 @@ impl<'a, 'b> ProcessWithdrawalCpi<'a, 'b> {
             *self.user_token_x.key,
             false,
         ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.m_token_mint.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.user_m_token_ata.key,
+            false,
+        ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.token_program.key,
             false,
@@ -356,7 +407,7 @@ impl<'a, 'b> ProcessWithdrawalCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(11 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.user.clone());
         account_infos.push(self.strategy.clone());
@@ -364,6 +415,8 @@ impl<'a, 'b> ProcessWithdrawalCpi<'a, 'b> {
         account_infos.push(self.pending_withdrawal.clone());
         account_infos.push(self.strategy_vault_x.clone());
         account_infos.push(self.user_token_x.clone());
+        account_infos.push(self.m_token_mint.clone());
+        account_infos.push(self.user_m_token_ata.clone());
         account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
@@ -388,8 +441,10 @@ impl<'a, 'b> ProcessWithdrawalCpi<'a, 'b> {
 ///   3. `[writable]` pending_withdrawal
 ///   4. `[writable]` strategy_vault_x
 ///   5. `[writable]` user_token_x
-///   6. `[]` token_program
-///   7. `[]` system_program
+///   6. `[writable]` m_token_mint
+///   7. `[writable]` user_m_token_ata
+///   8. `[]` token_program
+///   9. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct ProcessWithdrawalCpiBuilder<'a, 'b> {
     instruction: Box<ProcessWithdrawalCpiBuilderInstruction<'a, 'b>>,
@@ -405,6 +460,8 @@ impl<'a, 'b> ProcessWithdrawalCpiBuilder<'a, 'b> {
             pending_withdrawal: None,
             strategy_vault_x: None,
             user_token_x: None,
+            m_token_mint: None,
+            user_m_token_ata: None,
             token_program: None,
             system_program: None,
             __remaining_accounts: Vec::new(),
@@ -454,6 +511,22 @@ impl<'a, 'b> ProcessWithdrawalCpiBuilder<'a, 'b> {
         user_token_x: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.user_token_x = Some(user_token_x);
+        self
+    }
+    #[inline(always)]
+    pub fn m_token_mint(
+        &mut self,
+        m_token_mint: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.m_token_mint = Some(m_token_mint);
+        self
+    }
+    #[inline(always)]
+    pub fn user_m_token_ata(
+        &mut self,
+        user_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.user_m_token_ata = Some(user_m_token_ata);
         self
     }
     #[inline(always)]
@@ -540,6 +613,16 @@ impl<'a, 'b> ProcessWithdrawalCpiBuilder<'a, 'b> {
                 .user_token_x
                 .expect("user_token_x is not set"),
 
+            m_token_mint: self
+                .instruction
+                .m_token_mint
+                .expect("m_token_mint is not set"),
+
+            user_m_token_ata: self
+                .instruction
+                .user_m_token_ata
+                .expect("user_m_token_ata is not set"),
+
             token_program: self
                 .instruction
                 .token_program
@@ -566,6 +649,8 @@ struct ProcessWithdrawalCpiBuilderInstruction<'a, 'b> {
     pending_withdrawal: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     strategy_vault_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     user_token_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    m_token_mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    user_m_token_ata: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

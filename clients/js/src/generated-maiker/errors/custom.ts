@@ -15,6 +15,7 @@ export type CustomError =
   | PositionNotFound
   | InvalidSwap
   | NonZeroTransferFee
+  | InvalidMetadataParam
 
 export class ArithmeticOverflow extends Error {
   static readonly code = 6000
@@ -195,6 +196,20 @@ export class NonZeroTransferFee extends Error {
   }
 }
 
+export class InvalidMetadataParam extends Error {
+  static readonly code = 6016
+  readonly code = 6016
+  readonly name = "InvalidMetadataParam"
+  readonly msg =
+    "Invalid metadata parameter: name, symbol, or uri is empty or too long"
+
+  constructor(readonly logs?: string[]) {
+    super(
+      "6016: Invalid metadata parameter: name, symbol, or uri is empty or too long"
+    )
+  }
+}
+
 export function fromCode(code: number, logs?: string[]): CustomError | null {
   switch (code) {
     case 6000:
@@ -229,6 +244,8 @@ export function fromCode(code: number, logs?: string[]): CustomError | null {
       return new InvalidSwap(logs)
     case 6015:
       return new NonZeroTransferFee(logs)
+    case 6016:
+      return new InvalidMetadataParam(logs)
   }
 
   return null

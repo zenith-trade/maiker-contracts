@@ -16,11 +16,11 @@ export function getClosePositionDiscriminatorBytes() { return fixEncoderSize(get
 
 export type ClosePositionInstruction<
   TProgram extends string = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS,
-      TAccountAuthority extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountPosition extends string | IAccountMeta<string> = string, TAccountLbPair extends string | IAccountMeta<string> = string, TAccountBinArrayLower extends string | IAccountMeta<string> = string, TAccountBinArrayUpper extends string | IAccountMeta<string> = string, TAccountRentReceiver extends string | IAccountMeta<string> = string, TAccountLbClmmProgram extends string | IAccountMeta<string> = string, TAccountEventAuthority extends string | IAccountMeta<string> = string, TAccountPositionOwner extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      TAccountAuthority extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountPosition extends string | IAccountMeta<string> = string, TAccountLbPair extends string | IAccountMeta<string> = string, TAccountBinArrayLower extends string | IAccountMeta<string> = string, TAccountBinArrayUpper extends string | IAccountMeta<string> = string, TAccountRentReceiver extends string | IAccountMeta<string> = string, TAccountLbClmmProgram extends string | IAccountMeta<string> = string, TAccountEventAuthority extends string | IAccountMeta<string> = string,
     TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram>
       & IInstructionWithData<Uint8Array>
-        & IInstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountPosition extends string ? WritableAccount<TAccountPosition> : TAccountPosition, TAccountLbPair extends string ? WritableAccount<TAccountLbPair> : TAccountLbPair, TAccountBinArrayLower extends string ? WritableAccount<TAccountBinArrayLower> : TAccountBinArrayLower, TAccountBinArrayUpper extends string ? WritableAccount<TAccountBinArrayUpper> : TAccountBinArrayUpper, TAccountRentReceiver extends string ? WritableAccount<TAccountRentReceiver> : TAccountRentReceiver, TAccountLbClmmProgram extends string ? ReadonlyAccount<TAccountLbClmmProgram> : TAccountLbClmmProgram, TAccountEventAuthority extends string ? ReadonlyAccount<TAccountEventAuthority> : TAccountEventAuthority, TAccountPositionOwner extends string ? WritableAccount<TAccountPositionOwner> : TAccountPositionOwner, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>
+        & IInstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountPosition extends string ? WritableAccount<TAccountPosition> : TAccountPosition, TAccountLbPair extends string ? WritableAccount<TAccountLbPair> : TAccountLbPair, TAccountBinArrayLower extends string ? WritableAccount<TAccountBinArrayLower> : TAccountBinArrayLower, TAccountBinArrayUpper extends string ? WritableAccount<TAccountBinArrayUpper> : TAccountBinArrayUpper, TAccountRentReceiver extends string ? WritableAccount<TAccountRentReceiver> : TAccountRentReceiver, TAccountLbClmmProgram extends string ? ReadonlyAccount<TAccountLbClmmProgram> : TAccountLbClmmProgram, TAccountEventAuthority extends string ? ReadonlyAccount<TAccountEventAuthority> : TAccountEventAuthority, ...TRemainingAccounts]>
   ;
 
 
@@ -62,8 +62,6 @@ export type ClosePositionInput<TAccountAuthority extends string = string,
   TAccountRentReceiver extends string = string,
   TAccountLbClmmProgram extends string = string,
   TAccountEventAuthority extends string = string,
-  TAccountPositionOwner extends string = string,
-  TAccountTokenProgram extends string = string,
   >
 =  {
   authority: TransactionSigner<TAccountAuthority>;
@@ -77,12 +75,10 @@ rentReceiver: Address<TAccountRentReceiver>;
 /** The lb_clmm program */
 lbClmmProgram: Address<TAccountLbClmmProgram>;
 eventAuthority: Address<TAccountEventAuthority>;
-positionOwner: Address<TAccountPositionOwner>;
-tokenProgram?: Address<TAccountTokenProgram>;
 }
 
 
-export  function getClosePositionInstruction<TAccountAuthority extends string, TAccountGlobalConfig extends string, TAccountStrategy extends string, TAccountPosition extends string, TAccountLbPair extends string, TAccountBinArrayLower extends string, TAccountBinArrayUpper extends string, TAccountRentReceiver extends string, TAccountLbClmmProgram extends string, TAccountEventAuthority extends string, TAccountPositionOwner extends string, TAccountTokenProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: ClosePositionInput<TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountPosition, TAccountLbPair, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountRentReceiver, TAccountLbClmmProgram, TAccountEventAuthority, TAccountPositionOwner, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): ClosePositionInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountPosition, TAccountLbPair, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountRentReceiver, TAccountLbClmmProgram, TAccountEventAuthority, TAccountPositionOwner, TAccountTokenProgram> {
+export  function getClosePositionInstruction<TAccountAuthority extends string, TAccountGlobalConfig extends string, TAccountStrategy extends string, TAccountPosition extends string, TAccountLbPair extends string, TAccountBinArrayLower extends string, TAccountBinArrayUpper extends string, TAccountRentReceiver extends string, TAccountLbClmmProgram extends string, TAccountEventAuthority extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: ClosePositionInput<TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountPosition, TAccountLbPair, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountRentReceiver, TAccountLbClmmProgram, TAccountEventAuthority>, config?: { programAddress?: TProgramAddress } ): ClosePositionInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountPosition, TAccountLbPair, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountRentReceiver, TAccountLbClmmProgram, TAccountEventAuthority> {
   // Program address.
   const programAddress = config?.programAddress ?? MAIKER_CONTRACTS_PROGRAM_ADDRESS;
 
@@ -98,17 +94,12 @@ export  function getClosePositionInstruction<TAccountAuthority extends string, T
               rentReceiver: { value: input.rentReceiver ?? null, isWritable: true },
               lbClmmProgram: { value: input.lbClmmProgram ?? null, isWritable: false },
               eventAuthority: { value: input.eventAuthority ?? null, isWritable: false },
-              positionOwner: { value: input.positionOwner ?? null, isWritable: true },
-              tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
           };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
   
   
   
-  // Resolve default values.
-if (!accounts.tokenProgram.value) {
-accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
-}
+  
 
 
 
@@ -126,11 +117,9 @@ accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as A
                   getAccountMeta(accounts.rentReceiver),
                   getAccountMeta(accounts.lbClmmProgram),
                   getAccountMeta(accounts.eventAuthority),
-                  getAccountMeta(accounts.positionOwner),
-                  getAccountMeta(accounts.tokenProgram),
                       ]      ,    programAddress,
           data: getClosePositionInstructionDataEncoder().encode({}),
-      } as ClosePositionInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountPosition, TAccountLbPair, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountRentReceiver, TAccountLbClmmProgram, TAccountEventAuthority, TAccountPositionOwner, TAccountTokenProgram>;
+      } as ClosePositionInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountPosition, TAccountLbPair, TAccountBinArrayLower, TAccountBinArrayUpper, TAccountRentReceiver, TAccountLbClmmProgram, TAccountEventAuthority>;
 
       return instruction;
   }
@@ -153,8 +142,6 @@ export type ParsedClosePositionInstruction<
                         /** The lb_clmm program */
                 lbClmmProgram: TAccountMetas[8],
                       eventAuthority: TAccountMetas[9],
-                      positionOwner: TAccountMetas[10],
-                      tokenProgram: TAccountMetas[11],
           };
         data: ClosePositionInstructionData;
   };
@@ -167,7 +154,7 @@ export function parseClosePositionInstruction<
           & IInstructionWithAccounts<TAccountMetas>
               & IInstructionWithData<Uint8Array>
     ): ParsedClosePositionInstruction<TProgram , TAccountMetas> {
-      if (instruction.accounts.length < 12) {
+      if (instruction.accounts.length < 10) {
       // TODO: Coded error.
       throw new Error('Not enough accounts');
     }
@@ -190,8 +177,6 @@ export function parseClosePositionInstruction<
                                         rentReceiver: getNextAccount(),
                                         lbClmmProgram: getNextAccount(),
                                         eventAuthority: getNextAccount(),
-                                        positionOwner: getNextAccount(),
-                                        tokenProgram: getNextAccount(),
                         },
               data: getClosePositionInstructionDataDecoder().decode(instruction.data),
       };

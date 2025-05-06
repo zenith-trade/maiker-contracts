@@ -49,6 +49,18 @@ pub enum MaikerContractsError {
     /// 6012 - Withdrawal is not ready yet
     #[error("Withdrawal is not ready yet")]
     WithdrawalNotReady = 0x177C,
+    /// 6013 - Position not found
+    #[error("Position not found")]
+    PositionNotFound = 0x177D,
+    /// 6014 - Invalid swap instruction
+    #[error("Invalid swap instruction")]
+    InvalidSwap = 0x177E,
+    /// 6015 - Non-zero transfer fee
+    #[error("Non-zero transfer fee")]
+    NonZeroTransferFee = 0x177F,
+    /// 6016 - Invalid metadata parameter: name, symbol, or uri is empty or too long
+    #[error("Invalid metadata parameter: name, symbol, or uri is empty or too long")]
+    InvalidMetadataParam = 0x1780,
 }
 
 impl solana_program::program_error::PrintProgramError for MaikerContractsError {

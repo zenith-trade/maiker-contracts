@@ -1,6 +1,6 @@
 use crate::{state::*, MaikerError, ProcessWithdrawEvent};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, burn, Burn, Mint, Token, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 pub struct ProcessWithdrawal<'info> {
@@ -40,6 +40,23 @@ pub struct ProcessWithdrawal<'info> {
     )]
     pub user_token_x: Box<Account<'info, TokenAccount>>,
 
+    // M-token mint for the strategy
+    #[account(
+        mut,
+        address = strategy.m_token_mint,
+        mint::decimals = StrategyConfig::M_TOKEN_DECIMALS,
+        mint::authority = strategy,
+    )]
+    pub m_token_mint: Account<'info, Mint>,
+
+    // User's associated token account for the m-token (LP token)
+    #[account(
+        mut,
+        associated_token::mint = m_token_mint,
+        associated_token::authority = user,
+    )]
+    pub user_m_token_ata: Account<'info, TokenAccount>,
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -63,6 +80,20 @@ pub fn process_withdrawal_handler(ctx: Context<ProcessWithdrawal>) -> Result<()>
     if token_amount > 0 {
         let strategy_signer_seeds = strategy.get_pda_signer();
         let signer = &[&strategy_signer_seeds[..]];
+
+        // Burn m-tokens from the user (must match shares withdrawn)
+        burn(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.m_token_mint.to_account_info(),
+                    from: ctx.accounts.user_m_token_ata.to_account_info(),
+                    authority: ctx.accounts.user.to_account_info(),
+                },
+                signer,
+            ),
+            pending_withdrawal.shares_amount,
+        )?;
 
         token::transfer(
             CpiContext::new_with_signer(

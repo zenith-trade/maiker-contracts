@@ -17,7 +17,7 @@ default = []
 
 [dependencies]
 anchor-lang = { workspace = true, features = ["init-if-needed", "event-cpi"] }
-anchor-spl = { workspace = true }
+anchor-spl = { workspace = true, features = ["metadata"] }
 dlmm_interface = { workspace = true }
 
 ruint = { workspace = true }

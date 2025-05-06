@@ -16,11 +16,11 @@ export function getDepositDiscriminatorBytes() { return fixEncoderSize(getBytesE
 
 export type DepositInstruction<
   TProgram extends string = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS,
-      TAccountUser extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountUserPosition extends string | IAccountMeta<string> = string, TAccountUserTokenX extends string | IAccountMeta<string> = string, TAccountStrategyVaultX extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountSystemProgram extends string | IAccountMeta<string> = "11111111111111111111111111111111",
+      TAccountUser extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountUserPosition extends string | IAccountMeta<string> = string, TAccountUserTokenX extends string | IAccountMeta<string> = string, TAccountStrategyVaultX extends string | IAccountMeta<string> = string, TAccountMTokenMint extends string | IAccountMeta<string> = string, TAccountUserMTokenAta extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountAssociatedTokenProgram extends string | IAccountMeta<string> = string, TAccountSystemProgram extends string | IAccountMeta<string> = "11111111111111111111111111111111",
     TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram>
       & IInstructionWithData<Uint8Array>
-        & IInstructionWithAccounts<[TAccountUser extends string ? WritableSignerAccount<TAccountUser> & IAccountSignerMeta<TAccountUser> : TAccountUser, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountUserPosition extends string ? WritableAccount<TAccountUserPosition> : TAccountUserPosition, TAccountUserTokenX extends string ? WritableAccount<TAccountUserTokenX> : TAccountUserTokenX, TAccountStrategyVaultX extends string ? WritableAccount<TAccountStrategyVaultX> : TAccountStrategyVaultX, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>
+        & IInstructionWithAccounts<[TAccountUser extends string ? WritableSignerAccount<TAccountUser> & IAccountSignerMeta<TAccountUser> : TAccountUser, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountUserPosition extends string ? WritableAccount<TAccountUserPosition> : TAccountUserPosition, TAccountUserTokenX extends string ? WritableAccount<TAccountUserTokenX> : TAccountUserTokenX, TAccountStrategyVaultX extends string ? WritableAccount<TAccountStrategyVaultX> : TAccountStrategyVaultX, TAccountMTokenMint extends string ? WritableAccount<TAccountMTokenMint> : TAccountMTokenMint, TAccountUserMTokenAta extends string ? WritableAccount<TAccountUserMTokenAta> : TAccountUserMTokenAta, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, TAccountAssociatedTokenProgram extends string ? ReadonlyAccount<TAccountAssociatedTokenProgram> : TAccountAssociatedTokenProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>
   ;
 
 
@@ -58,7 +58,10 @@ export type DepositInput<TAccountUser extends string = string,
   TAccountUserPosition extends string = string,
   TAccountUserTokenX extends string = string,
   TAccountStrategyVaultX extends string = string,
+  TAccountMTokenMint extends string = string,
+  TAccountUserMTokenAta extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   >
 =  {
@@ -68,12 +71,15 @@ globalConfig: Address<TAccountGlobalConfig>;
 userPosition: Address<TAccountUserPosition>;
 userTokenX: Address<TAccountUserTokenX>;
 strategyVaultX: Address<TAccountStrategyVaultX>;
+mTokenMint: Address<TAccountMTokenMint>;
+userMTokenAta: Address<TAccountUserMTokenAta>;
 tokenProgram?: Address<TAccountTokenProgram>;
+associatedTokenProgram: Address<TAccountAssociatedTokenProgram>;
 systemProgram?: Address<TAccountSystemProgram>;amount: DepositInstructionDataArgs["amount"];
 }
 
 
-export  function getDepositInstruction<TAccountUser extends string, TAccountStrategy extends string, TAccountGlobalConfig extends string, TAccountUserPosition extends string, TAccountUserTokenX extends string, TAccountStrategyVaultX extends string, TAccountTokenProgram extends string, TAccountSystemProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: DepositInput<TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountUserPosition, TAccountUserTokenX, TAccountStrategyVaultX, TAccountTokenProgram, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): DepositInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountUserPosition, TAccountUserTokenX, TAccountStrategyVaultX, TAccountTokenProgram, TAccountSystemProgram> {
+export  function getDepositInstruction<TAccountUser extends string, TAccountStrategy extends string, TAccountGlobalConfig extends string, TAccountUserPosition extends string, TAccountUserTokenX extends string, TAccountStrategyVaultX extends string, TAccountMTokenMint extends string, TAccountUserMTokenAta extends string, TAccountTokenProgram extends string, TAccountAssociatedTokenProgram extends string, TAccountSystemProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: DepositInput<TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountUserPosition, TAccountUserTokenX, TAccountStrategyVaultX, TAccountMTokenMint, TAccountUserMTokenAta, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): DepositInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountUserPosition, TAccountUserTokenX, TAccountStrategyVaultX, TAccountMTokenMint, TAccountUserMTokenAta, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram> {
   // Program address.
   const programAddress = config?.programAddress ?? MAIKER_CONTRACTS_PROGRAM_ADDRESS;
 
@@ -85,7 +91,10 @@ export  function getDepositInstruction<TAccountUser extends string, TAccountStra
               userPosition: { value: input.userPosition ?? null, isWritable: true },
               userTokenX: { value: input.userTokenX ?? null, isWritable: true },
               strategyVaultX: { value: input.strategyVaultX ?? null, isWritable: true },
+              mTokenMint: { value: input.mTokenMint ?? null, isWritable: true },
+              userMTokenAta: { value: input.userMTokenAta ?? null, isWritable: true },
               tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+              associatedTokenProgram: { value: input.associatedTokenProgram ?? null, isWritable: false },
               systemProgram: { value: input.systemProgram ?? null, isWritable: false },
           };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
@@ -114,11 +123,14 @@ accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11
                   getAccountMeta(accounts.userPosition),
                   getAccountMeta(accounts.userTokenX),
                   getAccountMeta(accounts.strategyVaultX),
+                  getAccountMeta(accounts.mTokenMint),
+                  getAccountMeta(accounts.userMTokenAta),
                   getAccountMeta(accounts.tokenProgram),
+                  getAccountMeta(accounts.associatedTokenProgram),
                   getAccountMeta(accounts.systemProgram),
                       ]      ,    programAddress,
           data: getDepositInstructionDataEncoder().encode(args as DepositInstructionDataArgs),
-      } as DepositInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountUserPosition, TAccountUserTokenX, TAccountStrategyVaultX, TAccountTokenProgram, TAccountSystemProgram>;
+      } as DepositInstruction<TProgramAddress, TAccountUser, TAccountStrategy, TAccountGlobalConfig, TAccountUserPosition, TAccountUserTokenX, TAccountStrategyVaultX, TAccountMTokenMint, TAccountUserMTokenAta, TAccountTokenProgram, TAccountAssociatedTokenProgram, TAccountSystemProgram>;
 
       return instruction;
   }
@@ -136,8 +148,11 @@ export type ParsedDepositInstruction<
                       userPosition: TAccountMetas[3],
                       userTokenX: TAccountMetas[4],
                       strategyVaultX: TAccountMetas[5],
-                      tokenProgram: TAccountMetas[6],
-                      systemProgram: TAccountMetas[7],
+                      mTokenMint: TAccountMetas[6],
+                      userMTokenAta: TAccountMetas[7],
+                      tokenProgram: TAccountMetas[8],
+                      associatedTokenProgram: TAccountMetas[9],
+                      systemProgram: TAccountMetas[10],
           };
         data: DepositInstructionData;
   };
@@ -150,7 +165,7 @@ export function parseDepositInstruction<
           & IInstructionWithAccounts<TAccountMetas>
               & IInstructionWithData<Uint8Array>
     ): ParsedDepositInstruction<TProgram , TAccountMetas> {
-      if (instruction.accounts.length < 8) {
+      if (instruction.accounts.length < 11) {
       // TODO: Coded error.
       throw new Error('Not enough accounts');
     }
@@ -169,7 +184,10 @@ export function parseDepositInstruction<
                                         userPosition: getNextAccount(),
                                         userTokenX: getNextAccount(),
                                         strategyVaultX: getNextAccount(),
+                                        mTokenMint: getNextAccount(),
+                                        userMTokenAta: getNextAccount(),
                                         tokenProgram: getNextAccount(),
+                                        associatedTokenProgram: getNextAccount(),
                                         systemProgram: getNextAccount(),
                         },
               data: getDepositInstructionDataDecoder().decode(instruction.data),

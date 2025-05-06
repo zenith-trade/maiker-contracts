@@ -15,6 +15,11 @@ export type {
   GlobalConfigArgsFields,
   GlobalConfigArgsJSON,
 } from "./GlobalConfigArgs"
+export { CreateStrategyMetadataParams } from "./CreateStrategyMetadataParams"
+export type {
+  CreateStrategyMetadataParamsFields,
+  CreateStrategyMetadataParamsJSON,
+} from "./CreateStrategyMetadataParams"
 export { Rounding }
 
 export type RoundingKind = Rounding.Up | Rounding.Down

@@ -25,7 +25,7 @@ pub struct UserPosition {
     pub strategy: Pubkey,
     pub strategy_share: u64,
     pub last_share_value: u64,
-    pub last_update_timestamp: i64,
+    pub last_update_slot: u64,
     pub bump: u8,
 }
 
@@ -53,7 +53,7 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for UserPositio
 #[cfg(feature = "fetch")]
 pub fn fetch_user_position(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::DecodedAccount<UserPosition>, std::io::Error> {
     let accounts = fetch_all_user_position(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -62,10 +62,10 @@ pub fn fetch_user_position(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_user_position(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::DecodedAccount<UserPosition>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<UserPosition>> = Vec::new();
     for i in 0..addresses.len() {
@@ -87,7 +87,7 @@ pub fn fetch_all_user_position(
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_user_position(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::MaybeAccount<UserPosition>, std::io::Error> {
     let accounts = fetch_all_maybe_user_position(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -96,10 +96,10 @@ pub fn fetch_maybe_user_position(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_user_position(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::MaybeAccount<UserPosition>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<UserPosition>> = Vec::new();
     for i in 0..addresses.len() {

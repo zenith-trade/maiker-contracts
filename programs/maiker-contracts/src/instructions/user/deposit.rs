@@ -2,7 +2,7 @@ use crate::{
     error::MaikerError, state::*, UserDepositEvent, ANCHOR_DISCRIMINATOR, SHARE_PRECISION,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::{associated_token::AssociatedToken, token::{self, mint_to, Mint, MintTo, Token, TokenAccount, Transfer}};
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
@@ -40,9 +40,28 @@ pub struct Deposit<'info> {
     )]
     pub strategy_vault_x: Box<Account<'info, TokenAccount>>,
 
+    // M-token mint for the strategy (used to mint LP tokens to users on deposit)
+    #[account(
+        mut,
+        address = strategy.m_token_mint,
+        mint::decimals = StrategyConfig::M_TOKEN_DECIMALS,
+        mint::authority = strategy,
+    )]
+    pub m_token_mint: Account<'info, Mint>,
+
+    // User's associated token account for the m-token (LP token)
+    #[account(
+        mut,
+        associated_token::mint = m_token_mint,
+        associated_token::authority = user,
+    )]
+    pub user_m_token_ata: Account<'info, TokenAccount>,
+
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
+
 
 pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     let strategy = &mut ctx.accounts.strategy;
@@ -135,10 +154,24 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         amount,
     )?;
 
-    // Emit event
+    // Mint m-tokens to the user (1:1 with shares issued)
+    mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            MintTo {
+                mint: ctx.accounts.m_token_mint.to_account_info(),
+                to: ctx.accounts.user_m_token_ata.to_account_info(),
+                authority: ctx.accounts.strategy.to_account_info(),
+            },
+            &[&ctx.accounts.strategy.get_pda_signer()],
+        ),
+        new_shares,
+    )?;
+
+    // Emit event after all state changes and m-token minting
     emit!(UserDepositEvent {
         user: ctx.accounts.user.key(),
-        strategy: strategy.key(),
+        strategy: ctx.accounts.strategy.key(),
         shares_amount: new_shares,
         token_amount: amount,
         current_share_value,

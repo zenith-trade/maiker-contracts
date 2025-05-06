@@ -6,29 +6,35 @@
 //!
 
 pub(crate) mod r#add_liquidity;
+pub(crate) mod r#begin_swap;
 pub(crate) mod r#claim_fee;
 pub(crate) mod r#claim_fees;
 pub(crate) mod r#close_position;
 pub(crate) mod r#create_strategy;
 pub(crate) mod r#deposit;
+pub(crate) mod r#end_swap;
 pub(crate) mod r#get_position_value;
 pub(crate) mod r#initialize;
 pub(crate) mod r#initialize_position;
 pub(crate) mod r#initiate_withdrawal;
 pub(crate) mod r#process_withdrawal;
 pub(crate) mod r#remove_liquidity;
+pub(crate) mod r#swap_exact_in;
 pub(crate) mod r#update_global_config;
 
 pub use self::r#add_liquidity::*;
+pub use self::r#begin_swap::*;
 pub use self::r#claim_fee::*;
 pub use self::r#claim_fees::*;
 pub use self::r#close_position::*;
 pub use self::r#create_strategy::*;
 pub use self::r#deposit::*;
+pub use self::r#end_swap::*;
 pub use self::r#get_position_value::*;
 pub use self::r#initialize::*;
 pub use self::r#initialize_position::*;
 pub use self::r#initiate_withdrawal::*;
 pub use self::r#process_withdrawal::*;
 pub use self::r#remove_liquidity::*;
+pub use self::r#swap_exact_in::*;
 pub use self::r#update_global_config::*;

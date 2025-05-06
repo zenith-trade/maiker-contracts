@@ -1,7 +1,10 @@
 export { initialize } from "./initialize"
 export type { InitializeArgs, InitializeAccounts } from "./initialize"
 export { createStrategy } from "./createStrategy"
-export type { CreateStrategyAccounts } from "./createStrategy"
+export type {
+  CreateStrategyArgs,
+  CreateStrategyAccounts,
+} from "./createStrategy"
 export { deposit } from "./deposit"
 export type { DepositArgs, DepositAccounts } from "./deposit"
 export { initiateWithdrawal } from "./initiateWithdrawal"

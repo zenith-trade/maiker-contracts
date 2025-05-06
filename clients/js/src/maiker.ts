@@ -1,5 +1,5 @@
 import { Connection, PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_CLOCK_PUBKEY, AccountMeta } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getMint, Mint, AccountLayout } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getMint, Mint, AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 import Decimal from 'decimal.js';
 import DLMM, {
@@ -40,7 +40,7 @@ import {
   StrategySetupParams,
   PositionInfo
 } from './types';
-import { deriveGlobalConfig, derivePendingWithdrawal, deriveStrategy, deriveUserPosition } from './utils';
+import { deriveGlobalConfig, deriveMTokenMetadata, deriveMTokenMint, derivePendingWithdrawal, deriveStrategy, deriveUserPosition, TOKEN_METADATA_PROGRAM_ID } from './utils';
 import { chunkedGetMultipleAccountInfos, getOrCreateATAInstruction, mulShr, Rounding } from './helpers';
 
 /**
@@ -160,7 +160,7 @@ export class MaikerSDK {
     connection: Connection,
     params: StrategySetupParams
   ): Promise<TransactionInstruction[]> {
-    const { creator, xMint, yMint } = params;
+    const { creator, xMint, yMint, metadata } = params;
 
     // Find strategy PDA
     const strategy = deriveStrategy(creator);
@@ -180,6 +180,9 @@ export class MaikerSDK {
     // Create instruction
     const createStrategyIx = maikerInstructions.createStrategy(
       {
+        params: metadata
+      },
+      {
         creator,
         xMint,
         yMint,
@@ -189,6 +192,10 @@ export class MaikerSDK {
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
+        mTokenMint: deriveMTokenMint(strategy),
+        metadata: deriveMTokenMetadata(deriveMTokenMint(strategy)),
+        rent: SYSVAR_RENT_PUBKEY,
+        tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID
       }
     );
 
@@ -472,6 +479,11 @@ export class MaikerSDK {
     const xUser = await getOrCreateATAInstruction(this.connection, this.xMint.address, user, user, true);
     if (xUser.ix) preIxs.push(xUser.ix);
 
+    // User m-token ATA
+    const mTokenMint = this.strategyAcc.mTokenMint;
+    const mTokenAta = await getOrCreateATAInstruction(this.connection, mTokenMint, user, user, true);
+    if (mTokenAta.ix) preIxs.push(mTokenAta.ix);
+
     const depositIx = maikerInstructions.deposit(
       {
         amount: new BN(amount),
@@ -483,8 +495,11 @@ export class MaikerSDK {
         userPosition,
         userTokenX: xUser.ataPubKey,
         strategyVaultX: this.strategyAcc.xVault,
+        mTokenMint,
+        userMTokenAta: mTokenAta.ataPubKey,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       }
     );
 
@@ -538,6 +553,11 @@ export class MaikerSDK {
     const xUser = await getOrCreateATAInstruction(this.connection, this.xMint.address, user, user, true);
     if (xUser.ix) preIxs.push(xUser.ix);
 
+    // User m-token ATA
+    const mTokenMint = this.strategyAcc.mTokenMint;
+    const mTokenAta = await getOrCreateATAInstruction(this.connection, mTokenMint, user, user, true);
+    if (mTokenAta.ix) preIxs.push(mTokenAta.ix);
+
     const processWithdrawalIx = maikerInstructions.processWithdrawal(
       {
         user,
@@ -546,6 +566,8 @@ export class MaikerSDK {
         pendingWithdrawal,
         strategyVaultX: this.strategyAcc.xVault,
         userTokenX: xUser.ataPubKey,
+        mTokenMint,
+        userMTokenAta: mTokenAta.ataPubKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       }

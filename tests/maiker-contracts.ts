@@ -8,7 +8,7 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, deriveMTokenMint, deriveMTokenMetadata} from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
@@ -19,6 +19,7 @@ import path from "path";
 import { MaikerSDK } from "../clients/js/src";
 
 const PROGRAM_BIN_DIR = path.join(__dirname, "..", ".programsBin");
+const METAPLEX_METADATA_BIN = path.join(PROGRAM_BIN_DIR, "mpl_token_metadata.so");
 
 const INITIAL_SOL = 5000 * LAMPORTS_PER_SOL;
 const USE_BANKRUN = true;
@@ -45,6 +46,8 @@ const [presetParamPda] = derivePresetParameter2(
   DEFAULT_BASE_FACTOR,
   new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"])
 );
+
+
 
 const loadProviders = async () => {
   // process.env.ANCHOR_WALLET = "../keypairs/pump_test.json";
@@ -103,6 +106,16 @@ const loadProviders = async () => {
           executable: false,
           data: Buffer.from([]),
           owner: SystemProgram.programId,
+        },
+      },
+      // Metaplex Token Metadata Program
+      {
+        address: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
+        info: {
+          lamports: INITIAL_SOL,
+          executable: true,
+          owner: new PublicKey("BPFLoader2111111111111111111111111111111111"),
+          data: readFileSync(METAPLEX_METADATA_BIN),
         },
       },
     ]
@@ -479,7 +492,12 @@ describe("maiker-contracts", () => {
       {
         creator: creator.publicKey,
         xMint: xMint,
-        yMint: yMint
+        yMint: yMint,
+        metadata: {
+          name: "My Strategy",
+          symbol: "MSTRAT",
+          uri: "https://example.com/metadata.json"
+        }
       }
     );
 
@@ -503,6 +521,8 @@ describe("maiker-contracts", () => {
     console.log("strategy data:", maikerSdk.strategyAcc);
     assert(maikerSdk.strategyAcc.xMint.equals(xMint), "X mint doesn't match");
     assert(maikerSdk.strategyAcc.yMint.equals(yMint), "Y mint doesn't match");
+    const expectedMTokenMint = deriveMTokenMint(strategy);
+    assert(maikerSdk.strategyAcc.mTokenMint.equals(expectedMTokenMint), "mTokenMint doesn't match");
   });
 
   test("Deposit", async () => {
@@ -554,6 +574,15 @@ describe("maiker-contracts", () => {
     const xVaultTokenAcc = await getTokenAcc(maikerSdk.strategyAcc.xVault);
     assert(Number(xVaultTokenAcc.amount) === xAmount,
       `xVaultTokenAcc.amount: ${xVaultTokenAcc.amount} !== ${xAmount}`);
+
+    // Assert user's m-token ATA balance matches xAmount
+    const userMTokenAtaPubkey = getAssociatedTokenAddressSync(
+      maikerSdk.strategyAcc.mTokenMint,
+      user.publicKey
+    );
+    const userMTokenAta = await getTokenAcc(userMTokenAtaPubkey);
+    assert(Number(userMTokenAta.amount) === xAmount,
+      `userMTokenAta.amount: ${userMTokenAta.amount} !== ${xAmount}`);
   });
 
   test("Withdraw", async () => {
@@ -598,7 +627,7 @@ describe("maiker-contracts", () => {
     const userWithdrawalData = await maiker.PendingWithdrawal.fetch(bankrunProvider.connection, userWithdrawal);
     console.log("User withdrawal data: ", userWithdrawalData);
 
-    // Refresh SDK data
+    // Refresh SDK data after withdrawal claim
     await maikerSdk.refresh();
 
     // Get user position info after initiation
@@ -670,6 +699,25 @@ describe("maiker-contracts", () => {
     } catch (e) {
       console.log("Failed successfully");
     }
+
+    // Assert user's m-token ATA balance is reduced by sharesAmount
+    const userMTokenAtaPubkey = getAssociatedTokenAddressSync(
+      maikerSdk.strategyAcc.mTokenMint,
+      user.publicKey
+    );
+    const userMTokenAta = await getTokenAcc(userMTokenAtaPubkey);
+    assert(
+      Number(userMTokenAta.amount) === Number(userPositionInfoPre.strategyShare) - sharesAmount,
+      `userMTokenAta.amount: ${userMTokenAta.amount} !== ${Number(userPositionInfoPre.strategyShare) - sharesAmount}`
+    );
+
+    // Optional: Assert m-token mint total supply matches updated strategy shares
+    const mTokenMintInfo = await maikerSdk.connection.getAccountInfo(maikerSdk.strategyAcc.mTokenMint);
+    const mintData = MintLayout.decode(mTokenMintInfo.data);
+    assert(
+      Number(mintData.supply) === Number(maikerSdk.strategyAcc.strategyShares),
+      `mTokenMint total supply: ${mintData.supply} !== ${maikerSdk.strategyAcc.strategyShares}`
+    );
   });
 
   test("Add Position", async () => {
@@ -913,6 +961,9 @@ describe("maiker-contracts", () => {
         userPosition: userPosition,
         userTokenX: xUser.ataPubKey,
         strategyVaultX: strategyAccPre.xVault,
+        mTokenMint: deriveMTokenMint(strategy),
+        userMTokenAta: getAssociatedTokenAddressSync(deriveMTokenMint(strategy), user.publicKey, true),
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       },

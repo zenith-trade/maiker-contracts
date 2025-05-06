@@ -10,18 +10,13 @@ use borsh::BorshSerialize;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct RemoveLiquidity {
+pub struct SwapExactIn {
+    /// The authority of the strategy
     pub authority: solana_program::pubkey::Pubkey,
 
     pub global_config: solana_program::pubkey::Pubkey,
 
     pub strategy: solana_program::pubkey::Pubkey,
-
-    pub strategy_vault_x: solana_program::pubkey::Pubkey,
-
-    pub strategy_vault_y: solana_program::pubkey::Pubkey,
-
-    pub position: solana_program::pubkey::Pubkey,
 
     pub lb_pair: solana_program::pubkey::Pubkey,
 
@@ -30,34 +25,44 @@ pub struct RemoveLiquidity {
     pub reserve_x: solana_program::pubkey::Pubkey,
 
     pub reserve_y: solana_program::pubkey::Pubkey,
+    /// The strategy vault for token X, which will be used for swapping
+    pub strategy_vault_x: solana_program::pubkey::Pubkey,
+    /// The strategy vault for token Y, which will be used for swapping
+    pub strategy_vault_y: solana_program::pubkey::Pubkey,
 
     pub token_x_mint: solana_program::pubkey::Pubkey,
 
     pub token_y_mint: solana_program::pubkey::Pubkey,
 
-    pub bin_array_lower: solana_program::pubkey::Pubkey,
+    pub oracle: solana_program::pubkey::Pubkey,
 
-    pub bin_array_upper: solana_program::pubkey::Pubkey,
-
+    pub host_fee_in: Option<solana_program::pubkey::Pubkey>,
+    /// The lb_clmm program
     pub lb_clmm_program: solana_program::pubkey::Pubkey,
 
     pub event_authority: solana_program::pubkey::Pubkey,
-
-    pub token_program: solana_program::pubkey::Pubkey,
+    /// The token program for token X
+    pub token_x_program: solana_program::pubkey::Pubkey,
+    /// The token program for token Y
+    pub token_y_program: solana_program::pubkey::Pubkey,
 }
 
-impl RemoveLiquidity {
-    pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        self.instruction_with_remaining_accounts(&[])
+impl SwapExactIn {
+    pub fn instruction(
+        &self,
+        args: SwapExactInInstructionArgs,
+    ) -> solana_program::instruction::Instruction {
+        self.instruction_with_remaining_accounts(args, &[])
     }
     #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
+        args: SwapExactInInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
         let mut accounts = Vec::with_capacity(17 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
         ));
@@ -70,23 +75,11 @@ impl RemoveLiquidity {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            self.strategy_vault_x,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.strategy_vault_y,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.position,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
             self.lb_pair,
             false,
         ));
         if let Some(bin_array_bitmap_extension) = self.bin_array_bitmap_extension {
-            accounts.push(solana_program::instruction::AccountMeta::new(
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
                 bin_array_bitmap_extension,
                 false,
             ));
@@ -104,6 +97,14 @@ impl RemoveLiquidity {
             self.reserve_y,
             false,
         ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.strategy_vault_x,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.strategy_vault_y,
+            false,
+        ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.token_x_mint,
             false,
@@ -113,14 +114,21 @@ impl RemoveLiquidity {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            self.bin_array_lower,
+            self.oracle,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.bin_array_upper,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        if let Some(host_fee_in) = self.host_fee_in {
+            accounts.push(solana_program::instruction::AccountMeta::new(
+                host_fee_in,
+                false,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::MAIKER_CONTRACTS_ID,
+                false,
+            ));
+        }
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.lb_clmm_program,
             false,
         ));
@@ -129,11 +137,17 @@ impl RemoveLiquidity {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.token_program,
+            self.token_x_program,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            self.token_y_program,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let data = borsh::to_vec(&RemoveLiquidityInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&SwapExactInInstructionData::new()).unwrap();
+        let mut args = borsh::to_vec(&args).unwrap();
+        data.append(&mut args);
 
         solana_program::instruction::Instruction {
             program_id: crate::MAIKER_CONTRACTS_ID,
@@ -145,71 +159,83 @@ impl RemoveLiquidity {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct RemoveLiquidityInstructionData {
+pub struct SwapExactInInstructionData {
     discriminator: [u8; 8],
 }
 
-impl RemoveLiquidityInstructionData {
+impl SwapExactInInstructionData {
     pub fn new() -> Self {
         Self {
-            discriminator: [80, 85, 209, 72, 24, 206, 177, 108],
+            discriminator: [104, 104, 131, 86, 161, 189, 180, 216],
         }
     }
 }
 
-impl Default for RemoveLiquidityInstructionData {
+impl Default for SwapExactInInstructionData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Instruction builder for `RemoveLiquidity`.
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SwapExactInInstructionArgs {
+    pub amount_in: u64,
+    pub min_amount_out: u64,
+    pub x_to_y: bool,
+}
+
+/// Instruction builder for `SwapExactIn`.
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` authority
+///   0. `[writable, signer]` authority
 ///   1. `[]` global_config
 ///   2. `[writable]` strategy
-///   3. `[writable]` strategy_vault_x
-///   4. `[writable]` strategy_vault_y
-///   5. `[writable]` position
-///   6. `[writable]` lb_pair
-///   7. `[writable, optional]` bin_array_bitmap_extension
-///   8. `[writable]` reserve_x
-///   9. `[writable]` reserve_y
-///   10. `[]` token_x_mint
-///   11. `[]` token_y_mint
-///   12. `[writable]` bin_array_lower
-///   13. `[writable]` bin_array_upper
-///   14. `[writable]` lb_clmm_program
-///   15. `[]` event_authority
-///   16. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
+///   3. `[writable]` lb_pair
+///   4. `[optional]` bin_array_bitmap_extension
+///   5. `[writable]` reserve_x
+///   6. `[writable]` reserve_y
+///   7. `[writable]` strategy_vault_x
+///   8. `[writable]` strategy_vault_y
+///   9. `[]` token_x_mint
+///   10. `[]` token_y_mint
+///   11. `[writable]` oracle
+///   12. `[writable, optional]` host_fee_in
+///   13. `[]` lb_clmm_program
+///   14. `[]` event_authority
+///   15. `[]` token_x_program
+///   16. `[]` token_y_program
 #[derive(Clone, Debug, Default)]
-pub struct RemoveLiquidityBuilder {
+pub struct SwapExactInBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     global_config: Option<solana_program::pubkey::Pubkey>,
     strategy: Option<solana_program::pubkey::Pubkey>,
-    strategy_vault_x: Option<solana_program::pubkey::Pubkey>,
-    strategy_vault_y: Option<solana_program::pubkey::Pubkey>,
-    position: Option<solana_program::pubkey::Pubkey>,
     lb_pair: Option<solana_program::pubkey::Pubkey>,
     bin_array_bitmap_extension: Option<solana_program::pubkey::Pubkey>,
     reserve_x: Option<solana_program::pubkey::Pubkey>,
     reserve_y: Option<solana_program::pubkey::Pubkey>,
+    strategy_vault_x: Option<solana_program::pubkey::Pubkey>,
+    strategy_vault_y: Option<solana_program::pubkey::Pubkey>,
     token_x_mint: Option<solana_program::pubkey::Pubkey>,
     token_y_mint: Option<solana_program::pubkey::Pubkey>,
-    bin_array_lower: Option<solana_program::pubkey::Pubkey>,
-    bin_array_upper: Option<solana_program::pubkey::Pubkey>,
+    oracle: Option<solana_program::pubkey::Pubkey>,
+    host_fee_in: Option<solana_program::pubkey::Pubkey>,
     lb_clmm_program: Option<solana_program::pubkey::Pubkey>,
     event_authority: Option<solana_program::pubkey::Pubkey>,
-    token_program: Option<solana_program::pubkey::Pubkey>,
+    token_x_program: Option<solana_program::pubkey::Pubkey>,
+    token_y_program: Option<solana_program::pubkey::Pubkey>,
+    amount_in: Option<u64>,
+    min_amount_out: Option<u64>,
+    x_to_y: Option<bool>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl RemoveLiquidityBuilder {
+impl SwapExactInBuilder {
     pub fn new() -> Self {
         Self::default()
     }
+    /// The authority of the strategy
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
@@ -223,27 +249,6 @@ impl RemoveLiquidityBuilder {
     #[inline(always)]
     pub fn strategy(&mut self, strategy: solana_program::pubkey::Pubkey) -> &mut Self {
         self.strategy = Some(strategy);
-        self
-    }
-    #[inline(always)]
-    pub fn strategy_vault_x(
-        &mut self,
-        strategy_vault_x: solana_program::pubkey::Pubkey,
-    ) -> &mut Self {
-        self.strategy_vault_x = Some(strategy_vault_x);
-        self
-    }
-    #[inline(always)]
-    pub fn strategy_vault_y(
-        &mut self,
-        strategy_vault_y: solana_program::pubkey::Pubkey,
-    ) -> &mut Self {
-        self.strategy_vault_y = Some(strategy_vault_y);
-        self
-    }
-    #[inline(always)]
-    pub fn position(&mut self, position: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.position = Some(position);
         self
     }
     #[inline(always)]
@@ -270,6 +275,24 @@ impl RemoveLiquidityBuilder {
         self.reserve_y = Some(reserve_y);
         self
     }
+    /// The strategy vault for token X, which will be used for swapping
+    #[inline(always)]
+    pub fn strategy_vault_x(
+        &mut self,
+        strategy_vault_x: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.strategy_vault_x = Some(strategy_vault_x);
+        self
+    }
+    /// The strategy vault for token Y, which will be used for swapping
+    #[inline(always)]
+    pub fn strategy_vault_y(
+        &mut self,
+        strategy_vault_y: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.strategy_vault_y = Some(strategy_vault_y);
+        self
+    }
     #[inline(always)]
     pub fn token_x_mint(&mut self, token_x_mint: solana_program::pubkey::Pubkey) -> &mut Self {
         self.token_x_mint = Some(token_x_mint);
@@ -281,21 +304,20 @@ impl RemoveLiquidityBuilder {
         self
     }
     #[inline(always)]
-    pub fn bin_array_lower(
-        &mut self,
-        bin_array_lower: solana_program::pubkey::Pubkey,
-    ) -> &mut Self {
-        self.bin_array_lower = Some(bin_array_lower);
+    pub fn oracle(&mut self, oracle: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.oracle = Some(oracle);
         self
     }
+    /// `[optional account]`
     #[inline(always)]
-    pub fn bin_array_upper(
+    pub fn host_fee_in(
         &mut self,
-        bin_array_upper: solana_program::pubkey::Pubkey,
+        host_fee_in: Option<solana_program::pubkey::Pubkey>,
     ) -> &mut Self {
-        self.bin_array_upper = Some(bin_array_upper);
+        self.host_fee_in = host_fee_in;
         self
     }
+    /// The lb_clmm program
     #[inline(always)]
     pub fn lb_clmm_program(
         &mut self,
@@ -312,10 +334,37 @@ impl RemoveLiquidityBuilder {
         self.event_authority = Some(event_authority);
         self
     }
-    /// `[optional account, default to 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA']`
+    /// The token program for token X
     #[inline(always)]
-    pub fn token_program(&mut self, token_program: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.token_program = Some(token_program);
+    pub fn token_x_program(
+        &mut self,
+        token_x_program: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.token_x_program = Some(token_x_program);
+        self
+    }
+    /// The token program for token Y
+    #[inline(always)]
+    pub fn token_y_program(
+        &mut self,
+        token_y_program: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.token_y_program = Some(token_y_program);
+        self
+    }
+    #[inline(always)]
+    pub fn amount_in(&mut self, amount_in: u64) -> &mut Self {
+        self.amount_in = Some(amount_in);
+        self
+    }
+    #[inline(always)]
+    pub fn min_amount_out(&mut self, min_amount_out: u64) -> &mut Self {
+        self.min_amount_out = Some(min_amount_out);
+        self
+    }
+    #[inline(always)]
+    pub fn x_to_y(&mut self, x_to_y: bool) -> &mut Self {
+        self.x_to_y = Some(x_to_y);
         self
     }
     /// Add an additional account to the instruction.
@@ -338,45 +387,46 @@ impl RemoveLiquidityBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = RemoveLiquidity {
+        let accounts = SwapExactIn {
             authority: self.authority.expect("authority is not set"),
             global_config: self.global_config.expect("global_config is not set"),
             strategy: self.strategy.expect("strategy is not set"),
-            strategy_vault_x: self.strategy_vault_x.expect("strategy_vault_x is not set"),
-            strategy_vault_y: self.strategy_vault_y.expect("strategy_vault_y is not set"),
-            position: self.position.expect("position is not set"),
             lb_pair: self.lb_pair.expect("lb_pair is not set"),
             bin_array_bitmap_extension: self.bin_array_bitmap_extension,
             reserve_x: self.reserve_x.expect("reserve_x is not set"),
             reserve_y: self.reserve_y.expect("reserve_y is not set"),
+            strategy_vault_x: self.strategy_vault_x.expect("strategy_vault_x is not set"),
+            strategy_vault_y: self.strategy_vault_y.expect("strategy_vault_y is not set"),
             token_x_mint: self.token_x_mint.expect("token_x_mint is not set"),
             token_y_mint: self.token_y_mint.expect("token_y_mint is not set"),
-            bin_array_lower: self.bin_array_lower.expect("bin_array_lower is not set"),
-            bin_array_upper: self.bin_array_upper.expect("bin_array_upper is not set"),
+            oracle: self.oracle.expect("oracle is not set"),
+            host_fee_in: self.host_fee_in,
             lb_clmm_program: self.lb_clmm_program.expect("lb_clmm_program is not set"),
             event_authority: self.event_authority.expect("event_authority is not set"),
-            token_program: self.token_program.unwrap_or(solana_program::pubkey!(
-                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-            )),
+            token_x_program: self.token_x_program.expect("token_x_program is not set"),
+            token_y_program: self.token_y_program.expect("token_y_program is not set"),
+        };
+        let args = SwapExactInInstructionArgs {
+            amount_in: self.amount_in.clone().expect("amount_in is not set"),
+            min_amount_out: self
+                .min_amount_out
+                .clone()
+                .expect("min_amount_out is not set"),
+            x_to_y: self.x_to_y.clone().expect("x_to_y is not set"),
         };
 
-        accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
+        accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `remove_liquidity` CPI accounts.
-pub struct RemoveLiquidityCpiAccounts<'a, 'b> {
+/// `swap_exact_in` CPI accounts.
+pub struct SwapExactInCpiAccounts<'a, 'b> {
+    /// The authority of the strategy
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub global_config: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub strategy: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub strategy_vault_x: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub strategy_vault_y: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub position: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub lb_pair: &'b solana_program::account_info::AccountInfo<'a>,
 
@@ -385,38 +435,38 @@ pub struct RemoveLiquidityCpiAccounts<'a, 'b> {
     pub reserve_x: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub reserve_y: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The strategy vault for token X, which will be used for swapping
+    pub strategy_vault_x: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The strategy vault for token Y, which will be used for swapping
+    pub strategy_vault_y: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub token_x_mint: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub token_y_mint: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub bin_array_lower: &'b solana_program::account_info::AccountInfo<'a>,
+    pub oracle: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub bin_array_upper: &'b solana_program::account_info::AccountInfo<'a>,
-
+    pub host_fee_in: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    /// The lb_clmm program
     pub lb_clmm_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub event_authority: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The token program for token X
+    pub token_x_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The token program for token Y
+    pub token_y_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `remove_liquidity` CPI instruction.
-pub struct RemoveLiquidityCpi<'a, 'b> {
+/// `swap_exact_in` CPI instruction.
+pub struct SwapExactInCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-
+    /// The authority of the strategy
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub global_config: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub strategy: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub strategy_vault_x: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub strategy_vault_y: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub position: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub lb_pair: &'b solana_program::account_info::AccountInfo<'a>,
 
@@ -425,46 +475,56 @@ pub struct RemoveLiquidityCpi<'a, 'b> {
     pub reserve_x: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub reserve_y: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The strategy vault for token X, which will be used for swapping
+    pub strategy_vault_x: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The strategy vault for token Y, which will be used for swapping
+    pub strategy_vault_y: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub token_x_mint: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub token_y_mint: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub bin_array_lower: &'b solana_program::account_info::AccountInfo<'a>,
+    pub oracle: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub bin_array_upper: &'b solana_program::account_info::AccountInfo<'a>,
-
+    pub host_fee_in: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    /// The lb_clmm program
     pub lb_clmm_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub event_authority: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The token program for token X
+    pub token_x_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The token program for token Y
+    pub token_y_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The arguments for the instruction.
+    pub __args: SwapExactInInstructionArgs,
 }
 
-impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
+impl<'a, 'b> SwapExactInCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: RemoveLiquidityCpiAccounts<'a, 'b>,
+        accounts: SwapExactInCpiAccounts<'a, 'b>,
+        args: SwapExactInInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             authority: accounts.authority,
             global_config: accounts.global_config,
             strategy: accounts.strategy,
-            strategy_vault_x: accounts.strategy_vault_x,
-            strategy_vault_y: accounts.strategy_vault_y,
-            position: accounts.position,
             lb_pair: accounts.lb_pair,
             bin_array_bitmap_extension: accounts.bin_array_bitmap_extension,
             reserve_x: accounts.reserve_x,
             reserve_y: accounts.reserve_y,
+            strategy_vault_x: accounts.strategy_vault_x,
+            strategy_vault_y: accounts.strategy_vault_y,
             token_x_mint: accounts.token_x_mint,
             token_y_mint: accounts.token_y_mint,
-            bin_array_lower: accounts.bin_array_lower,
-            bin_array_upper: accounts.bin_array_upper,
+            oracle: accounts.oracle,
+            host_fee_in: accounts.host_fee_in,
             lb_clmm_program: accounts.lb_clmm_program,
             event_authority: accounts.event_authority,
-            token_program: accounts.token_program,
+            token_x_program: accounts.token_x_program,
+            token_y_program: accounts.token_y_program,
+            __args: args,
         }
     }
     #[inline(always)]
@@ -502,7 +562,7 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
         )],
     ) -> solana_program::entrypoint::ProgramResult {
         let mut accounts = Vec::with_capacity(17 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
@@ -515,23 +575,11 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.strategy_vault_x.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.strategy_vault_y.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.position.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.lb_pair.key,
             false,
         ));
         if let Some(bin_array_bitmap_extension) = self.bin_array_bitmap_extension {
-            accounts.push(solana_program::instruction::AccountMeta::new(
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
                 *bin_array_bitmap_extension.key,
                 false,
             ));
@@ -549,6 +597,14 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
             *self.reserve_y.key,
             false,
         ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.strategy_vault_x.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.strategy_vault_y.key,
+            false,
+        ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.token_x_mint.key,
             false,
@@ -558,14 +614,21 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.bin_array_lower.key,
+            *self.oracle.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.bin_array_upper.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        if let Some(host_fee_in) = self.host_fee_in {
+            accounts.push(solana_program::instruction::AccountMeta::new(
+                *host_fee_in.key,
+                false,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::MAIKER_CONTRACTS_ID,
+                false,
+            ));
+        }
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.lb_clmm_program.key,
             false,
         ));
@@ -574,7 +637,11 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.token_program.key,
+            *self.token_x_program.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            *self.token_y_program.key,
             false,
         ));
         remaining_accounts.iter().for_each(|remaining_account| {
@@ -584,7 +651,9 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let data = borsh::to_vec(&RemoveLiquidityInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&SwapExactInInstructionData::new()).unwrap();
+        let mut args = borsh::to_vec(&self.__args).unwrap();
+        data.append(&mut args);
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::MAIKER_CONTRACTS_ID,
@@ -596,22 +665,24 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
         account_infos.push(self.authority.clone());
         account_infos.push(self.global_config.clone());
         account_infos.push(self.strategy.clone());
-        account_infos.push(self.strategy_vault_x.clone());
-        account_infos.push(self.strategy_vault_y.clone());
-        account_infos.push(self.position.clone());
         account_infos.push(self.lb_pair.clone());
         if let Some(bin_array_bitmap_extension) = self.bin_array_bitmap_extension {
             account_infos.push(bin_array_bitmap_extension.clone());
         }
         account_infos.push(self.reserve_x.clone());
         account_infos.push(self.reserve_y.clone());
+        account_infos.push(self.strategy_vault_x.clone());
+        account_infos.push(self.strategy_vault_y.clone());
         account_infos.push(self.token_x_mint.clone());
         account_infos.push(self.token_y_mint.clone());
-        account_infos.push(self.bin_array_lower.clone());
-        account_infos.push(self.bin_array_upper.clone());
+        account_infos.push(self.oracle.clone());
+        if let Some(host_fee_in) = self.host_fee_in {
+            account_infos.push(host_fee_in.clone());
+        }
         account_infos.push(self.lb_clmm_program.clone());
         account_infos.push(self.event_authority.clone());
-        account_infos.push(self.token_program.clone());
+        account_infos.push(self.token_x_program.clone());
+        account_infos.push(self.token_y_program.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -624,57 +695,61 @@ impl<'a, 'b> RemoveLiquidityCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `RemoveLiquidity` via CPI.
+/// Instruction builder for `SwapExactIn` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` authority
+///   0. `[writable, signer]` authority
 ///   1. `[]` global_config
 ///   2. `[writable]` strategy
-///   3. `[writable]` strategy_vault_x
-///   4. `[writable]` strategy_vault_y
-///   5. `[writable]` position
-///   6. `[writable]` lb_pair
-///   7. `[writable, optional]` bin_array_bitmap_extension
-///   8. `[writable]` reserve_x
-///   9. `[writable]` reserve_y
-///   10. `[]` token_x_mint
-///   11. `[]` token_y_mint
-///   12. `[writable]` bin_array_lower
-///   13. `[writable]` bin_array_upper
-///   14. `[writable]` lb_clmm_program
-///   15. `[]` event_authority
-///   16. `[]` token_program
+///   3. `[writable]` lb_pair
+///   4. `[optional]` bin_array_bitmap_extension
+///   5. `[writable]` reserve_x
+///   6. `[writable]` reserve_y
+///   7. `[writable]` strategy_vault_x
+///   8. `[writable]` strategy_vault_y
+///   9. `[]` token_x_mint
+///   10. `[]` token_y_mint
+///   11. `[writable]` oracle
+///   12. `[writable, optional]` host_fee_in
+///   13. `[]` lb_clmm_program
+///   14. `[]` event_authority
+///   15. `[]` token_x_program
+///   16. `[]` token_y_program
 #[derive(Clone, Debug)]
-pub struct RemoveLiquidityCpiBuilder<'a, 'b> {
-    instruction: Box<RemoveLiquidityCpiBuilderInstruction<'a, 'b>>,
+pub struct SwapExactInCpiBuilder<'a, 'b> {
+    instruction: Box<SwapExactInCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
+impl<'a, 'b> SwapExactInCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(RemoveLiquidityCpiBuilderInstruction {
+        let instruction = Box::new(SwapExactInCpiBuilderInstruction {
             __program: program,
             authority: None,
             global_config: None,
             strategy: None,
-            strategy_vault_x: None,
-            strategy_vault_y: None,
-            position: None,
             lb_pair: None,
             bin_array_bitmap_extension: None,
             reserve_x: None,
             reserve_y: None,
+            strategy_vault_x: None,
+            strategy_vault_y: None,
             token_x_mint: None,
             token_y_mint: None,
-            bin_array_lower: None,
-            bin_array_upper: None,
+            oracle: None,
+            host_fee_in: None,
             lb_clmm_program: None,
             event_authority: None,
-            token_program: None,
+            token_x_program: None,
+            token_y_program: None,
+            amount_in: None,
+            min_amount_out: None,
+            x_to_y: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
+    /// The authority of the strategy
     #[inline(always)]
     pub fn authority(
         &mut self,
@@ -697,30 +772,6 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
         strategy: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.strategy = Some(strategy);
-        self
-    }
-    #[inline(always)]
-    pub fn strategy_vault_x(
-        &mut self,
-        strategy_vault_x: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.strategy_vault_x = Some(strategy_vault_x);
-        self
-    }
-    #[inline(always)]
-    pub fn strategy_vault_y(
-        &mut self,
-        strategy_vault_y: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.strategy_vault_y = Some(strategy_vault_y);
-        self
-    }
-    #[inline(always)]
-    pub fn position(
-        &mut self,
-        position: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.position = Some(position);
         self
     }
     #[inline(always)]
@@ -756,6 +807,24 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
         self.instruction.reserve_y = Some(reserve_y);
         self
     }
+    /// The strategy vault for token X, which will be used for swapping
+    #[inline(always)]
+    pub fn strategy_vault_x(
+        &mut self,
+        strategy_vault_x: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.strategy_vault_x = Some(strategy_vault_x);
+        self
+    }
+    /// The strategy vault for token Y, which will be used for swapping
+    #[inline(always)]
+    pub fn strategy_vault_y(
+        &mut self,
+        strategy_vault_y: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.strategy_vault_y = Some(strategy_vault_y);
+        self
+    }
     #[inline(always)]
     pub fn token_x_mint(
         &mut self,
@@ -773,21 +842,23 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn bin_array_lower(
+    pub fn oracle(
         &mut self,
-        bin_array_lower: &'b solana_program::account_info::AccountInfo<'a>,
+        oracle: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.bin_array_lower = Some(bin_array_lower);
+        self.instruction.oracle = Some(oracle);
         self
     }
+    /// `[optional account]`
     #[inline(always)]
-    pub fn bin_array_upper(
+    pub fn host_fee_in(
         &mut self,
-        bin_array_upper: &'b solana_program::account_info::AccountInfo<'a>,
+        host_fee_in: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     ) -> &mut Self {
-        self.instruction.bin_array_upper = Some(bin_array_upper);
+        self.instruction.host_fee_in = host_fee_in;
         self
     }
+    /// The lb_clmm program
     #[inline(always)]
     pub fn lb_clmm_program(
         &mut self,
@@ -804,12 +875,37 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
         self.instruction.event_authority = Some(event_authority);
         self
     }
+    /// The token program for token X
     #[inline(always)]
-    pub fn token_program(
+    pub fn token_x_program(
         &mut self,
-        token_program: &'b solana_program::account_info::AccountInfo<'a>,
+        token_x_program: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.token_program = Some(token_program);
+        self.instruction.token_x_program = Some(token_x_program);
+        self
+    }
+    /// The token program for token Y
+    #[inline(always)]
+    pub fn token_y_program(
+        &mut self,
+        token_y_program: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.token_y_program = Some(token_y_program);
+        self
+    }
+    #[inline(always)]
+    pub fn amount_in(&mut self, amount_in: u64) -> &mut Self {
+        self.instruction.amount_in = Some(amount_in);
+        self
+    }
+    #[inline(always)]
+    pub fn min_amount_out(&mut self, min_amount_out: u64) -> &mut Self {
+        self.instruction.min_amount_out = Some(min_amount_out);
+        self
+    }
+    #[inline(always)]
+    pub fn x_to_y(&mut self, x_to_y: bool) -> &mut Self {
+        self.instruction.x_to_y = Some(x_to_y);
         self
     }
     /// Add an additional account to the instruction.
@@ -853,7 +949,20 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let instruction = RemoveLiquidityCpi {
+        let args = SwapExactInInstructionArgs {
+            amount_in: self
+                .instruction
+                .amount_in
+                .clone()
+                .expect("amount_in is not set"),
+            min_amount_out: self
+                .instruction
+                .min_amount_out
+                .clone()
+                .expect("min_amount_out is not set"),
+            x_to_y: self.instruction.x_to_y.clone().expect("x_to_y is not set"),
+        };
+        let instruction = SwapExactInCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
@@ -865,6 +974,14 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
 
             strategy: self.instruction.strategy.expect("strategy is not set"),
 
+            lb_pair: self.instruction.lb_pair.expect("lb_pair is not set"),
+
+            bin_array_bitmap_extension: self.instruction.bin_array_bitmap_extension,
+
+            reserve_x: self.instruction.reserve_x.expect("reserve_x is not set"),
+
+            reserve_y: self.instruction.reserve_y.expect("reserve_y is not set"),
+
             strategy_vault_x: self
                 .instruction
                 .strategy_vault_x
@@ -874,16 +991,6 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
                 .instruction
                 .strategy_vault_y
                 .expect("strategy_vault_y is not set"),
-
-            position: self.instruction.position.expect("position is not set"),
-
-            lb_pair: self.instruction.lb_pair.expect("lb_pair is not set"),
-
-            bin_array_bitmap_extension: self.instruction.bin_array_bitmap_extension,
-
-            reserve_x: self.instruction.reserve_x.expect("reserve_x is not set"),
-
-            reserve_y: self.instruction.reserve_y.expect("reserve_y is not set"),
 
             token_x_mint: self
                 .instruction
@@ -895,15 +1002,9 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
                 .token_y_mint
                 .expect("token_y_mint is not set"),
 
-            bin_array_lower: self
-                .instruction
-                .bin_array_lower
-                .expect("bin_array_lower is not set"),
+            oracle: self.instruction.oracle.expect("oracle is not set"),
 
-            bin_array_upper: self
-                .instruction
-                .bin_array_upper
-                .expect("bin_array_upper is not set"),
+            host_fee_in: self.instruction.host_fee_in,
 
             lb_clmm_program: self
                 .instruction
@@ -915,10 +1016,16 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
                 .event_authority
                 .expect("event_authority is not set"),
 
-            token_program: self
+            token_x_program: self
                 .instruction
-                .token_program
-                .expect("token_program is not set"),
+                .token_x_program
+                .expect("token_x_program is not set"),
+
+            token_y_program: self
+                .instruction
+                .token_y_program
+                .expect("token_y_program is not set"),
+            __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -928,25 +1035,28 @@ impl<'a, 'b> RemoveLiquidityCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct RemoveLiquidityCpiBuilderInstruction<'a, 'b> {
+struct SwapExactInCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     global_config: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     strategy: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    strategy_vault_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    strategy_vault_y: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    position: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     lb_pair: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     bin_array_bitmap_extension: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     reserve_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     reserve_y: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    strategy_vault_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    strategy_vault_y: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     token_x_mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     token_y_mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    bin_array_lower: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    bin_array_upper: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    oracle: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    host_fee_in: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     lb_clmm_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     event_authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token_x_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token_y_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    amount_in: Option<u64>,
+    min_amount_out: Option<u64>,
+    x_to_y: Option<bool>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

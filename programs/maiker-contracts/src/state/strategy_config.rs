@@ -10,6 +10,9 @@ pub struct StrategyConfig {
     pub x_vault: Pubkey,
     pub y_vault: Pubkey,
 
+    // The mint address for the strategy's m-token
+    pub m_token_mint: Pubkey,
+
     // Total shares issued
     pub strategy_shares: u64,
 
@@ -38,8 +41,27 @@ pub struct StrategyConfig {
     pub bump: u8,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct CreateStrategyMetadataParams {
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+}
+
+impl CreateStrategyMetadataParams {
+    pub fn validate(&self) -> Result<()> {
+        require!(!self.name.is_empty() && self.name.len() <= 32, MaikerError::InvalidMetadataParam);
+        require!(!self.symbol.is_empty() && self.symbol.len() <= 10, MaikerError::InvalidMetadataParam);
+        require!(!self.uri.is_empty() && self.uri.len() <= 200, MaikerError::InvalidMetadataParam);
+        Ok(())
+    }
+}
+
 impl StrategyConfig {
     pub const SEED_PREFIX: &'static str = "strategy-config";
+    pub const M_TOKEN_SEED_PREFIX: &'static str = "m-token";
+    pub const METADATA_SEED: &'static [u8] = b"metadata";
+    pub const M_TOKEN_DECIMALS: u8 = 6;
 
     pub fn get_pda_signer<'a>(self: &'a Self) -> [&'a [u8]; 3] {
         let prefix_bytes = Self::SEED_PREFIX.as_bytes();
@@ -55,6 +77,7 @@ impl StrategyConfig {
         y_mint: Pubkey,
         x_vault: Pubkey,
         y_vault: Pubkey,
+        m_token_mint: Pubkey,
         bump: u8,
     ) {
         self.creator = owner;
@@ -62,6 +85,7 @@ impl StrategyConfig {
         self.y_mint = y_mint;
         self.x_vault = x_vault;
         self.y_vault = y_vault;
+        self.m_token_mint = m_token_mint;
         self.strategy_shares = 0;
         self.fee_shares = 0;
         self.position_count = 0;
