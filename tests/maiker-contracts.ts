@@ -8,7 +8,7 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, deriveMTokenMint, deriveMTokenMetadata} from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, deriveMTokenMint, deriveMTokenMetadata, TOKEN_METADATA_PROGRAM_ID } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
@@ -19,7 +19,6 @@ import path from "path";
 import { MaikerSDK } from "../clients/js/src";
 
 const PROGRAM_BIN_DIR = path.join(__dirname, "..", ".programsBin");
-const METAPLEX_METADATA_BIN = path.join(PROGRAM_BIN_DIR, "mpl_token_metadata.so");
 
 const INITIAL_SOL = 5000 * LAMPORTS_PER_SOL;
 const USE_BANKRUN = true;
@@ -61,7 +60,7 @@ const loadProviders = async () => {
         address: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
         info: await loadProgram(getBinFilePath("dlmm.so")),
       },
-      // preset_parameter account
+      // preset_parameter account for dlmm program
       {
         address: presetParamPda,
         info: {
@@ -69,6 +68,16 @@ const loadProviders = async () => {
           executable: false,
           data: readFileSync(getBinFilePath("preset_parameter.bin")),
           owner: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
+        },
+      },
+      // Metaplex Token Metadata Program
+      {
+        address: TOKEN_METADATA_PROGRAM_ID,
+        info: {
+          lamports: INITIAL_SOL,
+          executable: true,
+          owner: new PublicKey("BPFLoader2111111111111111111111111111111111"),
+          data: readFileSync(getBinFilePath("mpl_token_metadata.so")),
         },
       },
       // Funding test keypairs
@@ -106,16 +115,6 @@ const loadProviders = async () => {
           executable: false,
           data: Buffer.from([]),
           owner: SystemProgram.programId,
-        },
-      },
-      // Metaplex Token Metadata Program
-      {
-        address: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
-        info: {
-          lamports: INITIAL_SOL,
-          executable: true,
-          owner: new PublicKey("BPFLoader2111111111111111111111111111111111"),
-          data: readFileSync(METAPLEX_METADATA_BIN),
         },
       },
     ]

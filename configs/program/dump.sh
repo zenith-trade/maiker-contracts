@@ -5,11 +5,14 @@ EXTERNAL_ID=(
     "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"
     # Preset Parameter Account
     "BYQtcDyv2BoFuf5ghsYDGPA8iX5F4WquK7zCzUsDwJ63"
+    # Mpl Metadata
+    "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 )
 
 EXTERNAL_SO=(
     "dlmm.so"
     "preset_parameter.bin"
+    "mpl_token_metadata.so"
 )
 
 # output colours
