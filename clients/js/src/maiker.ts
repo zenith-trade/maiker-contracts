@@ -964,7 +964,7 @@ export class MaikerSDK {
         lbPair: positionInfo.lbPair,
         binArrayLower: lowerBinArrayPubKey,
         binArrayUpper: upperBinArrayPubKey,
-        rentReceiver: this.strategyAcc.xVault,
+        rentReceiver: authority,
         lbClmmProgram: dlmmProgramId,
         eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
       }
