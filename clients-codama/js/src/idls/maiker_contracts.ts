@@ -185,12 +185,12 @@ export type MaikerContracts = {
           "isSigner": false
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
+          "name": "strategyMTokenAta",
+          "isMut": true,
           "isSigner": false
         },
         {
-          "name": "associatedTokenProgram",
+          "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -238,6 +238,26 @@ export type MaikerContracts = {
         {
           "name": "strategyVaultX",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "strategyMTokenAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -393,6 +413,16 @@ export type MaikerContracts = {
         },
         {
           "name": "treasuryX",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "strategyMTokenAta",
           "isMut": true,
           "isSigner": false
         },
@@ -1148,6 +1178,10 @@ export type MaikerContracts = {
           },
           {
             "name": "sharesAmount",
+            "type": "u64"
+          },
+          {
+            "name": "fullSharesAmount",
             "type": "u64"
           },
           {
@@ -1933,12 +1967,12 @@ export const IDL: MaikerContracts = {
           "isSigner": false
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
+          "name": "strategyMTokenAta",
+          "isMut": true,
           "isSigner": false
         },
         {
-          "name": "associatedTokenProgram",
+          "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -1986,6 +2020,26 @@ export const IDL: MaikerContracts = {
         {
           "name": "strategyVaultX",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "strategyMTokenAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2141,6 +2195,16 @@ export const IDL: MaikerContracts = {
         },
         {
           "name": "treasuryX",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "strategyMTokenAta",
           "isMut": true,
           "isSigner": false
         },
@@ -2896,6 +2960,10 @@ export const IDL: MaikerContracts = {
           },
           {
             "name": "sharesAmount",
+            "type": "u64"
+          },
+          {
+            "name": "fullSharesAmount",
             "type": "u64"
           },
           {

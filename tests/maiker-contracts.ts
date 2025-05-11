@@ -635,7 +635,7 @@ describe("maiker-contracts", () => {
 
     // Apply the withdraw fee bps to assertion
     const withdrawalFeeBps = maikerSdk.globalConfigAcc.withdrawalFeeBps;
-    const withdrawFeeShare = sharesAmount * (withdrawalFeeBps / 10000);
+    const withdrawFeeShare = (sharesAmount * withdrawalFeeBps) / 10000;
 
     // Verify user position shares were reduced
     assert(userPositionInfoPost.strategyShare === userPositionInfoPre.strategyShare - sharesAmount,
@@ -705,17 +705,32 @@ describe("maiker-contracts", () => {
       user.publicKey
     );
     const userMTokenAta = await getTokenAcc(userMTokenAtaPubkey);
+    const expectedUserAmount = Number(userPositionInfoPre.strategyShare) - sharesAmount;
     assert(
-      Number(userMTokenAta.amount) === Number(userPositionInfoPre.strategyShare) - sharesAmount,
-      `userMTokenAta.amount: ${userMTokenAta.amount} !== ${Number(userPositionInfoPre.strategyShare) - sharesAmount}`
+      Number(userMTokenAta.amount) === expectedUserAmount,
+      `userMTokenAta.amount: ${userMTokenAta.amount} !== ${expectedUserAmount}`
     );
 
-    // Optional: Assert m-token mint total supply matches updated strategy shares
+    // Assert strategy's m-token ATA has the fee shares
+    const strategyMTokenAtaPubkey = getAssociatedTokenAddressSync(
+      maikerSdk.strategyAcc.mTokenMint,
+      strategy,
+      true
+    );
+    const strategyMTokenAta = await getTokenAcc(strategyMTokenAtaPubkey);
+    const expectedFeeShares = withdrawFeeShare;
+    assert(
+      Number(strategyMTokenAta.amount) === expectedFeeShares,
+      `strategyMTokenAta.amount: ${strategyMTokenAta.amount} !== ${expectedFeeShares}`
+    );
+
+    // Assert m-token mint total supply matches user shares + fee shares
     const mTokenMintInfo = await maikerSdk.connection.getAccountInfo(maikerSdk.strategyAcc.mTokenMint);
     const mintData = MintLayout.decode(mTokenMintInfo.data);
+    const expectedTotalSupply = Number(userPositionInfoPre.strategyShare) - sharesAmount + withdrawFeeShare;
     assert(
-      Number(mintData.supply) === Number(maikerSdk.strategyAcc.strategyShares),
-      `mTokenMint total supply: ${mintData.supply} !== ${maikerSdk.strategyAcc.strategyShares}`
+      Number(mintData.supply) === expectedTotalSupply,
+      `mTokenMint total supply: ${mintData.supply} !== ${expectedTotalSupply}`
     );
   });
 
@@ -962,7 +977,7 @@ describe("maiker-contracts", () => {
         strategyVaultX: strategyAccPre.xVault,
         mTokenMint: deriveMTokenMint(strategy),
         userMTokenAta: getAssociatedTokenAddressSync(deriveMTokenMint(strategy), user.publicKey, true),
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        strategyMTokenAta: getAssociatedTokenAddressSync(deriveMTokenMint(strategy), strategy, true),
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       },
@@ -1148,6 +1163,20 @@ describe("maiker-contracts", () => {
     const feeSharesPre = strategyAccPre.feeShares;
     console.log("feeShares Pre: ", Number(feeSharesPre));
 
+    // Get m-token balances before claiming fees
+    const strategyMTokenAtaPubkey = getAssociatedTokenAddressSync(
+      maikerSdk.strategyAcc.mTokenMint,
+      strategy,
+      true
+    );
+    const strategyMTokenAtaPre = await getTokenAcc(strategyMTokenAtaPubkey);
+    console.log("Strategy m-token balance before: ", strategyMTokenAtaPre.amount.toString());
+
+    // Get m-token mint total supply before
+    const mTokenMintInfoPre = await maikerSdk.connection.getAccountInfo(maikerSdk.strategyAcc.mTokenMint);
+    const mintDataPre = MintLayout.decode(mTokenMintInfoPre.data);
+    console.log("M-token total supply before: ", mintDataPre.supply.toString());
+
     const preIxs = []
 
     const treasuryX = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, globalConfigAccPre.treasury, master.publicKey);
@@ -1163,6 +1192,8 @@ describe("maiker-contracts", () => {
         strategy: strategy,
         strategyVaultX: strategyAccPre.xVault,
         treasuryX: treasuryX.ataPubKey,
+        mTokenMint: maikerSdk.strategyAcc.mTokenMint,
+        strategyMTokenAta: strategyMTokenAtaPubkey,
         tokenProgram: TOKEN_PROGRAM_ID,
       }
     )
@@ -1182,8 +1213,26 @@ describe("maiker-contracts", () => {
     const strategyAccPost = maikerSdk.strategyAcc;
     console.log("strategyAccPost: ", strategyAccPost);
 
+    // Verify fee shares were burned
     assert.equal(Number(strategyAccPost.feeShares), Number(strategyAccPre.feeShares) - Number(feeSharesPre), "Fee shares should be reduced by fee shares claimed");
     assert.equal(Number(strategyAccPost.strategyShares), Number(strategyAccPre.strategyShares) - Number(feeSharesPre), "Strategy shares should be reduced by fee shares claimed");
+
+    // Verify m-tokens were burned from strategy's ATA
+    const strategyMTokenAtaPost = await getTokenAcc(strategyMTokenAtaPubkey);
+    assert.equal(
+      Number(strategyMTokenAtaPost.amount),
+      Number(strategyMTokenAtaPre.amount) - Number(feeSharesPre),
+      `Strategy m-token balance should be reduced by ${feeSharesPre}. Expected ${Number(strategyMTokenAtaPre.amount) - Number(feeSharesPre)}, got ${strategyMTokenAtaPost.amount}`
+    );
+
+    // Verify m-token mint total supply was reduced
+    const mTokenMintInfoPost = await maikerSdk.connection.getAccountInfo(maikerSdk.strategyAcc.mTokenMint);
+    const mintDataPost = MintLayout.decode(mTokenMintInfoPost.data);
+    assert.equal(
+      Number(mintDataPost.supply),
+      Number(mintDataPre.supply) - Number(feeSharesPre),
+      `M-token total supply should be reduced by ${feeSharesPre}. Expected ${Number(mintDataPre.supply) - Number(feeSharesPre)}, got ${mintDataPost.supply}`
+    );
   })
 
   // Update Global Config

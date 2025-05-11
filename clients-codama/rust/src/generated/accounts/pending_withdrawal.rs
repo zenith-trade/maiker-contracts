@@ -24,6 +24,7 @@ pub struct PendingWithdrawal {
     )]
     pub strategy: Pubkey,
     pub shares_amount: u64,
+    pub full_shares_amount: u64,
     pub token_amount: u64,
     pub initiation_timestamp: i64,
     pub available_timestamp: i64,
@@ -31,7 +32,7 @@ pub struct PendingWithdrawal {
 }
 
 impl PendingWithdrawal {
-    pub const LEN: usize = 105;
+    pub const LEN: usize = 113;
 
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {

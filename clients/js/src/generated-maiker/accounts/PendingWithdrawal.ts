@@ -8,6 +8,7 @@ export interface PendingWithdrawalFields {
   user: PublicKey
   strategy: PublicKey
   sharesAmount: BN
+  fullSharesAmount: BN
   tokenAmount: BN
   initiationTimestamp: BN
   availableTimestamp: BN
@@ -18,6 +19,7 @@ export interface PendingWithdrawalJSON {
   user: string
   strategy: string
   sharesAmount: string
+  fullSharesAmount: string
   tokenAmount: string
   initiationTimestamp: string
   availableTimestamp: string
@@ -28,6 +30,7 @@ export class PendingWithdrawal {
   readonly user: PublicKey
   readonly strategy: PublicKey
   readonly sharesAmount: BN
+  readonly fullSharesAmount: BN
   readonly tokenAmount: BN
   readonly initiationTimestamp: BN
   readonly availableTimestamp: BN
@@ -41,6 +44,7 @@ export class PendingWithdrawal {
     borsh.publicKey("user"),
     borsh.publicKey("strategy"),
     borsh.u64("sharesAmount"),
+    borsh.u64("fullSharesAmount"),
     borsh.u64("tokenAmount"),
     borsh.i64("initiationTimestamp"),
     borsh.i64("availableTimestamp"),
@@ -51,6 +55,7 @@ export class PendingWithdrawal {
     this.user = fields.user
     this.strategy = fields.strategy
     this.sharesAmount = fields.sharesAmount
+    this.fullSharesAmount = fields.fullSharesAmount
     this.tokenAmount = fields.tokenAmount
     this.initiationTimestamp = fields.initiationTimestamp
     this.availableTimestamp = fields.availableTimestamp
@@ -104,6 +109,7 @@ export class PendingWithdrawal {
       user: dec.user,
       strategy: dec.strategy,
       sharesAmount: dec.sharesAmount,
+      fullSharesAmount: dec.fullSharesAmount,
       tokenAmount: dec.tokenAmount,
       initiationTimestamp: dec.initiationTimestamp,
       availableTimestamp: dec.availableTimestamp,
@@ -116,6 +122,7 @@ export class PendingWithdrawal {
       user: this.user.toString(),
       strategy: this.strategy.toString(),
       sharesAmount: this.sharesAmount.toString(),
+      fullSharesAmount: this.fullSharesAmount.toString(),
       tokenAmount: this.tokenAmount.toString(),
       initiationTimestamp: this.initiationTimestamp.toString(),
       availableTimestamp: this.availableTimestamp.toString(),
@@ -128,6 +135,7 @@ export class PendingWithdrawal {
       user: new PublicKey(obj.user),
       strategy: new PublicKey(obj.strategy),
       sharesAmount: new BN(obj.sharesAmount),
+      fullSharesAmount: new BN(obj.fullSharesAmount),
       tokenAmount: new BN(obj.tokenAmount),
       initiationTimestamp: new BN(obj.initiationTimestamp),
       availableTimestamp: new BN(obj.availableTimestamp),

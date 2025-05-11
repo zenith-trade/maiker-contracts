@@ -1,10 +1,14 @@
-use crate::{state::*, CreateStrategyEvent, ANCHOR_DISCRIMINATOR};
+use crate::{
+    controllers::token,
+    state::*,
+    CreateStrategyEvent,
+    ANCHOR_DISCRIMINATOR,
+};
 use anchor_lang::prelude::*;
-use anchor_spl::metadata::mpl_token_metadata::types::DataV2;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    metadata::{create_metadata_accounts_v3, CreateMetadataAccountsV3, Metadata as Metaplex},
-    token::{Mint, Token, TokenAccount},
+    metadata::Metadata as Metaplex,
+    token::{Mint as TokenMint, Token, TokenAccount as TokenTokenAccount}
 };
 
 #[derive(Accounts)]
@@ -12,20 +16,20 @@ pub struct CreateStrategy<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
 
-    pub x_mint: Account<'info, Mint>,
-    pub y_mint: Account<'info, Mint>,
+    pub x_mint: Account<'info, TokenMint>,
+    pub y_mint: Account<'info, TokenMint>,
 
     #[account(
         associated_token::mint = x_mint,
         associated_token::authority = strategy,
     )]
-    pub x_vault: Account<'info, TokenAccount>,
+    pub x_vault: Account<'info, TokenTokenAccount>,
 
     #[account(
         associated_token::mint = y_mint,
         associated_token::authority = strategy,
     )]
-    pub y_vault: Account<'info, TokenAccount>,
+    pub y_vault: Account<'info, TokenTokenAccount>,
 
     #[account(
         init,
@@ -35,7 +39,7 @@ pub struct CreateStrategy<'info> {
         seeds = [StrategyConfig::M_TOKEN_SEED_PREFIX.as_bytes(), strategy.key().as_ref()],
         bump
     )]
-    pub m_token_mint: Account<'info, Mint>,
+    pub m_token_mint: Account<'info, TokenMint>,
     /// CHECK: Validate address by deriving pda
     #[account(
         mut,
@@ -73,7 +77,7 @@ pub fn create_strategy_handler(
     let clock = Clock::get()?;
     let strategy_bump = ctx.bumps.strategy;
 
-    // Initialize strategy (state only)
+    // Initialize strategy
     ctx.accounts.strategy.initialize_strategy(
         ctx.accounts.creator.key(),
         ctx.accounts.x_mint.key(),
@@ -85,34 +89,19 @@ pub fn create_strategy_handler(
     );
 
     // Create metadata for m-token mint
-    let token_data: DataV2 = DataV2 {
-        name: params.name,
-        symbol: params.symbol,
-        uri: params.uri,
-        seller_fee_basis_points: 0,
-        creators: None,
-        collection: None,
-        uses: None,
-    };
-    let signer_seeds: &[&[&[u8]]] = &[&[
-        StrategyConfig::SEED_PREFIX.as_bytes(),
-        ctx.accounts.creator.key.as_ref(),
-        &[strategy_bump],
-    ]];
-    let metadata_ctx = CpiContext::new_with_signer(
-        ctx.accounts.token_metadata_program.to_account_info(),
-        CreateMetadataAccountsV3 {
-            payer: ctx.accounts.creator.to_account_info(),
-            update_authority: ctx.accounts.strategy.to_account_info(),
-            mint: ctx.accounts.m_token_mint.to_account_info(),
-            metadata: ctx.accounts.metadata.to_account_info(),
-            mint_authority: ctx.accounts.strategy.to_account_info(),
-            system_program: ctx.accounts.system_program.to_account_info(),
-            rent: ctx.accounts.rent.to_account_info(),
-        },
-        signer_seeds,
-    );
-    create_metadata_accounts_v3(metadata_ctx, token_data, true, true, None)?;
+    token::create_metadata(
+        &ctx.accounts.token_metadata_program,
+        &ctx.accounts.creator,
+        &ctx.accounts.strategy,
+        &ctx.accounts.m_token_mint,
+        &ctx.accounts.metadata,
+        &ctx.accounts.system_program,
+        &ctx.accounts.rent,
+        params.name,
+        params.symbol,
+        params.uri,
+        strategy_bump,
+    )?;
 
     // Emit event with m_token_mint
     emit!(CreateStrategyEvent {

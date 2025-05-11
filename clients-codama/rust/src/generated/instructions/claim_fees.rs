@@ -21,6 +21,10 @@ pub struct ClaimFees {
 
     pub treasury_x: solana_program::pubkey::Pubkey,
 
+    pub m_token_mint: solana_program::pubkey::Pubkey,
+
+    pub strategy_m_token_ata: solana_program::pubkey::Pubkey,
+
     pub token_program: solana_program::pubkey::Pubkey,
 }
 
@@ -38,7 +42,7 @@ impl ClaimFees {
         args: ClaimFeesInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.authority,
             true,
@@ -57,6 +61,14 @@ impl ClaimFees {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.treasury_x,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.m_token_mint,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.strategy_m_token_ata,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -111,7 +123,9 @@ pub struct ClaimFeesInstructionArgs {
 ///   2. `[writable]` strategy
 ///   3. `[writable]` strategy_vault_x
 ///   4. `[writable]` treasury_x
-///   5. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
+///   5. `[writable]` m_token_mint
+///   6. `[writable]` strategy_m_token_ata
+///   7. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
 #[derive(Clone, Debug, Default)]
 pub struct ClaimFeesBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
@@ -119,6 +133,8 @@ pub struct ClaimFeesBuilder {
     strategy: Option<solana_program::pubkey::Pubkey>,
     strategy_vault_x: Option<solana_program::pubkey::Pubkey>,
     treasury_x: Option<solana_program::pubkey::Pubkey>,
+    m_token_mint: Option<solana_program::pubkey::Pubkey>,
+    strategy_m_token_ata: Option<solana_program::pubkey::Pubkey>,
     token_program: Option<solana_program::pubkey::Pubkey>,
     shares_to_claim: Option<u64>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
@@ -154,6 +170,19 @@ impl ClaimFeesBuilder {
     #[inline(always)]
     pub fn treasury_x(&mut self, treasury_x: solana_program::pubkey::Pubkey) -> &mut Self {
         self.treasury_x = Some(treasury_x);
+        self
+    }
+    #[inline(always)]
+    pub fn m_token_mint(&mut self, m_token_mint: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.m_token_mint = Some(m_token_mint);
+        self
+    }
+    #[inline(always)]
+    pub fn strategy_m_token_ata(
+        &mut self,
+        strategy_m_token_ata: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.strategy_m_token_ata = Some(strategy_m_token_ata);
         self
     }
     /// `[optional account, default to 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA']`
@@ -194,6 +223,10 @@ impl ClaimFeesBuilder {
             strategy: self.strategy.expect("strategy is not set"),
             strategy_vault_x: self.strategy_vault_x.expect("strategy_vault_x is not set"),
             treasury_x: self.treasury_x.expect("treasury_x is not set"),
+            m_token_mint: self.m_token_mint.expect("m_token_mint is not set"),
+            strategy_m_token_ata: self
+                .strategy_m_token_ata
+                .expect("strategy_m_token_ata is not set"),
             token_program: self.token_program.unwrap_or(solana_program::pubkey!(
                 "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
             )),
@@ -218,6 +251,10 @@ pub struct ClaimFeesCpiAccounts<'a, 'b> {
 
     pub treasury_x: &'b solana_program::account_info::AccountInfo<'a>,
 
+    pub m_token_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub strategy_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
+
     pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
@@ -235,6 +272,10 @@ pub struct ClaimFeesCpi<'a, 'b> {
     pub strategy_vault_x: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub treasury_x: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub m_token_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub strategy_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
@@ -254,6 +295,8 @@ impl<'a, 'b> ClaimFeesCpi<'a, 'b> {
             strategy: accounts.strategy,
             strategy_vault_x: accounts.strategy_vault_x,
             treasury_x: accounts.treasury_x,
+            m_token_mint: accounts.m_token_mint,
+            strategy_m_token_ata: accounts.strategy_m_token_ata,
             token_program: accounts.token_program,
             __args: args,
         }
@@ -292,7 +335,7 @@ impl<'a, 'b> ClaimFeesCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.authority.key,
             true,
@@ -311,6 +354,14 @@ impl<'a, 'b> ClaimFeesCpi<'a, 'b> {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.treasury_x.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.m_token_mint.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.strategy_m_token_ata.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -333,13 +384,15 @@ impl<'a, 'b> ClaimFeesCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
         account_infos.push(self.global_config.clone());
         account_infos.push(self.strategy.clone());
         account_infos.push(self.strategy_vault_x.clone());
         account_infos.push(self.treasury_x.clone());
+        account_infos.push(self.m_token_mint.clone());
+        account_infos.push(self.strategy_m_token_ata.clone());
         account_infos.push(self.token_program.clone());
         remaining_accounts
             .iter()
@@ -362,7 +415,9 @@ impl<'a, 'b> ClaimFeesCpi<'a, 'b> {
 ///   2. `[writable]` strategy
 ///   3. `[writable]` strategy_vault_x
 ///   4. `[writable]` treasury_x
-///   5. `[]` token_program
+///   5. `[writable]` m_token_mint
+///   6. `[writable]` strategy_m_token_ata
+///   7. `[]` token_program
 #[derive(Clone, Debug)]
 pub struct ClaimFeesCpiBuilder<'a, 'b> {
     instruction: Box<ClaimFeesCpiBuilderInstruction<'a, 'b>>,
@@ -377,6 +432,8 @@ impl<'a, 'b> ClaimFeesCpiBuilder<'a, 'b> {
             strategy: None,
             strategy_vault_x: None,
             treasury_x: None,
+            m_token_mint: None,
+            strategy_m_token_ata: None,
             token_program: None,
             shares_to_claim: None,
             __remaining_accounts: Vec::new(),
@@ -421,6 +478,22 @@ impl<'a, 'b> ClaimFeesCpiBuilder<'a, 'b> {
         treasury_x: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.treasury_x = Some(treasury_x);
+        self
+    }
+    #[inline(always)]
+    pub fn m_token_mint(
+        &mut self,
+        m_token_mint: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.m_token_mint = Some(m_token_mint);
+        self
+    }
+    #[inline(always)]
+    pub fn strategy_m_token_ata(
+        &mut self,
+        strategy_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.strategy_m_token_ata = Some(strategy_m_token_ata);
         self
     }
     #[inline(always)]
@@ -500,6 +573,16 @@ impl<'a, 'b> ClaimFeesCpiBuilder<'a, 'b> {
 
             treasury_x: self.instruction.treasury_x.expect("treasury_x is not set"),
 
+            m_token_mint: self
+                .instruction
+                .m_token_mint
+                .expect("m_token_mint is not set"),
+
+            strategy_m_token_ata: self
+                .instruction
+                .strategy_m_token_ata
+                .expect("strategy_m_token_ata is not set"),
+
             token_program: self
                 .instruction
                 .token_program
@@ -521,6 +604,8 @@ struct ClaimFeesCpiBuilderInstruction<'a, 'b> {
     strategy: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     strategy_vault_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     treasury_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    m_token_mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    strategy_m_token_ata: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     shares_to_claim: Option<u64>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

@@ -1,6 +1,11 @@
-use crate::{state::*, MaikerError, ProcessWithdrawEvent};
+use crate::{
+    controllers::token as token_controller,
+    state::*,
+    error::*,
+    events::ProcessWithdrawEvent,
+};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, burn, Burn, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 pub struct ProcessWithdrawal<'info> {
@@ -81,18 +86,14 @@ pub fn process_withdrawal_handler(ctx: Context<ProcessWithdrawal>) -> Result<()>
         let strategy_signer_seeds = strategy.get_pda_signer();
         let signer = &[&strategy_signer_seeds[..]];
 
-        // Burn m-tokens from the user (must match shares withdrawn)
-        burn(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Burn {
-                    mint: ctx.accounts.m_token_mint.to_account_info(),
-                    from: ctx.accounts.user_m_token_ata.to_account_info(),
-                    authority: ctx.accounts.user.to_account_info(),
-                },
-                signer,
-            ),
-            pending_withdrawal.shares_amount,
+        // Burn m-tokens from user
+        token_controller::burn(
+            &ctx.accounts.token_program,
+            &ctx.accounts.m_token_mint,
+            &ctx.accounts.user_m_token_ata,
+            &ctx.accounts.user.to_account_info(),
+            pending_withdrawal.full_shares_amount,
+            &[],
         )?;
 
         token::transfer(

@@ -1,5 +1,5 @@
 import { Connection, PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_CLOCK_PUBKEY, AccountMeta } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getMint, Mint, AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getMint, Mint, AccountLayout, getAssociatedTokenAddressSync, getAssociatedTokenAddress } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 import Decimal from 'decimal.js';
 import DLMM, {
@@ -472,7 +472,6 @@ export class MaikerSDK {
 
     const userPosition = deriveUserPosition(user, this.strategy);
 
-
     const preIxs = [];
 
     // User Ata
@@ -483,6 +482,10 @@ export class MaikerSDK {
     const mTokenMint = this.strategyAcc.mTokenMint;
     const mTokenAta = await getOrCreateATAInstruction(this.connection, mTokenMint, user, user, true);
     if (mTokenAta.ix) preIxs.push(mTokenAta.ix);
+
+    // Strategy m-token ATA
+    const strategyMTokenAtaIx = await getOrCreateATAInstruction(this.connection, mTokenMint, this.strategy, user, true);
+    if (strategyMTokenAtaIx.ix) preIxs.push(strategyMTokenAtaIx.ix);
 
     const depositIx = maikerInstructions.deposit(
       {
@@ -497,9 +500,9 @@ export class MaikerSDK {
         strategyVaultX: this.strategyAcc.xVault,
         mTokenMint,
         userMTokenAta: mTokenAta.ataPubKey,
+        strategyMTokenAta: strategyMTokenAtaIx.ataPubKey,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       }
     );
 
@@ -531,7 +534,11 @@ export class MaikerSDK {
         userPosition,
         pendingWithdrawal,
         strategyVaultX: this.strategyAcc.xVault,
+        mTokenMint: this.strategyAcc.mTokenMint,
+        strategyMTokenAta: await getAssociatedTokenAddress(this.strategyAcc.mTokenMint, this.strategy, true),
+        tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       }
     );
   }

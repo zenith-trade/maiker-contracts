@@ -15,6 +15,10 @@ export interface InitiateWithdrawalAccounts {
   userPosition: PublicKey
   pendingWithdrawal: PublicKey
   strategyVaultX: PublicKey
+  mTokenMint: PublicKey
+  strategyMTokenAta: PublicKey
+  tokenProgram: PublicKey
+  associatedTokenProgram: PublicKey
   systemProgram: PublicKey
 }
 
@@ -32,6 +36,14 @@ export function initiateWithdrawal(
     { pubkey: accounts.userPosition, isSigner: false, isWritable: true },
     { pubkey: accounts.pendingWithdrawal, isSigner: false, isWritable: true },
     { pubkey: accounts.strategyVaultX, isSigner: false, isWritable: true },
+    { pubkey: accounts.mTokenMint, isSigner: false, isWritable: true },
+    { pubkey: accounts.strategyMTokenAta, isSigner: false, isWritable: true },
+    { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
+    {
+      pubkey: accounts.associatedTokenProgram,
+      isSigner: false,
+      isWritable: false,
+    },
     { pubkey: accounts.systemProgram, isSigner: false, isWritable: false },
   ]
   const identifier = Buffer.from([69, 216, 131, 74, 114, 122, 38, 112])

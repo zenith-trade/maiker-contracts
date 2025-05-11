@@ -27,9 +27,9 @@ pub struct Deposit {
 
     pub user_m_token_ata: solana_program::pubkey::Pubkey,
 
-    pub token_program: solana_program::pubkey::Pubkey,
+    pub strategy_m_token_ata: solana_program::pubkey::Pubkey,
 
-    pub associated_token_program: solana_program::pubkey::Pubkey,
+    pub token_program: solana_program::pubkey::Pubkey,
 
     pub system_program: solana_program::pubkey::Pubkey,
 }
@@ -80,12 +80,12 @@ impl Deposit {
             self.user_m_token_ata,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.token_program,
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.strategy_m_token_ata,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.associated_token_program,
+            self.token_program,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -143,8 +143,8 @@ pub struct DepositInstructionArgs {
 ///   5. `[writable]` strategy_vault_x
 ///   6. `[writable]` m_token_mint
 ///   7. `[writable]` user_m_token_ata
-///   8. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
-///   9. `[]` associated_token_program
+///   8. `[writable]` strategy_m_token_ata
+///   9. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
 ///   10. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct DepositBuilder {
@@ -156,8 +156,8 @@ pub struct DepositBuilder {
     strategy_vault_x: Option<solana_program::pubkey::Pubkey>,
     m_token_mint: Option<solana_program::pubkey::Pubkey>,
     user_m_token_ata: Option<solana_program::pubkey::Pubkey>,
+    strategy_m_token_ata: Option<solana_program::pubkey::Pubkey>,
     token_program: Option<solana_program::pubkey::Pubkey>,
-    associated_token_program: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     amount: Option<u64>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
@@ -213,18 +213,18 @@ impl DepositBuilder {
         self.user_m_token_ata = Some(user_m_token_ata);
         self
     }
+    #[inline(always)]
+    pub fn strategy_m_token_ata(
+        &mut self,
+        strategy_m_token_ata: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.strategy_m_token_ata = Some(strategy_m_token_ata);
+        self
+    }
     /// `[optional account, default to 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA']`
     #[inline(always)]
     pub fn token_program(&mut self, token_program: solana_program::pubkey::Pubkey) -> &mut Self {
         self.token_program = Some(token_program);
-        self
-    }
-    #[inline(always)]
-    pub fn associated_token_program(
-        &mut self,
-        associated_token_program: solana_program::pubkey::Pubkey,
-    ) -> &mut Self {
-        self.associated_token_program = Some(associated_token_program);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
@@ -267,12 +267,12 @@ impl DepositBuilder {
             strategy_vault_x: self.strategy_vault_x.expect("strategy_vault_x is not set"),
             m_token_mint: self.m_token_mint.expect("m_token_mint is not set"),
             user_m_token_ata: self.user_m_token_ata.expect("user_m_token_ata is not set"),
+            strategy_m_token_ata: self
+                .strategy_m_token_ata
+                .expect("strategy_m_token_ata is not set"),
             token_program: self.token_program.unwrap_or(solana_program::pubkey!(
                 "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
             )),
-            associated_token_program: self
-                .associated_token_program
-                .expect("associated_token_program is not set"),
             system_program: self
                 .system_program
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
@@ -303,9 +303,9 @@ pub struct DepositCpiAccounts<'a, 'b> {
 
     pub user_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub strategy_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub associated_token_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
@@ -331,9 +331,9 @@ pub struct DepositCpi<'a, 'b> {
 
     pub user_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub strategy_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub associated_token_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
@@ -356,8 +356,8 @@ impl<'a, 'b> DepositCpi<'a, 'b> {
             strategy_vault_x: accounts.strategy_vault_x,
             m_token_mint: accounts.m_token_mint,
             user_m_token_ata: accounts.user_m_token_ata,
+            strategy_m_token_ata: accounts.strategy_m_token_ata,
             token_program: accounts.token_program,
-            associated_token_program: accounts.associated_token_program,
             system_program: accounts.system_program,
             __args: args,
         }
@@ -429,12 +429,12 @@ impl<'a, 'b> DepositCpi<'a, 'b> {
             *self.user_m_token_ata.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.token_program.key,
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.strategy_m_token_ata.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.associated_token_program.key,
+            *self.token_program.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -467,8 +467,8 @@ impl<'a, 'b> DepositCpi<'a, 'b> {
         account_infos.push(self.strategy_vault_x.clone());
         account_infos.push(self.m_token_mint.clone());
         account_infos.push(self.user_m_token_ata.clone());
+        account_infos.push(self.strategy_m_token_ata.clone());
         account_infos.push(self.token_program.clone());
-        account_infos.push(self.associated_token_program.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
             .iter()
@@ -494,8 +494,8 @@ impl<'a, 'b> DepositCpi<'a, 'b> {
 ///   5. `[writable]` strategy_vault_x
 ///   6. `[writable]` m_token_mint
 ///   7. `[writable]` user_m_token_ata
-///   8. `[]` token_program
-///   9. `[]` associated_token_program
+///   8. `[writable]` strategy_m_token_ata
+///   9. `[]` token_program
 ///   10. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct DepositCpiBuilder<'a, 'b> {
@@ -514,8 +514,8 @@ impl<'a, 'b> DepositCpiBuilder<'a, 'b> {
             strategy_vault_x: None,
             m_token_mint: None,
             user_m_token_ata: None,
+            strategy_m_token_ata: None,
             token_program: None,
-            associated_token_program: None,
             system_program: None,
             amount: None,
             __remaining_accounts: Vec::new(),
@@ -584,19 +584,19 @@ impl<'a, 'b> DepositCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
+    pub fn strategy_m_token_ata(
+        &mut self,
+        strategy_m_token_ata: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.strategy_m_token_ata = Some(strategy_m_token_ata);
+        self
+    }
+    #[inline(always)]
     pub fn token_program(
         &mut self,
         token_program: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.token_program = Some(token_program);
-        self
-    }
-    #[inline(always)]
-    pub fn associated_token_program(
-        &mut self,
-        associated_token_program: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.associated_token_program = Some(associated_token_program);
         self
     }
     #[inline(always)]
@@ -693,15 +693,15 @@ impl<'a, 'b> DepositCpiBuilder<'a, 'b> {
                 .user_m_token_ata
                 .expect("user_m_token_ata is not set"),
 
+            strategy_m_token_ata: self
+                .instruction
+                .strategy_m_token_ata
+                .expect("strategy_m_token_ata is not set"),
+
             token_program: self
                 .instruction
                 .token_program
                 .expect("token_program is not set"),
-
-            associated_token_program: self
-                .instruction
-                .associated_token_program
-                .expect("associated_token_program is not set"),
 
             system_program: self
                 .instruction
@@ -727,8 +727,8 @@ struct DepositCpiBuilderInstruction<'a, 'b> {
     strategy_vault_x: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     m_token_mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     user_m_token_ata: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    strategy_m_token_ata: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    associated_token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     amount: Option<u64>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

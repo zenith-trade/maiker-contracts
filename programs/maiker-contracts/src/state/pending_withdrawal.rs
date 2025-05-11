@@ -5,7 +5,8 @@ use anchor_lang::prelude::*;
 pub struct PendingWithdrawal {
     pub user: Pubkey,              // User who initiated the withdrawal
     pub strategy: Pubkey,          // Strategy from which to withdraw
-    pub shares_amount: u64,        // Amount of shares to withdraw
+    pub shares_amount: u64,        // Amount of shares to withdraw (after fees)
+    pub full_shares_amount: u64,   // Original amount of shares requested for withdrawal (before fees)
     pub token_amount: u64,         // Amount of tokens to withdraw (calculated at initiation)
     pub initiation_timestamp: i64, // When the withdrawal was initiated
     pub available_timestamp: i64,  // When the withdrawal becomes available
@@ -28,6 +29,7 @@ impl PendingWithdrawal {
         user: Pubkey,
         strategy: Pubkey,
         shares_amount: u64,
+        full_shares_amount: u64,
         token_amount: u64,
         initiation_timestamp: i64,
         available_timestamp: i64,
@@ -36,6 +38,7 @@ impl PendingWithdrawal {
         self.user = user;
         self.strategy = strategy;
         self.shares_amount = shares_amount;
+        self.full_shares_amount = full_shares_amount;
         self.token_amount = token_amount;
         self.initiation_timestamp = initiation_timestamp;
         self.available_timestamp = available_timestamp;

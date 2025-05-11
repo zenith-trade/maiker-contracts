@@ -1,8 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_lang::Discriminator;
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{Mint, TokenAccount, TokenInterface},
+};
 
 use crate::error::MaikerError;
 use crate::state::StrategyConfig;

@@ -16,11 +16,11 @@ export function getClaimFeesDiscriminatorBytes() { return fixEncoderSize(getByte
 
 export type ClaimFeesInstruction<
   TProgram extends string = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS,
-      TAccountAuthority extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountStrategyVaultX extends string | IAccountMeta<string> = string, TAccountTreasuryX extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      TAccountAuthority extends string | IAccountMeta<string> = string, TAccountGlobalConfig extends string | IAccountMeta<string> = string, TAccountStrategy extends string | IAccountMeta<string> = string, TAccountStrategyVaultX extends string | IAccountMeta<string> = string, TAccountTreasuryX extends string | IAccountMeta<string> = string, TAccountMTokenMint extends string | IAccountMeta<string> = string, TAccountStrategyMTokenAta extends string | IAccountMeta<string> = string, TAccountTokenProgram extends string | IAccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram>
       & IInstructionWithData<Uint8Array>
-        & IInstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountStrategyVaultX extends string ? WritableAccount<TAccountStrategyVaultX> : TAccountStrategyVaultX, TAccountTreasuryX extends string ? WritableAccount<TAccountTreasuryX> : TAccountTreasuryX, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>
+        & IInstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & IAccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountGlobalConfig extends string ? ReadonlyAccount<TAccountGlobalConfig> : TAccountGlobalConfig, TAccountStrategy extends string ? WritableAccount<TAccountStrategy> : TAccountStrategy, TAccountStrategyVaultX extends string ? WritableAccount<TAccountStrategyVaultX> : TAccountStrategyVaultX, TAccountTreasuryX extends string ? WritableAccount<TAccountTreasuryX> : TAccountTreasuryX, TAccountMTokenMint extends string ? WritableAccount<TAccountMTokenMint> : TAccountMTokenMint, TAccountStrategyMTokenAta extends string ? WritableAccount<TAccountStrategyMTokenAta> : TAccountStrategyMTokenAta, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>
   ;
 
 
@@ -57,6 +57,8 @@ export type ClaimFeesInput<TAccountAuthority extends string = string,
   TAccountStrategy extends string = string,
   TAccountStrategyVaultX extends string = string,
   TAccountTreasuryX extends string = string,
+  TAccountMTokenMint extends string = string,
+  TAccountStrategyMTokenAta extends string = string,
   TAccountTokenProgram extends string = string,
   >
 =  {
@@ -65,11 +67,13 @@ globalConfig: Address<TAccountGlobalConfig>;
 strategy: Address<TAccountStrategy>;
 strategyVaultX: Address<TAccountStrategyVaultX>;
 treasuryX: Address<TAccountTreasuryX>;
+mTokenMint: Address<TAccountMTokenMint>;
+strategyMTokenAta: Address<TAccountStrategyMTokenAta>;
 tokenProgram?: Address<TAccountTokenProgram>;sharesToClaim: ClaimFeesInstructionDataArgs["sharesToClaim"];
 }
 
 
-export  function getClaimFeesInstruction<TAccountAuthority extends string, TAccountGlobalConfig extends string, TAccountStrategy extends string, TAccountStrategyVaultX extends string, TAccountTreasuryX extends string, TAccountTokenProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: ClaimFeesInput<TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountTreasuryX, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): ClaimFeesInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountTreasuryX, TAccountTokenProgram> {
+export  function getClaimFeesInstruction<TAccountAuthority extends string, TAccountGlobalConfig extends string, TAccountStrategy extends string, TAccountStrategyVaultX extends string, TAccountTreasuryX extends string, TAccountMTokenMint extends string, TAccountStrategyMTokenAta extends string, TAccountTokenProgram extends string, TProgramAddress extends Address = typeof MAIKER_CONTRACTS_PROGRAM_ADDRESS>(input: ClaimFeesInput<TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountTreasuryX, TAccountMTokenMint, TAccountStrategyMTokenAta, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): ClaimFeesInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountTreasuryX, TAccountMTokenMint, TAccountStrategyMTokenAta, TAccountTokenProgram> {
   // Program address.
   const programAddress = config?.programAddress ?? MAIKER_CONTRACTS_PROGRAM_ADDRESS;
 
@@ -80,6 +84,8 @@ export  function getClaimFeesInstruction<TAccountAuthority extends string, TAcco
               strategy: { value: input.strategy ?? null, isWritable: true },
               strategyVaultX: { value: input.strategyVaultX ?? null, isWritable: true },
               treasuryX: { value: input.treasuryX ?? null, isWritable: true },
+              mTokenMint: { value: input.mTokenMint ?? null, isWritable: true },
+              strategyMTokenAta: { value: input.strategyMTokenAta ?? null, isWritable: true },
               tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
           };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
@@ -104,10 +110,12 @@ accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as A
                   getAccountMeta(accounts.strategy),
                   getAccountMeta(accounts.strategyVaultX),
                   getAccountMeta(accounts.treasuryX),
+                  getAccountMeta(accounts.mTokenMint),
+                  getAccountMeta(accounts.strategyMTokenAta),
                   getAccountMeta(accounts.tokenProgram),
                       ]      ,    programAddress,
           data: getClaimFeesInstructionDataEncoder().encode(args as ClaimFeesInstructionDataArgs),
-      } as ClaimFeesInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountTreasuryX, TAccountTokenProgram>;
+      } as ClaimFeesInstruction<TProgramAddress, TAccountAuthority, TAccountGlobalConfig, TAccountStrategy, TAccountStrategyVaultX, TAccountTreasuryX, TAccountMTokenMint, TAccountStrategyMTokenAta, TAccountTokenProgram>;
 
       return instruction;
   }
@@ -124,7 +132,9 @@ export type ParsedClaimFeesInstruction<
                       strategy: TAccountMetas[2],
                       strategyVaultX: TAccountMetas[3],
                       treasuryX: TAccountMetas[4],
-                      tokenProgram: TAccountMetas[5],
+                      mTokenMint: TAccountMetas[5],
+                      strategyMTokenAta: TAccountMetas[6],
+                      tokenProgram: TAccountMetas[7],
           };
         data: ClaimFeesInstructionData;
   };
@@ -137,7 +147,7 @@ export function parseClaimFeesInstruction<
           & IInstructionWithAccounts<TAccountMetas>
               & IInstructionWithData<Uint8Array>
     ): ParsedClaimFeesInstruction<TProgram , TAccountMetas> {
-      if (instruction.accounts.length < 6) {
+      if (instruction.accounts.length < 8) {
       // TODO: Coded error.
       throw new Error('Not enough accounts');
     }
@@ -155,6 +165,8 @@ export function parseClaimFeesInstruction<
                                         strategy: getNextAccount(),
                                         strategyVaultX: getNextAccount(),
                                         treasuryX: getNextAccount(),
+                                        mTokenMint: getNextAccount(),
+                                        strategyMTokenAta: getNextAccount(),
                                         tokenProgram: getNextAccount(),
                         },
               data: getClaimFeesInstructionDataDecoder().decode(instruction.data),

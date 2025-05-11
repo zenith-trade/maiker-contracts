@@ -1,6 +1,6 @@
-use crate::{state::*, ClaimFeeSharesEvent, MaikerError};
+use crate::{controllers::token as token_controller, state::*, ClaimFeeSharesEvent, MaikerError};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 pub struct ClaimFees<'info> {
@@ -31,6 +31,23 @@ pub struct ClaimFees<'info> {
         token::authority = global_config.treasury,
     )]
     pub treasury_x: Box<Account<'info, TokenAccount>>,
+
+    // M-token mint for the strategy
+    #[account(
+        mut,
+        address = strategy.m_token_mint,
+        mint::decimals = StrategyConfig::M_TOKEN_DECIMALS,
+        mint::authority = strategy,
+    )]
+    pub m_token_mint: Account<'info, Mint>,
+
+    // Strategy's associated token account for the m-token (for fee accumulation)
+    #[account(
+        mut,
+        associated_token::mint = m_token_mint,
+        associated_token::authority = strategy,
+    )]
+    pub strategy_m_token_ata: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -79,6 +96,16 @@ pub fn claim_fees_handler(ctx: Context<ClaimFees>, shares_to_claim: Option<u64>)
             &[&strategy.get_pda_signer()],
         ),
         token_amount,
+    )?;
+
+    // Burn m-tokens from strategy's m-token ATA
+    token_controller::burn(
+        &ctx.accounts.token_program,
+        &ctx.accounts.m_token_mint,
+        &ctx.accounts.strategy_m_token_ata,
+        &strategy.to_account_info(),
+        shares_to_claim,
+        &[&strategy.get_pda_signer()],
     )?;
 
     // Burn shares

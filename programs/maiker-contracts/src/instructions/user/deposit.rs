@@ -1,8 +1,9 @@
 use crate::{
+    controllers::token as token_controller,
     error::MaikerError, state::*, UserDepositEvent, ANCHOR_DISCRIMINATOR, SHARE_PRECISION,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::{associated_token::AssociatedToken, token::{self, mint_to, Mint, MintTo, Token, TokenAccount, Transfer}};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
@@ -57,8 +58,15 @@ pub struct Deposit<'info> {
     )]
     pub user_m_token_ata: Account<'info, TokenAccount>,
 
+    // Strategy's associated token account for the m-token (for fee accumulation)
+    #[account(
+        mut,
+        associated_token::mint = m_token_mint,
+        associated_token::authority = strategy,
+    )]
+    pub strategy_m_token_ata: Account<'info, TokenAccount>,
+
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -130,6 +138,15 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         // Add fee shares to pending fees
         if performance_fee_shares > 0 {
             strategy.add_fee_shares(performance_fee_shares)?;
+
+            // Mint m-tokens to strategy for fee shares
+            token_controller::mint_to(
+                &ctx.accounts.token_program,
+                &ctx.accounts.m_token_mint,
+                &ctx.accounts.strategy_m_token_ata,
+                &ctx.accounts.strategy,
+                performance_fee_shares,
+            )?;
         }
 
         // Update existing position
@@ -155,16 +172,11 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     )?;
 
     // Mint m-tokens to the user (1:1 with shares issued)
-    mint_to(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            MintTo {
-                mint: ctx.accounts.m_token_mint.to_account_info(),
-                to: ctx.accounts.user_m_token_ata.to_account_info(),
-                authority: ctx.accounts.strategy.to_account_info(),
-            },
-            &[&ctx.accounts.strategy.get_pda_signer()],
-        ),
+    token_controller::mint_to(
+        &ctx.accounts.token_program,
+        &ctx.accounts.m_token_mint,
+        &ctx.accounts.user_m_token_ata,
+        &ctx.accounts.strategy,
         new_shares,
     )?;
 

@@ -13,21 +13,21 @@ export const PENDING_WITHDRAWAL_DISCRIMINATOR = new Uint8Array([61, 103, 179, 17
 export function getPendingWithdrawalDiscriminatorBytes() { return fixEncoderSize(getBytesEncoder(), 8).encode(PENDING_WITHDRAWAL_DISCRIMINATOR); }
 
 
-export type PendingWithdrawal = { discriminator: ReadonlyUint8Array; user: Address; strategy: Address; sharesAmount: bigint; tokenAmount: bigint; initiationTimestamp: bigint; availableTimestamp: bigint; bump: number;  };
+export type PendingWithdrawal = { discriminator: ReadonlyUint8Array; user: Address; strategy: Address; sharesAmount: bigint; fullSharesAmount: bigint; tokenAmount: bigint; initiationTimestamp: bigint; availableTimestamp: bigint; bump: number;  };
 
-export type PendingWithdrawalArgs = { user: Address; strategy: Address; sharesAmount: number | bigint; tokenAmount: number | bigint; initiationTimestamp: number | bigint; availableTimestamp: number | bigint; bump: number;  };
+export type PendingWithdrawalArgs = { user: Address; strategy: Address; sharesAmount: number | bigint; fullSharesAmount: number | bigint; tokenAmount: number | bigint; initiationTimestamp: number | bigint; availableTimestamp: number | bigint; bump: number;  };
 
 
 
 
 export function getPendingWithdrawalEncoder(): Encoder<PendingWithdrawalArgs> {
-  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['user', getAddressEncoder()], ['strategy', getAddressEncoder()], ['sharesAmount', getU64Encoder()], ['tokenAmount', getU64Encoder()], ['initiationTimestamp', getI64Encoder()], ['availableTimestamp', getI64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: PENDING_WITHDRAWAL_DISCRIMINATOR }));
+  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['user', getAddressEncoder()], ['strategy', getAddressEncoder()], ['sharesAmount', getU64Encoder()], ['fullSharesAmount', getU64Encoder()], ['tokenAmount', getU64Encoder()], ['initiationTimestamp', getI64Encoder()], ['availableTimestamp', getI64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: PENDING_WITHDRAWAL_DISCRIMINATOR }));
 }
 
 
 
 export function getPendingWithdrawalDecoder(): Decoder<PendingWithdrawal> {
-  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['user', getAddressDecoder()], ['strategy', getAddressDecoder()], ['sharesAmount', getU64Decoder()], ['tokenAmount', getU64Decoder()], ['initiationTimestamp', getI64Decoder()], ['availableTimestamp', getI64Decoder()], ['bump', getU8Decoder()]]);
+  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['user', getAddressDecoder()], ['strategy', getAddressDecoder()], ['sharesAmount', getU64Decoder()], ['fullSharesAmount', getU64Decoder()], ['tokenAmount', getU64Decoder()], ['initiationTimestamp', getI64Decoder()], ['availableTimestamp', getI64Decoder()], ['bump', getU8Decoder()]]);
 }
 
 
@@ -82,7 +82,7 @@ export async function fetchAllMaybePendingWithdrawal(
 }
 
 export function getPendingWithdrawalSize(): number {
-  return 105;
+  return 113;
 }
 
 
