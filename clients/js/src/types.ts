@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { BinAndAmount, PositionData, TokenReserve } from '@meteora-ag/dlmm';
+import { BinAndAmount } from '@meteora-ag/dlmm';
 import * as dlmm from './generated-dlmm/accounts';
 
 /**
@@ -126,4 +126,49 @@ export interface PositionInfo {
   tokenX: TokenReserve;
   tokenY: TokenReserve;
   positionData: PositionData | null;
+}
+
+export interface PositionData {
+  totalXAmount: string;
+  totalYAmount: string;
+  positionBinData: PositionBinData[];
+  lastUpdatedAt: BN;
+  upperBinId: number;
+  lowerBinId: number;
+  feeX: BN;
+  feeY: BN;
+  rewardOne: BN;
+  rewardTwo: BN;
+  feeOwner: PublicKey;
+  totalClaimedFeeXAmount: BN;
+  totalClaimedFeeYAmount: BN;
+}
+
+export interface PositionBinData {
+  binId: number;
+  price: string;
+  pricePerToken: string;
+  binXAmount: string;
+  binYAmount: string;
+  binLiquidity: string;
+  positionLiquidity: string;
+  positionXAmount: string;
+  positionYAmount: string;
+}
+
+interface TokenReserve {
+  publicKey: PublicKey;
+  reserve: PublicKey;
+  decimal: number;
+  amount: bigint;
+}
+
+export interface BinLiquidity {
+  binId: number;
+  xAmount: BN;
+  yAmount: BN;
+  supply: BN;
+  version: number;
+  price: string;
+  pricePerToken: string;
 }

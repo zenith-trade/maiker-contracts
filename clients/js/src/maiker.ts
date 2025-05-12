@@ -8,14 +8,11 @@ import DLMM, {
   isOverflowDefaultBinArrayBitmap,
   deriveBinArrayBitmapExtension,
   toWeightDistribution,
-  PositionData,
   PositionVersion,
   getBinArrayLowerUpperBinId,
   getPriceOfBinByBinId,
-  BinLiquidity,
   BinArray,
   Position,
-  PositionBinData,
   SwapFee,
   getBinFromBinArray,
   SCALE_OFFSET,
@@ -38,7 +35,10 @@ import {
   WithdrawParams,
   PositionLiquidityParams,
   StrategySetupParams,
-  PositionInfo
+  PositionInfo,
+  PositionBinData,
+  PositionData,
+  BinLiquidity
 } from './types';
 import { deriveGlobalConfig, derivePendingWithdrawal, deriveStrategy, deriveUserPosition } from './utils';
 import { chunkedGetMultipleAccountInfos, getOrCreateATAInstruction, mulShr, Rounding } from './helpers';
