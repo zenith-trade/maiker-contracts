@@ -163,7 +163,7 @@ export class MaikerSDK {
     const { creator, xMint, yMint } = params;
 
     // Find strategy PDA
-    const strategy = deriveStrategy(creator);
+    const strategy = deriveStrategy(creator, xMint, yMint);
 
     const preIxs: TransactionInstruction[] = [];
 

@@ -28,7 +28,7 @@ export function createStrategyCommand(program: Command): void {
                 const yMint = new PublicKey(cmdOptions.yMint);
 
                 // Derive strategy address
-                const strategy = deriveStrategy(creator.publicKey);
+                const strategy = deriveStrategy(creator.publicKey, xMint, yMint);
                 console.log(`Strategy PDA: ${strategy.toBase58()}`);
 
                 // Create vault addresses

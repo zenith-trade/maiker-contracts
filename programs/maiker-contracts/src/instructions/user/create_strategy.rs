@@ -29,7 +29,12 @@ pub struct CreateStrategy<'info> {
         init,
         payer = creator,
         space = ANCHOR_DISCRIMINATOR + StrategyConfig::INIT_SPACE,
-        seeds = [StrategyConfig::SEED_PREFIX.as_bytes(), creator.key().as_ref()],
+        seeds = [
+            StrategyConfig::SEED_PREFIX.as_bytes(),
+            creator.key().as_ref(),
+            x_mint.key().as_ref(),
+            y_mint.key().as_ref()
+        ],
         bump
     )]
     pub strategy: Account<'info, StrategyConfig>,

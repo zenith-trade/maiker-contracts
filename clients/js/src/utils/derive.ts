@@ -25,9 +25,9 @@ export function deriveGlobalConfig(): PublicKey {
 /**
  * Derives the strategy config PDA for a creator
  */
-export function deriveStrategy(creator: PublicKey): PublicKey {
+export function deriveStrategy(creator: PublicKey, xMint: PublicKey, yMint: PublicKey): PublicKey {
     const [strategy] = PublicKey.findProgramAddressSync(
-        [Buffer.from(PDA_SEEDS.STRATEGY_CONFIG), creator.toBuffer()],
+        [Buffer.from(PDA_SEEDS.STRATEGY_CONFIG), creator.toBuffer(), xMint.toBuffer(), yMint.toBuffer()],
         maikerProgramId
     );
     return strategy;

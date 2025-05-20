@@ -242,12 +242,18 @@ describe("maiker-contracts", () => {
 
   let dlmmInstance: DLMM;
 
+  let globalConfig: PublicKey;
+  let strategy: PublicKey;
+
   before(async () => {
     await loadProviders();
 
     // Create Mints
     xMint = await createMint(bankrunProvider.connection, creator, creator.publicKey, creator.publicKey, 6);
     yMint = await createMint(bankrunProvider.connection, creator, creator.publicKey, creator.publicKey, 6);
+
+    globalConfig = deriveGlobalConfig();
+    strategy = deriveStrategy(creator.publicKey, xMint, yMint);
 
     // Mint to user
     const preIxs = [];
@@ -432,13 +438,6 @@ describe("maiker-contracts", () => {
     assert(isWithinOnePercent(userTokenY.amount, BigInt(expectedAmountY)), `userTokenY.amount: ${userTokenY.amount} !== ${expectedAmountY}`);
   });
 
-  // // Configure the client to use the local cluster.
-  // anchor.setProvider(anchor.AnchorProvider.env());
-  // const program = anchor.workspace.MaikerContracts as Program<MaikerContracts>;
-
-  const globalConfig = deriveGlobalConfig();
-  const strategy = deriveStrategy(creator.publicKey);
-
   test("Is initialized!", async () => {
     const initializeIx = maikerInstructions.initialize(
       {
@@ -493,6 +492,8 @@ describe("maiker-contracts", () => {
     });
 
     await processTransaction(builtTx.tx);
+
+    // console.log("Strategy Pubkey: ", strategy.toBase58());
 
     // Create an SDK instance for the strategy
     const maikerSdk = await MaikerSDK.create(
