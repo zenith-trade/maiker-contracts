@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js" // eslint-disable-line @typescript-eslint/no-unused-vars
 import BN from "bn.js" // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as types from "../types" // eslint-disable-line @typescript-eslint/no-unused-vars
 import * as borsh from "@coral-xyz/borsh"
-import * as types from "." // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface PermissionlessJSON {
   kind: "Permissionless"
@@ -72,6 +72,29 @@ export class CustomizablePermissionless {
   }
 }
 
+export interface PermissionlessV2JSON {
+  kind: "PermissionlessV2"
+}
+
+export class PermissionlessV2 {
+  static readonly discriminator = 3
+  static readonly kind = "PermissionlessV2"
+  readonly discriminator = 3
+  readonly kind = "PermissionlessV2"
+
+  toJSON(): PermissionlessV2JSON {
+    return {
+      kind: "PermissionlessV2",
+    }
+  }
+
+  toEncodable() {
+    return {
+      PermissionlessV2: {},
+    }
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function fromDecoded(obj: any): types.PairTypeKind {
   if (typeof obj !== "object") {
@@ -86,6 +109,9 @@ export function fromDecoded(obj: any): types.PairTypeKind {
   }
   if ("CustomizablePermissionless" in obj) {
     return new CustomizablePermissionless()
+  }
+  if ("PermissionlessV2" in obj) {
+    return new PermissionlessV2()
   }
 
   throw new Error("Invalid enum object")
@@ -102,6 +128,9 @@ export function fromJSON(obj: types.PairTypeJSON): types.PairTypeKind {
     case "CustomizablePermissionless": {
       return new CustomizablePermissionless()
     }
+    case "PermissionlessV2": {
+      return new PermissionlessV2()
+    }
   }
 }
 
@@ -110,6 +139,7 @@ export function layout(property?: string) {
     borsh.struct([], "Permissionless"),
     borsh.struct([], "Permission"),
     borsh.struct([], "CustomizablePermissionless"),
+    borsh.struct([], "PermissionlessV2"),
   ])
   if (property !== undefined) {
     return ret.replicate(property)

@@ -1,41 +1,41 @@
 import { PublicKey } from "@solana/web3.js" // eslint-disable-line @typescript-eslint/no-unused-vars
 import BN from "bn.js" // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as types from "../types" // eslint-disable-line @typescript-eslint/no-unused-vars
 import * as borsh from "@coral-xyz/borsh"
-import * as types from "." // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface InitPermissionPairIxFields {
   activeId: number
   binStep: number
   baseFactor: number
-  minBinId: number
-  maxBinId: number
+  baseFeePowerFactor: number
   activationType: number
+  protocolShare: number
 }
 
 export interface InitPermissionPairIxJSON {
   activeId: number
   binStep: number
   baseFactor: number
-  minBinId: number
-  maxBinId: number
+  baseFeePowerFactor: number
   activationType: number
+  protocolShare: number
 }
 
 export class InitPermissionPairIx {
   readonly activeId: number
   readonly binStep: number
   readonly baseFactor: number
-  readonly minBinId: number
-  readonly maxBinId: number
+  readonly baseFeePowerFactor: number
   readonly activationType: number
+  readonly protocolShare: number
 
   constructor(fields: InitPermissionPairIxFields) {
     this.activeId = fields.activeId
     this.binStep = fields.binStep
     this.baseFactor = fields.baseFactor
-    this.minBinId = fields.minBinId
-    this.maxBinId = fields.maxBinId
+    this.baseFeePowerFactor = fields.baseFeePowerFactor
     this.activationType = fields.activationType
+    this.protocolShare = fields.protocolShare
   }
 
   static layout(property?: string) {
@@ -44,9 +44,9 @@ export class InitPermissionPairIx {
         borsh.i32("activeId"),
         borsh.u16("binStep"),
         borsh.u16("baseFactor"),
-        borsh.i32("minBinId"),
-        borsh.i32("maxBinId"),
+        borsh.u8("baseFeePowerFactor"),
         borsh.u8("activationType"),
+        borsh.u16("protocolShare"),
       ],
       property
     )
@@ -58,9 +58,9 @@ export class InitPermissionPairIx {
       activeId: obj.activeId,
       binStep: obj.binStep,
       baseFactor: obj.baseFactor,
-      minBinId: obj.minBinId,
-      maxBinId: obj.maxBinId,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
       activationType: obj.activationType,
+      protocolShare: obj.protocolShare,
     })
   }
 
@@ -69,9 +69,9 @@ export class InitPermissionPairIx {
       activeId: fields.activeId,
       binStep: fields.binStep,
       baseFactor: fields.baseFactor,
-      minBinId: fields.minBinId,
-      maxBinId: fields.maxBinId,
+      baseFeePowerFactor: fields.baseFeePowerFactor,
       activationType: fields.activationType,
+      protocolShare: fields.protocolShare,
     }
   }
 
@@ -80,9 +80,9 @@ export class InitPermissionPairIx {
       activeId: this.activeId,
       binStep: this.binStep,
       baseFactor: this.baseFactor,
-      minBinId: this.minBinId,
-      maxBinId: this.maxBinId,
+      baseFeePowerFactor: this.baseFeePowerFactor,
       activationType: this.activationType,
+      protocolShare: this.protocolShare,
     }
   }
 
@@ -91,9 +91,9 @@ export class InitPermissionPairIx {
       activeId: obj.activeId,
       binStep: obj.binStep,
       baseFactor: obj.baseFactor,
-      minBinId: obj.minBinId,
-      maxBinId: obj.maxBinId,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
       activationType: obj.activationType,
+      protocolShare: obj.protocolShare,
     })
   }
 

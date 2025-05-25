@@ -8,12 +8,15 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, getPricePerLamport } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
+
+// I import from the dlmm-ts-client to make it work with bankrun. We updated the getChunkedAccountInfos function as well as getOrCreateAta. -> Find in codebase with "IMPORTANT:"
 import { BinAndAmount, BinArrayAccount, binIdToBinArrayIndex, calculateBidAskDistribution, calculateNormalDistribution, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
+
 import { readFileSync } from "fs";
 import path from "path";
 import { MaikerSDK } from "../clients/js/src";
@@ -235,6 +238,10 @@ const isWithinOnePercent = (actual: bigint, expected: bigint): boolean => {
 }
 
 describe("maiker-contracts", () => {
+  const testTokensMinted = 1000000000; // 1B
+
+  const xMintDecimals = 6;
+  const yMintDecimals = 6;
   let xMint: PublicKey;
   let yMint: PublicKey;
   let lbPairPubkey: PublicKey;
@@ -249,8 +256,8 @@ describe("maiker-contracts", () => {
     await loadProviders();
 
     // Create Mints
-    xMint = await createMint(bankrunProvider.connection, creator, creator.publicKey, creator.publicKey, 6);
-    yMint = await createMint(bankrunProvider.connection, creator, creator.publicKey, creator.publicKey, 6);
+    xMint = await createMint(bankrunProvider.connection, creator, creator.publicKey, creator.publicKey, xMintDecimals);
+    yMint = await createMint(bankrunProvider.connection, creator, creator.publicKey, creator.publicKey, yMintDecimals);
 
     globalConfig = deriveGlobalConfig();
     strategy = deriveStrategy(creator.publicKey, xMint, yMint);
@@ -259,16 +266,16 @@ describe("maiker-contracts", () => {
     const preIxs = [];
 
     const [xUser, yUser] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, user.publicKey, user.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, undefined, user.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, user.publicKey, undefined, user.publicKey, true),
     ]);
 
     xUser.ix && preIxs.push(xUser.ix);
     yUser.ix && preIxs.push(yUser.ix);
 
 
-    const mintXToUserIx = createMintToInstruction(xMint, xUser.ataPubKey, creator.publicKey, 1000000000000000); // 1B
-    const mintYToUserIx = createMintToInstruction(yMint, yUser.ataPubKey, creator.publicKey, 1000000000000000); // 1B
+    const mintXToUserIx = createMintToInstruction(xMint, xUser.ataPubKey, creator.publicKey, testTokensMinted * 10 ** xMintDecimals); // 1B
+    const mintYToUserIx = createMintToInstruction(yMint, yUser.ataPubKey, creator.publicKey, testTokensMinted * 10 ** yMintDecimals); // 1B
 
     let blockhash = await getLatestBlockhash();
     let builtTx = await simulateAndGetTxWithCUs({
@@ -284,8 +291,8 @@ describe("maiker-contracts", () => {
     let userTokenX = await getTokenAcc(xUser.ataPubKey);
     let userTokenY = await getTokenAcc(yUser.ataPubKey);
 
-    assert(userTokenX.amount.toString() === "1000000000000000", `userTokenX.amount: ${userTokenX.amount} !== 1000000000000000`);
-    assert(userTokenY.amount.toString() === "1000000000000000", `userTokenY.amount: ${userTokenY.amount} !== 1000000000000000`);
+    assert(userTokenX.amount === BigInt(testTokensMinted * 10 ** xMintDecimals), `userTokenX.amount: ${userTokenX.amount} !== 1000000000 * 10 ** ${xMintDecimals}`);
+    assert(userTokenY.amount === BigInt(testTokensMinted * 10 ** yMintDecimals), `userTokenY.amount: ${userTokenY.amount} !== 1000000000 * 10 ** ${yMintDecimals}`);
 
     // Create DLMM LbPair
     [lbPairPubkey] = deriveLbPair2(
@@ -307,7 +314,7 @@ describe("maiker-contracts", () => {
       new BN(DEFAULT_BIN_STEP),
       new BN(DEFAULT_BASE_FACTOR),
       presetParamPda,
-      DEFAULT_ACTIVE_ID,
+      new BN(0),
       {
         programId: new PublicKey(LBCLMM_PROGRAM_IDS["mainnet-beta"]),
       }
@@ -340,6 +347,7 @@ describe("maiker-contracts", () => {
     );
 
     const SpotDistribution: BinAndAmount[] = calculateSpotDistribution(activeBin, binIds);
+    // console.log("Spot Distribution: ", SpotDistribution);
 
     // const bidAskDistribution: BinAndAmount[] = calculateBidAskDistribution(activeBin, binIds);
     // console.log("Bid Ask Distribution: ", bidAskDistribution);
@@ -350,23 +358,34 @@ describe("maiker-contracts", () => {
     // console.log("first bin: ", xYAmountDistribution[0].yAmountBpsOfTotal.toString()); // 281 bps per bin
     // console.log("last bin: ", xYAmountDistribution[xYAmountDistribution.length - 1].xAmountBpsOfTotal.toString()); // 289 bps per bin
 
-    const totalXAmount = 500000000000000; // 500M
-    const totalYAmount = 500000000000000; // 500M
+    // Put half of the supply into the Pair
+    // Bug fix: This has to be calculated. Meteora always tries ot fill one of the total amounts to the fullest and then match the other reserve accordingly
+
+    const price = getPriceOfBinByBinId(activeBin, lbPairAcc.binStep);
+    console.log("price: ", price);
+
+    // Price of one X Lamport in Y Lamport
+    const priceInYLamport = getPricePerLamport(xMintDecimals, yMintDecimals, price.toNumber());
+    console.log("price in y lamport: ", priceInYLamport.toString());
+
+    const totalXAmount = new BN(500000000).mul(new BN(10 ** xMintDecimals));
+    console.log("totalXAmount: ", totalXAmount.toString());
+
+    const calculatedYAmount = totalXAmount.div(new BN(Math.round(parseFloat(priceInYLamport))));
+    console.log("calculatedYAmount: ", calculatedYAmount.toString());
 
     const ixs = await initializePositionAndAddLiquidityByWeight({
       connection: bankrunProvider.connection,
       lbPairPubkey,
       lbPair: lbPairAcc,
       positionPubKey: pos.publicKey,
-      totalXAmount: new BN(totalXAmount),
-      totalYAmount: new BN(totalYAmount),
+      totalXAmount: totalXAmount,
+      totalYAmount: calculatedYAmount,
       lowerBinId: lowerBinId,
       upperBinId: upperBinId,
       xYAmountDistribution: SpotDistribution,
       user: user.publicKey,
     })
-
-    // console.log("Instructions: ", ixs);
 
     if (ixs.preInstructions && ixs.preInstructions.length > 0) {
       console.log("Executing pre instructions");
@@ -409,10 +428,6 @@ describe("maiker-contracts", () => {
     }
 
     await dlmmInstance.refetchStates();
-    const price = getPriceOfBinByBinId(lbPairAcc.activeId, lbPairAcc.binStep);
-
-    // price seems to always have 9 decimals -> So we have to divide by 1000 to get to per y token price with 6 decimals
-    console.log("price per y token: ", (price.toNumber() / 1000).toFixed(10));
 
     userTokenX = await getTokenAcc(xUser.ataPubKey);
     userTokenY = await getTokenAcc(yUser.ataPubKey);
@@ -420,20 +435,19 @@ describe("maiker-contracts", () => {
     const reserveX = await getTokenAcc(dlmmInstance.lbPair.reserveX);
     const reserveY = await getTokenAcc(dlmmInstance.lbPair.reserveY);
 
-    console.log("reserveX: ", reserveX.amount.toString()); // 144M
-    console.log("reserveY: ", reserveY.amount.toString()); // 500M
+    console.log("reserveX: ", Number(reserveX.amount) / 10 ** xMintDecimals); // 144M
+    console.log("reserveY: ", Number(reserveY.amount) / 10 ** yMintDecimals); // 500M
 
-    console.log("userTokenX: ", userTokenX.amount.toString()); // 856M Remaining
-    console.log("userTokenY: ", userTokenY.amount.toString()); // 500M used as intended
+    console.log("userTokenX: ", Number(userTokenX.amount) / 10 ** xMintDecimals); // 856M Remaining
+    console.log("userTokenY: ", Number(userTokenY.amount) / 10 ** yMintDecimals); // 500M used as intended
 
     // Why are not all the tokens being used???
     // Answer: The price is not 1:1 -> The price is 286 x per y -> Therefore 500M * 0.286 = 143M is used -> Total position value is 143M * 2 = 286M xToken
     // Note: reserveX = reserveY * price / 10 * ^4
 
     // Assert Position Value
-    const initialTotalSupplyMinted = 1000000000000000; // 1B
-    const expectedAmountX = initialTotalSupplyMinted - Number(reserveX.amount)
-    const expectedAmountY = initialTotalSupplyMinted - Number(reserveY.amount)
+    const expectedAmountX = testTokensMinted * 10 ** xMintDecimals - Number(reserveX.amount)
+    const expectedAmountY = testTokensMinted * 10 ** yMintDecimals - Number(reserveY.amount)
     assert(isWithinOnePercent(userTokenX.amount, BigInt(expectedAmountX)), `userTokenX.amount: ${userTokenX.amount} !== ${expectedAmountX}`);
     assert(isWithinOnePercent(userTokenY.amount, BigInt(expectedAmountY)), `userTokenY.amount: ${userTokenY.amount} !== ${expectedAmountY}`);
   });
@@ -507,7 +521,7 @@ describe("maiker-contracts", () => {
   });
 
   test("Deposit", async () => {
-    const xAmount = 1000000000000; // 1M
+    const xAmount = 1000000 * 10 ** xMintDecimals; // 1M
 
     // Create an SDK instance for the strategy if not already created
     const maikerSdk = await MaikerSDK.create(
@@ -547,7 +561,7 @@ describe("maiker-contracts", () => {
 
     assert(userPositionInfo !== null, "User position not found");
     assert(Number(userPositionInfo.strategyShare) === xAmount,
-      `userPositionInfo.strategyShare: ${userPositionInfo?.strategyShare} !== ${xAmount}`);
+      `userPositionInfo.strategyShare: ${userPositionInfo?.strategyShare / SHARE_PRECISION} !== ${xAmount / 10 ** xMintDecimals}`);
     assert(userPositionInfo.lastShareValue === SHARE_PRECISION,
       `userPositionInfo.shareValue: ${userPositionInfo?.lastShareValue} !== ${SHARE_PRECISION}`);
 
@@ -558,7 +572,7 @@ describe("maiker-contracts", () => {
   });
 
   test("Withdraw", async () => {
-    const sharesAmount = 100000000000; // 10k
+    const sharesAmount = 100000 * SHARE_PRECISION; // 100k
 
     // Create an SDK instance for the strategy if not already created
     const maikerSdk = await MaikerSDK.create(
@@ -680,8 +694,11 @@ describe("maiker-contracts", () => {
       strategy
     );
 
+    const strategyValuePre = await maikerSdk.getStrategyValue();
+    console.log("strategyValuePre (preSwap): ", strategyValuePre);
+
     // Create swap instruction first
-    const swapInputAmount = 100_000_000; // 100 tokens
+    const swapInputAmount = 1000 * 10 ** xMintDecimals; // 1000 tokens
 
     const lbPairAcc = await dlmm.lbPair.fetch(bankrunProvider.connection, lbPairPubkey);
     const activeBin = lbPairAcc.activeId;
@@ -714,13 +731,16 @@ describe("maiker-contracts", () => {
 
     await processTransaction(builtTx.tx);
 
+    const strategyValuePost = await maikerSdk.getStrategyValue();
+    console.log("strategyValuePost (postSwap): ", strategyValuePost);
+
     const xVaultTokenAcc = await getTokenAcc(maikerSdk.strategyAcc.xVault);
     const yVaultTokenAcc = await getTokenAcc(maikerSdk.strategyAcc.yVault);
 
     assert(Number(xVaultTokenAcc.amount) === Number(xVaultTokenAccPre.amount) - swapInputAmount, `xVaultTokenAcc.amount: ${xVaultTokenAcc.amount} !== ${xVaultTokenAccPre.amount} - ${swapInputAmount}`);
 
     // We want to deposit 1000 tokens in total for both x and y
-    const totalXAmount = new BN(1000_000_000); // 1000 - should match since that was the amount we've swapped with
+    const totalXAmount = new BN(swapInputAmount);
     const totalYAmount = new BN(Number(yVaultTokenAcc.amount)); // Total Y in vault
 
     // Get updated LB Pair info
@@ -765,8 +785,9 @@ describe("maiker-contracts", () => {
     // Refresh SDK to get updated data
     await maikerSdk.refresh();
 
-    const positionInfosPre = await maikerSdk.fetchPositions();
-    console.log("Position Infos pre add liquidity: ", positionInfosPre);
+    // Assert it exists and we can see it
+    // const positionInfosPre = await maikerSdk.fetchPositions();
+    // console.log("Position Infos pre add liquidity: ", positionInfosPre);
 
     // Assert
     assert(maikerSdk.strategyAcc.positionCount === 1, `strategyAcc.positionCount: ${maikerSdk.strategyAcc.positionCount} !== 1`);
@@ -806,7 +827,11 @@ describe("maiker-contracts", () => {
 
     // Refresh SDK again
     await maikerSdk.refresh();
-    const positionInfosPost = await maikerSdk.getPositions();
+
+    const strategyValuePostLiquidityDeposit = await maikerSdk.getStrategyValue();
+    console.log("strategyValuePostLiquidityDeposit (postAddLiquidity): ", strategyValuePostLiquidityDeposit);
+
+    const positionInfosPost = maikerSdk.getPositions();
     console.log("Position Infos post add liquidity: ", positionInfosPost);
 
     // Assert
@@ -828,7 +853,7 @@ describe("maiker-contracts", () => {
   });
 
   test("Deposit and withdraw without setting position value first ", async () => {
-    const xAmount = 1000000000000; // 1M
+    const xAmount = 1000000 * 10 ** xMintDecimals; // 1M
 
     // Create an SDK instance for the strategy
     const maikerSdk = await MaikerSDK.create(
@@ -899,9 +924,9 @@ describe("maiker-contracts", () => {
     })
 
     // Deposit
-    const xAmount = 100_000_000_000; // 100k
+    const xAmount = 100000 * 10 ** xMintDecimals; // 100k
 
-    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, user.publicKey, true);
+    const xUser = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, user.publicKey, undefined, user.publicKey, true);
 
     const depositIx = maikerInstructions.deposit(
       {
@@ -957,7 +982,7 @@ describe("maiker-contracts", () => {
     }
 
     const shareValue = maikerSdk.calculateShareValue(positionValue.totalValue);
-    // console.log("shareValue: ", shareValue);
+    // console.log("shareValue: ", shareValue.toString());
 
     // Assert User Position Shares
     const userPositionInfoPost = await maikerSdk.getUserPosition(user.publicKey);
@@ -1101,7 +1126,7 @@ describe("maiker-contracts", () => {
 
     const preIxs = []
 
-    const treasuryX = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, globalConfigAccPre.treasury, master.publicKey);
+    const treasuryX = await getOrCreateATAInstruction(bankrunProvider.connection, xMint, globalConfigAccPre.treasury, undefined, master.publicKey);
     if (treasuryX.ix) preIxs.push(treasuryX.ix);
 
     const claimFeeIx = maikerInstructions.claimFees(

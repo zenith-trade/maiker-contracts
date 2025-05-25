@@ -8,6 +8,7 @@ export interface FundRewardArgs {
   rewardIndex: BN
   amount: BN
   carryForward: boolean
+  remainingAccountsInfo: types.RemainingAccountsInfoFields
 }
 
 export interface FundRewardAccounts {
@@ -26,6 +27,7 @@ export const layout = borsh.struct([
   borsh.u64("rewardIndex"),
   borsh.u64("amount"),
   borsh.bool("carryForward"),
+  types.RemainingAccountsInfo.layout("remainingAccountsInfo"),
 ])
 
 export function fundReward(
@@ -51,6 +53,9 @@ export function fundReward(
       rewardIndex: args.rewardIndex,
       amount: args.amount,
       carryForward: args.carryForward,
+      remainingAccountsInfo: types.RemainingAccountsInfo.toEncodable(
+        args.remainingAccountsInfo
+      ),
     },
     buffer
   )

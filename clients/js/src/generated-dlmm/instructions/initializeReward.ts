@@ -14,6 +14,7 @@ export interface InitializeRewardAccounts {
   lbPair: PublicKey
   rewardVault: PublicKey
   rewardMint: PublicKey
+  tokenBadge: PublicKey
   admin: PublicKey
   tokenProgram: PublicKey
   systemProgram: PublicKey
@@ -37,6 +38,7 @@ export function initializeReward(
     { pubkey: accounts.lbPair, isSigner: false, isWritable: true },
     { pubkey: accounts.rewardVault, isSigner: false, isWritable: true },
     { pubkey: accounts.rewardMint, isSigner: false, isWritable: false },
+    { pubkey: accounts.tokenBadge, isSigner: false, isWritable: false },
     { pubkey: accounts.admin, isSigner: true, isWritable: true },
     { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
     { pubkey: accounts.systemProgram, isSigner: false, isWritable: false },

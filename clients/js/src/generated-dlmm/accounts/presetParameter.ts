@@ -7,7 +7,7 @@ import { PROGRAM_ID } from "../programId"
 export interface presetParameterFields {
   /** Bin step. Represent the price increment / decrement. */
   binStep: number
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   baseFactor: number
   /** Filter period determine high frequency trading time window. */
   filterPeriod: number
@@ -30,7 +30,7 @@ export interface presetParameterFields {
 export interface presetParameterJSON {
   /** Bin step. Represent the price increment / decrement. */
   binStep: number
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   baseFactor: number
   /** Filter period determine high frequency trading time window. */
   filterPeriod: number
@@ -53,7 +53,7 @@ export interface presetParameterJSON {
 export class presetParameter {
   /** Bin step. Represent the price increment / decrement. */
   readonly binStep: number
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   readonly baseFactor: number
   /** Filter period determine high frequency trading time window. */
   readonly filterPeriod: number

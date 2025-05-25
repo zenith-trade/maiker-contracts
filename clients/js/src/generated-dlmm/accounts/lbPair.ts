@@ -24,8 +24,8 @@ export interface lbPairFields {
   baseFactorSeed: Array<number>
   /** Activation type */
   activationType: number
-  /** padding 0 */
-  padding0: number
+  /** Allow pool creator to enable/disable pool with restricted validation. Only applicable for customizable permissionless pair type. */
+  creatorPoolOnOffControl: number
   /** Token X mint */
   tokenXMint: PublicKey
   /** Token Y mint */
@@ -62,6 +62,10 @@ export interface lbPairFields {
   padding4: BN
   /** Pool creator */
   creator: PublicKey
+  /** token_mint_x_program_flag */
+  tokenMintXProgramFlag: number
+  /** token_mint_y_program_flag */
+  tokenMintYProgramFlag: number
   /** Reserved space for future use */
   reserved: Array<number>
 }
@@ -86,8 +90,8 @@ export interface lbPairJSON {
   baseFactorSeed: Array<number>
   /** Activation type */
   activationType: number
-  /** padding 0 */
-  padding0: number
+  /** Allow pool creator to enable/disable pool with restricted validation. Only applicable for customizable permissionless pair type. */
+  creatorPoolOnOffControl: number
   /** Token X mint */
   tokenXMint: string
   /** Token Y mint */
@@ -124,6 +128,10 @@ export interface lbPairJSON {
   padding4: string
   /** Pool creator */
   creator: string
+  /** token_mint_x_program_flag */
+  tokenMintXProgramFlag: number
+  /** token_mint_y_program_flag */
+  tokenMintYProgramFlag: number
   /** Reserved space for future use */
   reserved: Array<number>
 }
@@ -148,8 +156,8 @@ export class lbPair {
   readonly baseFactorSeed: Array<number>
   /** Activation type */
   readonly activationType: number
-  /** padding 0 */
-  readonly padding0: number
+  /** Allow pool creator to enable/disable pool with restricted validation. Only applicable for customizable permissionless pair type. */
+  readonly creatorPoolOnOffControl: number
   /** Token X mint */
   readonly tokenXMint: PublicKey
   /** Token Y mint */
@@ -186,6 +194,10 @@ export class lbPair {
   readonly padding4: BN
   /** Pool creator */
   readonly creator: PublicKey
+  /** token_mint_x_program_flag */
+  readonly tokenMintXProgramFlag: number
+  /** token_mint_y_program_flag */
+  readonly tokenMintYProgramFlag: number
   /** Reserved space for future use */
   readonly reserved: Array<number>
 
@@ -205,7 +217,7 @@ export class lbPair {
     borsh.u8("requireBaseFactorSeed"),
     borsh.array(borsh.u8(), 2, "baseFactorSeed"),
     borsh.u8("activationType"),
-    borsh.u8("padding0"),
+    borsh.u8("creatorPoolOnOffControl"),
     borsh.publicKey("tokenXMint"),
     borsh.publicKey("tokenYMint"),
     borsh.publicKey("reserveX"),
@@ -224,7 +236,9 @@ export class lbPair {
     borsh.array(borsh.u8(), 8, "padding3"),
     borsh.u64("padding4"),
     borsh.publicKey("creator"),
-    borsh.array(borsh.u8(), 24, "reserved"),
+    borsh.u8("tokenMintXProgramFlag"),
+    borsh.u8("tokenMintYProgramFlag"),
+    borsh.array(borsh.u8(), 22, "reserved"),
   ])
 
   constructor(fields: lbPairFields) {
@@ -239,7 +253,7 @@ export class lbPair {
     this.requireBaseFactorSeed = fields.requireBaseFactorSeed
     this.baseFactorSeed = fields.baseFactorSeed
     this.activationType = fields.activationType
-    this.padding0 = fields.padding0
+    this.creatorPoolOnOffControl = fields.creatorPoolOnOffControl
     this.tokenXMint = fields.tokenXMint
     this.tokenYMint = fields.tokenYMint
     this.reserveX = fields.reserveX
@@ -260,6 +274,8 @@ export class lbPair {
     this.padding3 = fields.padding3
     this.padding4 = fields.padding4
     this.creator = fields.creator
+    this.tokenMintXProgramFlag = fields.tokenMintXProgramFlag
+    this.tokenMintYProgramFlag = fields.tokenMintYProgramFlag
     this.reserved = fields.reserved
   }
 
@@ -318,7 +334,7 @@ export class lbPair {
       requireBaseFactorSeed: dec.requireBaseFactorSeed,
       baseFactorSeed: dec.baseFactorSeed,
       activationType: dec.activationType,
-      padding0: dec.padding0,
+      creatorPoolOnOffControl: dec.creatorPoolOnOffControl,
       tokenXMint: dec.tokenXMint,
       tokenYMint: dec.tokenYMint,
       reserveX: dec.reserveX,
@@ -341,6 +357,8 @@ export class lbPair {
       padding3: dec.padding3,
       padding4: dec.padding4,
       creator: dec.creator,
+      tokenMintXProgramFlag: dec.tokenMintXProgramFlag,
+      tokenMintYProgramFlag: dec.tokenMintYProgramFlag,
       reserved: dec.reserved,
     })
   }
@@ -358,7 +376,7 @@ export class lbPair {
       requireBaseFactorSeed: this.requireBaseFactorSeed,
       baseFactorSeed: this.baseFactorSeed,
       activationType: this.activationType,
-      padding0: this.padding0,
+      creatorPoolOnOffControl: this.creatorPoolOnOffControl,
       tokenXMint: this.tokenXMint.toString(),
       tokenYMint: this.tokenYMint.toString(),
       reserveX: this.reserveX.toString(),
@@ -377,6 +395,8 @@ export class lbPair {
       padding3: this.padding3,
       padding4: this.padding4.toString(),
       creator: this.creator.toString(),
+      tokenMintXProgramFlag: this.tokenMintXProgramFlag,
+      tokenMintYProgramFlag: this.tokenMintYProgramFlag,
       reserved: this.reserved,
     }
   }
@@ -394,7 +414,7 @@ export class lbPair {
       requireBaseFactorSeed: obj.requireBaseFactorSeed,
       baseFactorSeed: obj.baseFactorSeed,
       activationType: obj.activationType,
-      padding0: obj.padding0,
+      creatorPoolOnOffControl: obj.creatorPoolOnOffControl,
       tokenXMint: new PublicKey(obj.tokenXMint),
       tokenYMint: new PublicKey(obj.tokenYMint),
       reserveX: new PublicKey(obj.reserveX),
@@ -415,6 +435,8 @@ export class lbPair {
       padding3: obj.padding3,
       padding4: new BN(obj.padding4),
       creator: new PublicKey(obj.creator),
+      tokenMintXProgramFlag: obj.tokenMintXProgramFlag,
+      tokenMintYProgramFlag: obj.tokenMintYProgramFlag,
       reserved: obj.reserved,
     })
   }

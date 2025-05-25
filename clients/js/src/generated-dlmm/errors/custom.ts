@@ -66,6 +66,22 @@ export type CustomError =
   | InvalidPreActivationDuration
   | AlreadyPassPreActivationSwapPoint
   | InvalidStatus
+  | ExceededMaxOracleLength
+  | InvalidMinimumLiquidity
+  | NotSupportMint
+  | UnsupportedMintExtension
+  | UnsupportNativeMintToken2022
+  | UnmatchTokenMint
+  | UnsupportedTokenMint
+  | InsufficientRemainingAccounts
+  | InvalidRemainingAccountSlice
+  | DuplicatedRemainingAccountTypes
+  | MissingRemainingAccountForTransferHook
+  | NoTransferHookProgram
+  | ZeroFundedAmount
+  | InvalidSide
+  | InvalidResizeLength
+  | NotSupportAtTheMoment
 
 export class InvalidStartBinIndex extends Error {
   static readonly code = 6000
@@ -804,6 +820,185 @@ export class InvalidStatus extends Error {
   }
 }
 
+export class ExceededMaxOracleLength extends Error {
+  static readonly code = 6067
+  readonly code = 6067
+  readonly name = "ExceededMaxOracleLength"
+  readonly msg = "Exceed max oracle length"
+
+  constructor(readonly logs?: string[]) {
+    super("6067: Exceed max oracle length")
+  }
+}
+
+export class InvalidMinimumLiquidity extends Error {
+  static readonly code = 6068
+  readonly code = 6068
+  readonly name = "InvalidMinimumLiquidity"
+  readonly msg = "Invalid minimum liquidity"
+
+  constructor(readonly logs?: string[]) {
+    super("6068: Invalid minimum liquidity")
+  }
+}
+
+export class NotSupportMint extends Error {
+  static readonly code = 6069
+  readonly code = 6069
+  readonly name = "NotSupportMint"
+  readonly msg = "Not support token_2022 mint extension"
+
+  constructor(readonly logs?: string[]) {
+    super("6069: Not support token_2022 mint extension")
+  }
+}
+
+export class UnsupportedMintExtension extends Error {
+  static readonly code = 6070
+  readonly code = 6070
+  readonly name = "UnsupportedMintExtension"
+  readonly msg = "Unsupported mint extension"
+
+  constructor(readonly logs?: string[]) {
+    super("6070: Unsupported mint extension")
+  }
+}
+
+export class UnsupportNativeMintToken2022 extends Error {
+  static readonly code = 6071
+  readonly code = 6071
+  readonly name = "UnsupportNativeMintToken2022"
+  readonly msg = "Unsupported native mint token2022"
+
+  constructor(readonly logs?: string[]) {
+    super("6071: Unsupported native mint token2022")
+  }
+}
+
+export class UnmatchTokenMint extends Error {
+  static readonly code = 6072
+  readonly code = 6072
+  readonly name = "UnmatchTokenMint"
+  readonly msg = "Unmatch token mint"
+
+  constructor(readonly logs?: string[]) {
+    super("6072: Unmatch token mint")
+  }
+}
+
+export class UnsupportedTokenMint extends Error {
+  static readonly code = 6073
+  readonly code = 6073
+  readonly name = "UnsupportedTokenMint"
+  readonly msg = "Unsupported token mint"
+
+  constructor(readonly logs?: string[]) {
+    super("6073: Unsupported token mint")
+  }
+}
+
+export class InsufficientRemainingAccounts extends Error {
+  static readonly code = 6074
+  readonly code = 6074
+  readonly name = "InsufficientRemainingAccounts"
+  readonly msg = "Insufficient remaining accounts"
+
+  constructor(readonly logs?: string[]) {
+    super("6074: Insufficient remaining accounts")
+  }
+}
+
+export class InvalidRemainingAccountSlice extends Error {
+  static readonly code = 6075
+  readonly code = 6075
+  readonly name = "InvalidRemainingAccountSlice"
+  readonly msg = "Invalid remaining account slice"
+
+  constructor(readonly logs?: string[]) {
+    super("6075: Invalid remaining account slice")
+  }
+}
+
+export class DuplicatedRemainingAccountTypes extends Error {
+  static readonly code = 6076
+  readonly code = 6076
+  readonly name = "DuplicatedRemainingAccountTypes"
+  readonly msg = "Duplicated remaining account types"
+
+  constructor(readonly logs?: string[]) {
+    super("6076: Duplicated remaining account types")
+  }
+}
+
+export class MissingRemainingAccountForTransferHook extends Error {
+  static readonly code = 6077
+  readonly code = 6077
+  readonly name = "MissingRemainingAccountForTransferHook"
+  readonly msg = "Missing remaining account for transfer hook"
+
+  constructor(readonly logs?: string[]) {
+    super("6077: Missing remaining account for transfer hook")
+  }
+}
+
+export class NoTransferHookProgram extends Error {
+  static readonly code = 6078
+  readonly code = 6078
+  readonly name = "NoTransferHookProgram"
+  readonly msg =
+    "Remaining account was passed for transfer hook but there's no hook program"
+
+  constructor(readonly logs?: string[]) {
+    super(
+      "6078: Remaining account was passed for transfer hook but there's no hook program"
+    )
+  }
+}
+
+export class ZeroFundedAmount extends Error {
+  static readonly code = 6079
+  readonly code = 6079
+  readonly name = "ZeroFundedAmount"
+  readonly msg = "Zero funded amount"
+
+  constructor(readonly logs?: string[]) {
+    super("6079: Zero funded amount")
+  }
+}
+
+export class InvalidSide extends Error {
+  static readonly code = 6080
+  readonly code = 6080
+  readonly name = "InvalidSide"
+  readonly msg = "Invalid side"
+
+  constructor(readonly logs?: string[]) {
+    super("6080: Invalid side")
+  }
+}
+
+export class InvalidResizeLength extends Error {
+  static readonly code = 6081
+  readonly code = 6081
+  readonly name = "InvalidResizeLength"
+  readonly msg = "Invalid resize length"
+
+  constructor(readonly logs?: string[]) {
+    super("6081: Invalid resize length")
+  }
+}
+
+export class NotSupportAtTheMoment extends Error {
+  static readonly code = 6082
+  readonly code = 6082
+  readonly name = "NotSupportAtTheMoment"
+  readonly msg = "Not support at the moment"
+
+  constructor(readonly logs?: string[]) {
+    super("6082: Not support at the moment")
+  }
+}
+
 export function fromCode(code: number, logs?: string[]): CustomError | null {
   switch (code) {
     case 6000:
@@ -940,6 +1135,38 @@ export function fromCode(code: number, logs?: string[]): CustomError | null {
       return new AlreadyPassPreActivationSwapPoint(logs)
     case 6066:
       return new InvalidStatus(logs)
+    case 6067:
+      return new ExceededMaxOracleLength(logs)
+    case 6068:
+      return new InvalidMinimumLiquidity(logs)
+    case 6069:
+      return new NotSupportMint(logs)
+    case 6070:
+      return new UnsupportedMintExtension(logs)
+    case 6071:
+      return new UnsupportNativeMintToken2022(logs)
+    case 6072:
+      return new UnmatchTokenMint(logs)
+    case 6073:
+      return new UnsupportedTokenMint(logs)
+    case 6074:
+      return new InsufficientRemainingAccounts(logs)
+    case 6075:
+      return new InvalidRemainingAccountSlice(logs)
+    case 6076:
+      return new DuplicatedRemainingAccountTypes(logs)
+    case 6077:
+      return new MissingRemainingAccountForTransferHook(logs)
+    case 6078:
+      return new NoTransferHookProgram(logs)
+    case 6079:
+      return new ZeroFundedAmount(logs)
+    case 6080:
+      return new InvalidSide(logs)
+    case 6081:
+      return new InvalidResizeLength(logs)
+    case 6082:
+      return new NotSupportAtTheMoment(logs)
   }
 
   return null
