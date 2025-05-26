@@ -30,22 +30,19 @@ pub struct ClosePosition {
     pub lb_clmm_program: solana_program::pubkey::Pubkey,
 
     pub event_authority: solana_program::pubkey::Pubkey,
-
-    pub position_owner: solana_program::pubkey::Pubkey,
-
-    pub token_program: solana_program::pubkey::Pubkey,
 }
 
 impl ClosePosition {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(&[])
     }
+    #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(12 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.authority,
             true,
@@ -84,14 +81,6 @@ impl ClosePosition {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.event_authority,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.position_owner,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.token_program,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
@@ -139,8 +128,6 @@ impl Default for ClosePositionInstructionData {
 ///   7. `[writable]` rent_receiver
 ///   8. `[]` lb_clmm_program
 ///   9. `[]` event_authority
-///   10. `[writable]` position_owner
-///   11. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
 #[derive(Clone, Debug, Default)]
 pub struct ClosePositionBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
@@ -153,8 +140,6 @@ pub struct ClosePositionBuilder {
     rent_receiver: Option<solana_program::pubkey::Pubkey>,
     lb_clmm_program: Option<solana_program::pubkey::Pubkey>,
     event_authority: Option<solana_program::pubkey::Pubkey>,
-    position_owner: Option<solana_program::pubkey::Pubkey>,
-    token_program: Option<solana_program::pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -225,17 +210,6 @@ impl ClosePositionBuilder {
         self.event_authority = Some(event_authority);
         self
     }
-    #[inline(always)]
-    pub fn position_owner(&mut self, position_owner: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.position_owner = Some(position_owner);
-        self
-    }
-    /// `[optional account, default to 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA']`
-    #[inline(always)]
-    pub fn token_program(&mut self, token_program: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.token_program = Some(token_program);
-        self
-    }
     /// Add an additional account to the instruction.
     #[inline(always)]
     pub fn add_remaining_account(
@@ -267,10 +241,6 @@ impl ClosePositionBuilder {
             rent_receiver: self.rent_receiver.expect("rent_receiver is not set"),
             lb_clmm_program: self.lb_clmm_program.expect("lb_clmm_program is not set"),
             event_authority: self.event_authority.expect("event_authority is not set"),
-            position_owner: self.position_owner.expect("position_owner is not set"),
-            token_program: self.token_program.unwrap_or(solana_program::pubkey!(
-                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-            )),
         };
 
         accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
@@ -298,10 +268,6 @@ pub struct ClosePositionCpiAccounts<'a, 'b> {
     pub lb_clmm_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub event_authority: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub position_owner: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
 /// `close_position` CPI instruction.
@@ -328,10 +294,6 @@ pub struct ClosePositionCpi<'a, 'b> {
     pub lb_clmm_program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub event_authority: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub position_owner: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
 impl<'a, 'b> ClosePositionCpi<'a, 'b> {
@@ -351,8 +313,6 @@ impl<'a, 'b> ClosePositionCpi<'a, 'b> {
             rent_receiver: accounts.rent_receiver,
             lb_clmm_program: accounts.lb_clmm_program,
             event_authority: accounts.event_authority,
-            position_owner: accounts.position_owner,
-            token_program: accounts.token_program,
         }
     }
     #[inline(always)]
@@ -377,6 +337,7 @@ impl<'a, 'b> ClosePositionCpi<'a, 'b> {
     ) -> solana_program::entrypoint::ProgramResult {
         self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
     }
+    #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed_with_remaining_accounts(
@@ -388,7 +349,7 @@ impl<'a, 'b> ClosePositionCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(12 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.authority.key,
             true,
@@ -429,14 +390,6 @@ impl<'a, 'b> ClosePositionCpi<'a, 'b> {
             *self.event_authority.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.position_owner.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.token_program.key,
-            false,
-        ));
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_program::instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -451,7 +404,7 @@ impl<'a, 'b> ClosePositionCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(13 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(11 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
         account_infos.push(self.global_config.clone());
@@ -463,8 +416,6 @@ impl<'a, 'b> ClosePositionCpi<'a, 'b> {
         account_infos.push(self.rent_receiver.clone());
         account_infos.push(self.lb_clmm_program.clone());
         account_infos.push(self.event_authority.clone());
-        account_infos.push(self.position_owner.clone());
-        account_infos.push(self.token_program.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -491,8 +442,6 @@ impl<'a, 'b> ClosePositionCpi<'a, 'b> {
 ///   7. `[writable]` rent_receiver
 ///   8. `[]` lb_clmm_program
 ///   9. `[]` event_authority
-///   10. `[writable]` position_owner
-///   11. `[]` token_program
 #[derive(Clone, Debug)]
 pub struct ClosePositionCpiBuilder<'a, 'b> {
     instruction: Box<ClosePositionCpiBuilderInstruction<'a, 'b>>,
@@ -512,8 +461,6 @@ impl<'a, 'b> ClosePositionCpiBuilder<'a, 'b> {
             rent_receiver: None,
             lb_clmm_program: None,
             event_authority: None,
-            position_owner: None,
-            token_program: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -599,22 +546,6 @@ impl<'a, 'b> ClosePositionCpiBuilder<'a, 'b> {
         self.instruction.event_authority = Some(event_authority);
         self
     }
-    #[inline(always)]
-    pub fn position_owner(
-        &mut self,
-        position_owner: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.position_owner = Some(position_owner);
-        self
-    }
-    #[inline(always)]
-    pub fn token_program(
-        &mut self,
-        token_program: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.token_program = Some(token_program);
-        self
-    }
     /// Add an additional account to the instruction.
     #[inline(always)]
     pub fn add_remaining_account(
@@ -696,16 +627,6 @@ impl<'a, 'b> ClosePositionCpiBuilder<'a, 'b> {
                 .instruction
                 .event_authority
                 .expect("event_authority is not set"),
-
-            position_owner: self
-                .instruction
-                .position_owner
-                .expect("position_owner is not set"),
-
-            token_program: self
-                .instruction
-                .token_program
-                .expect("token_program is not set"),
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -727,8 +648,6 @@ struct ClosePositionCpiBuilderInstruction<'a, 'b> {
     rent_receiver: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     lb_clmm_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     event_authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    position_owner: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

@@ -53,7 +53,7 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for GlobalConfi
 #[cfg(feature = "fetch")]
 pub fn fetch_global_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::DecodedAccount<GlobalConfig>, std::io::Error> {
     let accounts = fetch_all_global_config(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -62,10 +62,10 @@ pub fn fetch_global_config(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_global_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::DecodedAccount<GlobalConfig>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<GlobalConfig>> = Vec::new();
     for i in 0..addresses.len() {
@@ -87,7 +87,7 @@ pub fn fetch_all_global_config(
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_global_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::MaybeAccount<GlobalConfig>, std::io::Error> {
     let accounts = fetch_all_maybe_global_config(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -96,10 +96,10 @@ pub fn fetch_maybe_global_config(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_global_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::MaybeAccount<GlobalConfig>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<GlobalConfig>> = Vec::new();
     for i in 0..addresses.len() {

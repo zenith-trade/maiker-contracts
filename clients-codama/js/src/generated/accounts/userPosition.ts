@@ -6,28 +6,28 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type Codec, type Decoder, type EncodedAccount, type Encoder, type FetchAccountConfig, type FetchAccountsConfig, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
+import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type Codec, type Decoder, type EncodedAccount, type Encoder, type FetchAccountConfig, type FetchAccountsConfig, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
 
 export const USER_POSITION_DISCRIMINATOR = new Uint8Array([251, 248, 209, 245, 83, 234, 17, 27]);
 
 export function getUserPositionDiscriminatorBytes() { return fixEncoderSize(getBytesEncoder(), 8).encode(USER_POSITION_DISCRIMINATOR); }
 
 
-export type UserPosition = { discriminator: ReadonlyUint8Array; user: Address; strategy: Address; strategyShare: bigint; lastShareValue: bigint; lastUpdateTimestamp: bigint; bump: number;  };
+export type UserPosition = { discriminator: ReadonlyUint8Array; user: Address; strategy: Address; strategyShare: bigint; lastShareValue: bigint; lastUpdateSlot: bigint; bump: number;  };
 
-export type UserPositionArgs = { user: Address; strategy: Address; strategyShare: number | bigint; lastShareValue: number | bigint; lastUpdateTimestamp: number | bigint; bump: number;  };
+export type UserPositionArgs = { user: Address; strategy: Address; strategyShare: number | bigint; lastShareValue: number | bigint; lastUpdateSlot: number | bigint; bump: number;  };
 
 
 
 
 export function getUserPositionEncoder(): Encoder<UserPositionArgs> {
-  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['user', getAddressEncoder()], ['strategy', getAddressEncoder()], ['strategyShare', getU64Encoder()], ['lastShareValue', getU64Encoder()], ['lastUpdateTimestamp', getI64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: USER_POSITION_DISCRIMINATOR }));
+  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['user', getAddressEncoder()], ['strategy', getAddressEncoder()], ['strategyShare', getU64Encoder()], ['lastShareValue', getU64Encoder()], ['lastUpdateSlot', getU64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: USER_POSITION_DISCRIMINATOR }));
 }
 
 
 
 export function getUserPositionDecoder(): Decoder<UserPosition> {
-  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['user', getAddressDecoder()], ['strategy', getAddressDecoder()], ['strategyShare', getU64Decoder()], ['lastShareValue', getU64Decoder()], ['lastUpdateTimestamp', getI64Decoder()], ['bump', getU8Decoder()]]);
+  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['user', getAddressDecoder()], ['strategy', getAddressDecoder()], ['strategyShare', getU64Decoder()], ['lastShareValue', getU64Decoder()], ['lastUpdateSlot', getU64Decoder()], ['bump', getU8Decoder()]]);
 }
 
 

@@ -10,30 +10,34 @@ use borsh::BorshSerialize;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct InitializePosition {
+pub struct BeginSwap {
     pub authority: solana_program::pubkey::Pubkey,
 
     pub global_config: solana_program::pubkey::Pubkey,
 
     pub strategy: solana_program::pubkey::Pubkey,
 
-    pub position: solana_program::pubkey::Pubkey,
+    pub in_vault: solana_program::pubkey::Pubkey,
 
-    pub lb_pair: solana_program::pubkey::Pubkey,
-    /// The lb_clmm program
-    pub lb_clmm_program: solana_program::pubkey::Pubkey,
+    pub out_vault: solana_program::pubkey::Pubkey,
 
-    pub event_authority: solana_program::pubkey::Pubkey,
+    pub in_admin_ata: solana_program::pubkey::Pubkey,
 
-    pub system_program: solana_program::pubkey::Pubkey,
+    pub out_admin_ata: solana_program::pubkey::Pubkey,
 
-    pub rent: solana_program::pubkey::Pubkey,
+    pub in_mint: solana_program::pubkey::Pubkey,
+
+    pub out_mint: solana_program::pubkey::Pubkey,
+
+    pub token_program: solana_program::pubkey::Pubkey,
+
+    pub instructions_sysvar: solana_program::pubkey::Pubkey,
 }
 
-impl InitializePosition {
+impl BeginSwap {
     pub fn instruction(
         &self,
-        args: InitializePositionInstructionArgs,
+        args: BeginSwapInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -41,10 +45,10 @@ impl InitializePosition {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: InitializePositionInstructionArgs,
+        args: BeginSwapInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(9 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(11 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
@@ -58,30 +62,39 @@ impl InitializePosition {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            self.position,
-            true,
+            self.in_vault,
+            false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.lb_pair,
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.out_vault,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.in_admin_ata,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.out_admin_ata,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.lb_clmm_program,
+            self.in_mint,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.event_authority,
+            self.out_mint,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.system_program,
+            self.token_program,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.rent, false,
+            self.instructions_sysvar,
+            false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&InitializePositionInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&BeginSwapInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -95,19 +108,19 @@ impl InitializePosition {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct InitializePositionInstructionData {
+pub struct BeginSwapInstructionData {
     discriminator: [u8; 8],
 }
 
-impl InitializePositionInstructionData {
+impl BeginSwapInstructionData {
     pub fn new() -> Self {
         Self {
-            discriminator: [219, 192, 234, 71, 190, 191, 102, 80],
+            discriminator: [174, 109, 228, 1, 242, 105, 232, 105],
         }
     }
 }
 
-impl Default for InitializePositionInstructionData {
+impl Default for BeginSwapInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -115,41 +128,45 @@ impl Default for InitializePositionInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct InitializePositionInstructionArgs {
-    pub lower_bin_id: i32,
-    pub width: i32,
+pub struct BeginSwapInstructionArgs {
+    pub x_to_y: bool,
+    pub amount_in: u64,
 }
 
-/// Instruction builder for `InitializePosition`.
+/// Instruction builder for `BeginSwap`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[]` global_config
 ///   2. `[writable]` strategy
-///   3. `[writable, signer]` position
-///   4. `[]` lb_pair
-///   5. `[]` lb_clmm_program
-///   6. `[]` event_authority
-///   7. `[optional]` system_program (default to `11111111111111111111111111111111`)
-///   8. `[optional]` rent (default to `SysvarRent111111111111111111111111111111111`)
+///   3. `[writable]` in_vault
+///   4. `[writable]` out_vault
+///   5. `[writable]` in_admin_ata
+///   6. `[writable]` out_admin_ata
+///   7. `[]` in_mint
+///   8. `[]` out_mint
+///   9. `[optional]` token_program (default to `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`)
+///   10. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
-pub struct InitializePositionBuilder {
+pub struct BeginSwapBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     global_config: Option<solana_program::pubkey::Pubkey>,
     strategy: Option<solana_program::pubkey::Pubkey>,
-    position: Option<solana_program::pubkey::Pubkey>,
-    lb_pair: Option<solana_program::pubkey::Pubkey>,
-    lb_clmm_program: Option<solana_program::pubkey::Pubkey>,
-    event_authority: Option<solana_program::pubkey::Pubkey>,
-    system_program: Option<solana_program::pubkey::Pubkey>,
-    rent: Option<solana_program::pubkey::Pubkey>,
-    lower_bin_id: Option<i32>,
-    width: Option<i32>,
+    in_vault: Option<solana_program::pubkey::Pubkey>,
+    out_vault: Option<solana_program::pubkey::Pubkey>,
+    in_admin_ata: Option<solana_program::pubkey::Pubkey>,
+    out_admin_ata: Option<solana_program::pubkey::Pubkey>,
+    in_mint: Option<solana_program::pubkey::Pubkey>,
+    out_mint: Option<solana_program::pubkey::Pubkey>,
+    token_program: Option<solana_program::pubkey::Pubkey>,
+    instructions_sysvar: Option<solana_program::pubkey::Pubkey>,
+    x_to_y: Option<bool>,
+    amount_in: Option<u64>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl InitializePositionBuilder {
+impl BeginSwapBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -169,52 +186,58 @@ impl InitializePositionBuilder {
         self
     }
     #[inline(always)]
-    pub fn position(&mut self, position: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.position = Some(position);
+    pub fn in_vault(&mut self, in_vault: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.in_vault = Some(in_vault);
         self
     }
     #[inline(always)]
-    pub fn lb_pair(&mut self, lb_pair: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.lb_pair = Some(lb_pair);
+    pub fn out_vault(&mut self, out_vault: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.out_vault = Some(out_vault);
         self
     }
-    /// The lb_clmm program
     #[inline(always)]
-    pub fn lb_clmm_program(
+    pub fn in_admin_ata(&mut self, in_admin_ata: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.in_admin_ata = Some(in_admin_ata);
+        self
+    }
+    #[inline(always)]
+    pub fn out_admin_ata(&mut self, out_admin_ata: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.out_admin_ata = Some(out_admin_ata);
+        self
+    }
+    #[inline(always)]
+    pub fn in_mint(&mut self, in_mint: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.in_mint = Some(in_mint);
+        self
+    }
+    #[inline(always)]
+    pub fn out_mint(&mut self, out_mint: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.out_mint = Some(out_mint);
+        self
+    }
+    /// `[optional account, default to 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA']`
+    #[inline(always)]
+    pub fn token_program(&mut self, token_program: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.token_program = Some(token_program);
+        self
+    }
+    /// `[optional account, default to 'Sysvar1nstructions1111111111111111111111111']`
+    #[inline(always)]
+    pub fn instructions_sysvar(
         &mut self,
-        lb_clmm_program: solana_program::pubkey::Pubkey,
+        instructions_sysvar: solana_program::pubkey::Pubkey,
     ) -> &mut Self {
-        self.lb_clmm_program = Some(lb_clmm_program);
+        self.instructions_sysvar = Some(instructions_sysvar);
         self
     }
     #[inline(always)]
-    pub fn event_authority(
-        &mut self,
-        event_authority: solana_program::pubkey::Pubkey,
-    ) -> &mut Self {
-        self.event_authority = Some(event_authority);
-        self
-    }
-    /// `[optional account, default to '11111111111111111111111111111111']`
-    #[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.system_program = Some(system_program);
-        self
-    }
-    /// `[optional account, default to 'SysvarRent111111111111111111111111111111111']`
-    #[inline(always)]
-    pub fn rent(&mut self, rent: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.rent = Some(rent);
+    pub fn x_to_y(&mut self, x_to_y: bool) -> &mut Self {
+        self.x_to_y = Some(x_to_y);
         self
     }
     #[inline(always)]
-    pub fn lower_bin_id(&mut self, lower_bin_id: i32) -> &mut Self {
-        self.lower_bin_id = Some(lower_bin_id);
-        self
-    }
-    #[inline(always)]
-    pub fn width(&mut self, width: i32) -> &mut Self {
-        self.width = Some(width);
+    pub fn amount_in(&mut self, amount_in: u64) -> &mut Self {
+        self.amount_in = Some(amount_in);
         self
     }
     /// Add an additional account to the instruction.
@@ -237,53 +260,59 @@ impl InitializePositionBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = InitializePosition {
+        let accounts = BeginSwap {
             authority: self.authority.expect("authority is not set"),
             global_config: self.global_config.expect("global_config is not set"),
             strategy: self.strategy.expect("strategy is not set"),
-            position: self.position.expect("position is not set"),
-            lb_pair: self.lb_pair.expect("lb_pair is not set"),
-            lb_clmm_program: self.lb_clmm_program.expect("lb_clmm_program is not set"),
-            event_authority: self.event_authority.expect("event_authority is not set"),
-            system_program: self
-                .system_program
-                .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
-            rent: self.rent.unwrap_or(solana_program::pubkey!(
-                "SysvarRent111111111111111111111111111111111"
+            in_vault: self.in_vault.expect("in_vault is not set"),
+            out_vault: self.out_vault.expect("out_vault is not set"),
+            in_admin_ata: self.in_admin_ata.expect("in_admin_ata is not set"),
+            out_admin_ata: self.out_admin_ata.expect("out_admin_ata is not set"),
+            in_mint: self.in_mint.expect("in_mint is not set"),
+            out_mint: self.out_mint.expect("out_mint is not set"),
+            token_program: self.token_program.unwrap_or(solana_program::pubkey!(
+                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            )),
+            instructions_sysvar: self.instructions_sysvar.unwrap_or(solana_program::pubkey!(
+                "Sysvar1nstructions1111111111111111111111111"
             )),
         };
-        let args = InitializePositionInstructionArgs {
-            lower_bin_id: self.lower_bin_id.clone().expect("lower_bin_id is not set"),
-            width: self.width.clone().expect("width is not set"),
+        let args = BeginSwapInstructionArgs {
+            x_to_y: self.x_to_y.clone().expect("x_to_y is not set"),
+            amount_in: self.amount_in.clone().expect("amount_in is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `initialize_position` CPI accounts.
-pub struct InitializePositionCpiAccounts<'a, 'b> {
+/// `begin_swap` CPI accounts.
+pub struct BeginSwapCpiAccounts<'a, 'b> {
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub global_config: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub strategy: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub position: &'b solana_program::account_info::AccountInfo<'a>,
+    pub in_vault: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub lb_pair: &'b solana_program::account_info::AccountInfo<'a>,
-    /// The lb_clmm program
-    pub lb_clmm_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub out_vault: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub event_authority: &'b solana_program::account_info::AccountInfo<'a>,
+    pub in_admin_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub out_admin_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub rent: &'b solana_program::account_info::AccountInfo<'a>,
+    pub in_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub out_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub instructions_sysvar: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `initialize_position` CPI instruction.
-pub struct InitializePositionCpi<'a, 'b> {
+/// `begin_swap` CPI instruction.
+pub struct BeginSwapCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
 
@@ -293,38 +322,44 @@ pub struct InitializePositionCpi<'a, 'b> {
 
     pub strategy: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub position: &'b solana_program::account_info::AccountInfo<'a>,
+    pub in_vault: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub lb_pair: &'b solana_program::account_info::AccountInfo<'a>,
-    /// The lb_clmm program
-    pub lb_clmm_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub out_vault: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub event_authority: &'b solana_program::account_info::AccountInfo<'a>,
+    pub in_admin_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub out_admin_ata: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub rent: &'b solana_program::account_info::AccountInfo<'a>,
+    pub in_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub out_mint: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub token_program: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub instructions_sysvar: &'b solana_program::account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: InitializePositionInstructionArgs,
+    pub __args: BeginSwapInstructionArgs,
 }
 
-impl<'a, 'b> InitializePositionCpi<'a, 'b> {
+impl<'a, 'b> BeginSwapCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: InitializePositionCpiAccounts<'a, 'b>,
-        args: InitializePositionInstructionArgs,
+        accounts: BeginSwapCpiAccounts<'a, 'b>,
+        args: BeginSwapInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             authority: accounts.authority,
             global_config: accounts.global_config,
             strategy: accounts.strategy,
-            position: accounts.position,
-            lb_pair: accounts.lb_pair,
-            lb_clmm_program: accounts.lb_clmm_program,
-            event_authority: accounts.event_authority,
-            system_program: accounts.system_program,
-            rent: accounts.rent,
+            in_vault: accounts.in_vault,
+            out_vault: accounts.out_vault,
+            in_admin_ata: accounts.in_admin_ata,
+            out_admin_ata: accounts.out_admin_ata,
+            in_mint: accounts.in_mint,
+            out_mint: accounts.out_mint,
+            token_program: accounts.token_program,
+            instructions_sysvar: accounts.instructions_sysvar,
             __args: args,
         }
     }
@@ -362,7 +397,7 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(9 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(11 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
@@ -376,27 +411,35 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.position.key,
-            true,
+            *self.in_vault.key,
+            false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.lb_pair.key,
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.out_vault.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.in_admin_ata.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.out_admin_ata.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.lb_clmm_program.key,
+            *self.in_mint.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.event_authority.key,
+            *self.out_mint.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.system_program.key,
+            *self.token_program.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.rent.key,
+            *self.instructions_sysvar.key,
             false,
         ));
         remaining_accounts.iter().for_each(|remaining_account| {
@@ -406,7 +449,7 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&InitializePositionInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&BeginSwapInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -415,17 +458,19 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(10 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(12 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
         account_infos.push(self.global_config.clone());
         account_infos.push(self.strategy.clone());
-        account_infos.push(self.position.clone());
-        account_infos.push(self.lb_pair.clone());
-        account_infos.push(self.lb_clmm_program.clone());
-        account_infos.push(self.event_authority.clone());
-        account_infos.push(self.system_program.clone());
-        account_infos.push(self.rent.clone());
+        account_infos.push(self.in_vault.clone());
+        account_infos.push(self.out_vault.clone());
+        account_infos.push(self.in_admin_ata.clone());
+        account_infos.push(self.out_admin_ata.clone());
+        account_infos.push(self.in_mint.clone());
+        account_infos.push(self.out_mint.clone());
+        account_infos.push(self.token_program.clone());
+        account_infos.push(self.instructions_sysvar.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -438,39 +483,43 @@ impl<'a, 'b> InitializePositionCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `InitializePosition` via CPI.
+/// Instruction builder for `BeginSwap` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[]` global_config
 ///   2. `[writable]` strategy
-///   3. `[writable, signer]` position
-///   4. `[]` lb_pair
-///   5. `[]` lb_clmm_program
-///   6. `[]` event_authority
-///   7. `[]` system_program
-///   8. `[]` rent
+///   3. `[writable]` in_vault
+///   4. `[writable]` out_vault
+///   5. `[writable]` in_admin_ata
+///   6. `[writable]` out_admin_ata
+///   7. `[]` in_mint
+///   8. `[]` out_mint
+///   9. `[]` token_program
+///   10. `[]` instructions_sysvar
 #[derive(Clone, Debug)]
-pub struct InitializePositionCpiBuilder<'a, 'b> {
-    instruction: Box<InitializePositionCpiBuilderInstruction<'a, 'b>>,
+pub struct BeginSwapCpiBuilder<'a, 'b> {
+    instruction: Box<BeginSwapCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> InitializePositionCpiBuilder<'a, 'b> {
+impl<'a, 'b> BeginSwapCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(InitializePositionCpiBuilderInstruction {
+        let instruction = Box::new(BeginSwapCpiBuilderInstruction {
             __program: program,
             authority: None,
             global_config: None,
             strategy: None,
-            position: None,
-            lb_pair: None,
-            lb_clmm_program: None,
-            event_authority: None,
-            system_program: None,
-            rent: None,
-            lower_bin_id: None,
-            width: None,
+            in_vault: None,
+            out_vault: None,
+            in_admin_ata: None,
+            out_admin_ata: None,
+            in_mint: None,
+            out_mint: None,
+            token_program: None,
+            instructions_sysvar: None,
+            x_to_y: None,
+            amount_in: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -500,59 +549,77 @@ impl<'a, 'b> InitializePositionCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn position(
+    pub fn in_vault(
         &mut self,
-        position: &'b solana_program::account_info::AccountInfo<'a>,
+        in_vault: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.position = Some(position);
+        self.instruction.in_vault = Some(in_vault);
         self
     }
     #[inline(always)]
-    pub fn lb_pair(
+    pub fn out_vault(
         &mut self,
-        lb_pair: &'b solana_program::account_info::AccountInfo<'a>,
+        out_vault: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.lb_pair = Some(lb_pair);
+        self.instruction.out_vault = Some(out_vault);
         self
     }
-    /// The lb_clmm program
     #[inline(always)]
-    pub fn lb_clmm_program(
+    pub fn in_admin_ata(
         &mut self,
-        lb_clmm_program: &'b solana_program::account_info::AccountInfo<'a>,
+        in_admin_ata: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.lb_clmm_program = Some(lb_clmm_program);
+        self.instruction.in_admin_ata = Some(in_admin_ata);
         self
     }
     #[inline(always)]
-    pub fn event_authority(
+    pub fn out_admin_ata(
         &mut self,
-        event_authority: &'b solana_program::account_info::AccountInfo<'a>,
+        out_admin_ata: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.event_authority = Some(event_authority);
+        self.instruction.out_admin_ata = Some(out_admin_ata);
         self
     }
     #[inline(always)]
-    pub fn system_program(
+    pub fn in_mint(
         &mut self,
-        system_program: &'b solana_program::account_info::AccountInfo<'a>,
+        in_mint: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.system_program = Some(system_program);
+        self.instruction.in_mint = Some(in_mint);
         self
     }
     #[inline(always)]
-    pub fn rent(&mut self, rent: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.rent = Some(rent);
+    pub fn out_mint(
+        &mut self,
+        out_mint: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.out_mint = Some(out_mint);
         self
     }
     #[inline(always)]
-    pub fn lower_bin_id(&mut self, lower_bin_id: i32) -> &mut Self {
-        self.instruction.lower_bin_id = Some(lower_bin_id);
+    pub fn token_program(
+        &mut self,
+        token_program: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.token_program = Some(token_program);
         self
     }
     #[inline(always)]
-    pub fn width(&mut self, width: i32) -> &mut Self {
-        self.instruction.width = Some(width);
+    pub fn instructions_sysvar(
+        &mut self,
+        instructions_sysvar: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.instructions_sysvar = Some(instructions_sysvar);
+        self
+    }
+    #[inline(always)]
+    pub fn x_to_y(&mut self, x_to_y: bool) -> &mut Self {
+        self.instruction.x_to_y = Some(x_to_y);
+        self
+    }
+    #[inline(always)]
+    pub fn amount_in(&mut self, amount_in: u64) -> &mut Self {
+        self.instruction.amount_in = Some(amount_in);
         self
     }
     /// Add an additional account to the instruction.
@@ -596,15 +663,15 @@ impl<'a, 'b> InitializePositionCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = InitializePositionInstructionArgs {
-            lower_bin_id: self
+        let args = BeginSwapInstructionArgs {
+            x_to_y: self.instruction.x_to_y.clone().expect("x_to_y is not set"),
+            amount_in: self
                 .instruction
-                .lower_bin_id
+                .amount_in
                 .clone()
-                .expect("lower_bin_id is not set"),
-            width: self.instruction.width.clone().expect("width is not set"),
+                .expect("amount_in is not set"),
         };
-        let instruction = InitializePositionCpi {
+        let instruction = BeginSwapCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
@@ -616,26 +683,33 @@ impl<'a, 'b> InitializePositionCpiBuilder<'a, 'b> {
 
             strategy: self.instruction.strategy.expect("strategy is not set"),
 
-            position: self.instruction.position.expect("position is not set"),
+            in_vault: self.instruction.in_vault.expect("in_vault is not set"),
 
-            lb_pair: self.instruction.lb_pair.expect("lb_pair is not set"),
+            out_vault: self.instruction.out_vault.expect("out_vault is not set"),
 
-            lb_clmm_program: self
+            in_admin_ata: self
                 .instruction
-                .lb_clmm_program
-                .expect("lb_clmm_program is not set"),
+                .in_admin_ata
+                .expect("in_admin_ata is not set"),
 
-            event_authority: self
+            out_admin_ata: self
                 .instruction
-                .event_authority
-                .expect("event_authority is not set"),
+                .out_admin_ata
+                .expect("out_admin_ata is not set"),
 
-            system_program: self
+            in_mint: self.instruction.in_mint.expect("in_mint is not set"),
+
+            out_mint: self.instruction.out_mint.expect("out_mint is not set"),
+
+            token_program: self
                 .instruction
-                .system_program
-                .expect("system_program is not set"),
+                .token_program
+                .expect("token_program is not set"),
 
-            rent: self.instruction.rent.expect("rent is not set"),
+            instructions_sysvar: self
+                .instruction
+                .instructions_sysvar
+                .expect("instructions_sysvar is not set"),
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -646,19 +720,21 @@ impl<'a, 'b> InitializePositionCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct InitializePositionCpiBuilderInstruction<'a, 'b> {
+struct BeginSwapCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     global_config: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     strategy: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    position: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    lb_pair: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    lb_clmm_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    event_authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    rent: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    lower_bin_id: Option<i32>,
-    width: Option<i32>,
+    in_vault: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    out_vault: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    in_admin_ata: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    out_admin_ata: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    in_mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    out_mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    instructions_sysvar: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    x_to_y: Option<bool>,
+    amount_in: Option<u64>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

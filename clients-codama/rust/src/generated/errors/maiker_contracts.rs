@@ -49,6 +49,15 @@ pub enum MaikerContractsError {
     /// 6012 - Withdrawal is not ready yet
     #[error("Withdrawal is not ready yet")]
     WithdrawalNotReady = 0x177C,
+    /// 6013 - Position not found
+    #[error("Position not found")]
+    PositionNotFound = 0x177D,
+    /// 6014 - Invalid swap instruction
+    #[error("Invalid swap instruction")]
+    InvalidSwap = 0x177E,
+    /// 6015 - Non-zero transfer fee
+    #[error("Non-zero transfer fee")]
+    NonZeroTransferFee = 0x177F,
 }
 
 impl solana_program::program_error::PrintProgramError for MaikerContractsError {

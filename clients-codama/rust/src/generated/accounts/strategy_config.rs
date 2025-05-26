@@ -43,13 +43,27 @@ pub struct StrategyConfig {
     pub position_count: u8,
     pub positions: [Pubkey; 10],
     pub positions_values: [u64; 10],
-    pub last_position_update: [i64; 10],
+    pub last_position_update: [u64; 10],
     pub last_rebalance_time: i64,
+    pub is_swapping: bool,
+    pub swap_amount_in: u64,
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
+    )]
+    pub swap_source_mint: Pubkey,
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
+    )]
+    pub swap_destination_mint: Pubkey,
+    pub swap_initial_in_amount_admin: u64,
+    pub swap_initial_out_amount_admin: u64,
     pub bump: u8,
 }
 
 impl StrategyConfig {
-    pub const LEN: usize = 674;
+    pub const LEN: usize = 763;
 
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
@@ -72,7 +86,7 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for StrategyCon
 #[cfg(feature = "fetch")]
 pub fn fetch_strategy_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::DecodedAccount<StrategyConfig>, std::io::Error> {
     let accounts = fetch_all_strategy_config(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -81,10 +95,10 @@ pub fn fetch_strategy_config(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_strategy_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::DecodedAccount<StrategyConfig>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<StrategyConfig>> = Vec::new();
     for i in 0..addresses.len() {
@@ -106,7 +120,7 @@ pub fn fetch_all_strategy_config(
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_strategy_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::MaybeAccount<StrategyConfig>, std::io::Error> {
     let accounts = fetch_all_maybe_strategy_config(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -115,10 +129,10 @@ pub fn fetch_maybe_strategy_config(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_strategy_config(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::MaybeAccount<StrategyConfig>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<StrategyConfig>> = Vec::new();
     for i in 0..addresses.len() {

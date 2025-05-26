@@ -39,19 +39,21 @@ pub fn receive<'info>(
     token_program: &Interface<'info, TokenInterface>,
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
-    strategy: &Account<'info, StrategyConfig>,
+    _strategy: &Account<'info, StrategyConfig>,
     amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
+    authority: &Signer<'info>,
 ) -> Result<()> {
     let mint_account_info = mint.to_account_info();
 
     validate_mint_fee(&mint_account_info)?;
 
+
     let cpi_accounts = TransferChecked {
         from: from.to_account_info(),
         to: to.to_account_info(),
         mint: mint_account_info,
-        authority: strategy.to_account_info(),
+        authority: authority.to_account_info(),
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new(cpi_program, cpi_accounts);

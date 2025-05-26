@@ -109,7 +109,7 @@ pub mod maiker_contracts {
         instructions::begin_swap_handler(ctx, x_to_y, amount_in)
     }
 
-    pub fn end_swap(ctx: Context<FlashSwap>, x_to_y: bool) -> Result<()> {
+    pub fn end_swap(ctx: Context<EndSwap>, x_to_y: bool) -> Result<()> {
         instructions::end_swap_handler(ctx, x_to_y)
     }
 }

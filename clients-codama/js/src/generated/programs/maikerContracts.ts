@@ -7,7 +7,7 @@
  */
 
 import { containsBytes, fixEncoderSize, getBytesEncoder, type Address, type ReadonlyUint8Array } from '@solana/kit';
-import { type ParsedAddLiquidityInstruction, type ParsedClaimFeeInstruction, type ParsedClaimFeesInstruction, type ParsedClosePositionInstruction, type ParsedCreateStrategyInstruction, type ParsedDepositInstruction, type ParsedGetPositionValueInstruction, type ParsedInitializeInstruction, type ParsedInitializePositionInstruction, type ParsedInitiateWithdrawalInstruction, type ParsedProcessWithdrawalInstruction, type ParsedRemoveLiquidityInstruction, type ParsedUpdateGlobalConfigInstruction } from '../instructions';
+import { type ParsedAddLiquidityInstruction, type ParsedBeginSwapInstruction, type ParsedClaimFeeInstruction, type ParsedClaimFeesInstruction, type ParsedClosePositionInstruction, type ParsedCreateStrategyInstruction, type ParsedDepositInstruction, type ParsedEndSwapInstruction, type ParsedGetPositionValueInstruction, type ParsedInitializeInstruction, type ParsedInitializePositionInstruction, type ParsedInitiateWithdrawalInstruction, type ParsedProcessWithdrawalInstruction, type ParsedRemoveLiquidityInstruction, type ParsedSwapExactInInstruction, type ParsedUpdateGlobalConfigInstruction } from '../instructions';
 
 
 export const MAIKER_CONTRACTS_PROGRAM_ADDRESS = '' as Address<''>;
@@ -23,7 +23,7 @@ if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Arr
 throw new Error("The provided account could not be identified as a maikerContracts account.")
 }
 
-export enum MaikerContractsInstruction { Initialize, CreateStrategy, Deposit, InitiateWithdrawal, ProcessWithdrawal, GetPositionValue, UpdateGlobalConfig, ClaimFees, AddLiquidity, RemoveLiquidity, ClaimFee, ClosePosition, InitializePosition }
+export enum MaikerContractsInstruction { Initialize, CreateStrategy, Deposit, InitiateWithdrawal, ProcessWithdrawal, GetPositionValue, UpdateGlobalConfig, ClaimFees, AddLiquidity, RemoveLiquidity, ClaimFee, ClosePosition, InitializePosition, SwapExactIn, BeginSwap, EndSwap }
 
 export function identifyMaikerContractsInstruction(instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array): MaikerContractsInstruction {
 const data = 'data' in instruction ? instruction.data : instruction;
@@ -40,6 +40,9 @@ if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Arr
 if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([169, 32, 79, 137, 136, 232, 70, 137])), 0)) { return MaikerContractsInstruction.ClaimFee;; }
 if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([123, 134, 81, 0, 49, 68, 98, 98])), 0)) { return MaikerContractsInstruction.ClosePosition;; }
 if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([219, 192, 234, 71, 190, 191, 102, 80])), 0)) { return MaikerContractsInstruction.InitializePosition;; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([104, 104, 131, 86, 161, 189, 180, 216])), 0)) { return MaikerContractsInstruction.SwapExactIn;; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([174, 109, 228, 1, 242, 105, 232, 105])), 0)) { return MaikerContractsInstruction.BeginSwap;; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([177, 184, 27, 193, 34, 13, 210, 145])), 0)) { return MaikerContractsInstruction.EndSwap;; }
 throw new Error("The provided instruction could not be identified as a maikerContracts instruction.")
 }
 
@@ -57,4 +60,7 @@ export type ParsedMaikerContractsInstruction<TProgram extends string = ''> =
 | { instructionType: MaikerContractsInstruction.ClaimFee } & ParsedClaimFeeInstruction<TProgram>
 | { instructionType: MaikerContractsInstruction.ClosePosition } & ParsedClosePositionInstruction<TProgram>
 | { instructionType: MaikerContractsInstruction.InitializePosition } & ParsedInitializePositionInstruction<TProgram>
+| { instructionType: MaikerContractsInstruction.SwapExactIn } & ParsedSwapExactInInstruction<TProgram>
+| { instructionType: MaikerContractsInstruction.BeginSwap } & ParsedBeginSwapInstruction<TProgram>
+| { instructionType: MaikerContractsInstruction.EndSwap } & ParsedEndSwapInstruction<TProgram>
 

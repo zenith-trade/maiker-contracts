@@ -10,21 +10,21 @@ import { combineCodec, getAddressDecoder, getAddressEncoder, getOptionDecoder, g
 
 
 
-export type GlobalConfigArgs = { admin: Address; performanceFeeBps: number; withdrawalFeeBps: number; treasury: Address; intervalSeconds: bigint; newAdmin: Option<Address>;  };
+export type GlobalConfigArgs = { performanceFeeBps: number; withdrawalFeeBps: number; treasury: Address; intervalSeconds: bigint; newAdmin: Option<Address>;  };
 
-export type GlobalConfigArgsArgs = { admin: Address; performanceFeeBps: number; withdrawalFeeBps: number; treasury: Address; intervalSeconds: number | bigint; newAdmin: OptionOrNullable<Address>;  };
+export type GlobalConfigArgsArgs = { performanceFeeBps: number; withdrawalFeeBps: number; treasury: Address; intervalSeconds: number | bigint; newAdmin: OptionOrNullable<Address>;  };
 
 
 
 
 export function getGlobalConfigArgsEncoder(): Encoder<GlobalConfigArgsArgs> {
-  return getStructEncoder([['admin', getAddressEncoder()], ['performanceFeeBps', getU16Encoder()], ['withdrawalFeeBps', getU16Encoder()], ['treasury', getAddressEncoder()], ['intervalSeconds', getU64Encoder()], ['newAdmin', getOptionEncoder(getAddressEncoder())]]);
+  return getStructEncoder([['performanceFeeBps', getU16Encoder()], ['withdrawalFeeBps', getU16Encoder()], ['treasury', getAddressEncoder()], ['intervalSeconds', getU64Encoder()], ['newAdmin', getOptionEncoder(getAddressEncoder())]]);
 }
 
 
 
 export function getGlobalConfigArgsDecoder(): Decoder<GlobalConfigArgs> {
-  return getStructDecoder([['admin', getAddressDecoder()], ['performanceFeeBps', getU16Decoder()], ['withdrawalFeeBps', getU16Decoder()], ['treasury', getAddressDecoder()], ['intervalSeconds', getU64Decoder()], ['newAdmin', getOptionDecoder(getAddressDecoder())]]);
+  return getStructDecoder([['performanceFeeBps', getU16Decoder()], ['withdrawalFeeBps', getU16Decoder()], ['treasury', getAddressDecoder()], ['intervalSeconds', getU64Decoder()], ['newAdmin', getOptionDecoder(getAddressDecoder())]]);
 }
 
 

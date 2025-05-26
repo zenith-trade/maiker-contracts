@@ -7,15 +7,18 @@
  */
 
 export * from './addLiquidity';
+export * from './beginSwap';
 export * from './claimFee';
 export * from './claimFees';
 export * from './closePosition';
 export * from './createStrategy';
 export * from './deposit';
+export * from './endSwap';
 export * from './getPositionValue';
 export * from './initialize';
 export * from './initializePosition';
 export * from './initiateWithdrawal';
 export * from './processWithdrawal';
 export * from './removeLiquidity';
+export * from './swapExactIn';
 export * from './updateGlobalConfig';

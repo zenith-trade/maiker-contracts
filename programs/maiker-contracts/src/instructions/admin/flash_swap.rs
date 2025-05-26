@@ -187,13 +187,19 @@ pub fn begin_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool, amount_in: u64
             )?;
 
             validate!(
-                ctx.accounts.token_program.key() == ix.accounts[8].pubkey,
+                ctx.accounts.out_mint.key() == ix.accounts[8].pubkey,
+                MaikerError::InvalidSwap,
+                "Invalid out mint"
+            )?;
+
+            validate!(
+                ctx.accounts.token_program.key() == ix.accounts[9].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid token program"
             )?;
 
             validate!(
-                ctx.accounts.instructions_sysvar.key() == ix.accounts[9].pubkey,
+                ctx.accounts.instructions_sysvar.key() == ix.accounts[10].pubkey,
                 MaikerError::InvalidSwap,
                 "Invalid instructions sysvar"
             )?;
@@ -212,7 +218,7 @@ pub fn begin_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool, amount_in: u64
                 }
             } else {
                 let whitelisted_programs = vec![AssociatedToken::id(), jupiter_mainnet_6::id()];
-                // if !delegate_is_signer {
+                 // if !delegate_is_signer {
                 //     whitelisted_programs.push(Token::id());
                 //     whitelisted_programs.push(Token2022::id());
                 //     whitelisted_programs.push(marinade_mainnet::ID);
@@ -242,12 +248,71 @@ pub fn begin_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool, amount_in: u64
         "found no SwapEnd instruction in transaction"
     )?;
 
-    msg!("BeginSwap: Transferred {} tokens for swap.", amount_in);
+    msg!("BeginSwap: Transferred {} tokens for swap", amount_in);
 
     Ok(())
 }
 
-pub fn end_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool) -> Result<()> {
+#[derive(Accounts)]
+#[instruction(x_to_y: bool)]
+pub struct EndSwap<'info> {
+    #[account(
+        mut,
+        constraint = authority.key() == global_config.admin
+    )]
+    pub authority: Signer<'info>,
+
+    #[account(
+        seeds = [GlobalConfig::SEED_PREFIX.as_bytes()],
+        bump = global_config.bump,
+    )]
+    pub global_config: Box<Account<'info, GlobalConfig>>,
+
+    #[account(mut)]
+    pub strategy: Box<Account<'info, StrategyConfig>>,
+
+    #[account(mut,
+        associated_token::mint = in_mint,
+        associated_token::authority = strategy
+    )]
+    pub in_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(mut,
+        associated_token::mint = out_mint,
+        associated_token::authority = strategy
+    )]
+    pub out_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(mut,
+        associated_token::mint = in_mint,
+        associated_token::authority = authority
+    )]
+    pub in_admin_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(mut,
+        associated_token::mint = out_mint,
+        associated_token::authority = authority
+    )]
+    pub out_admin_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        constraint = if x_to_y { in_mint.key() == strategy.x_mint } else { in_mint.key() == strategy.y_mint }
+    )]
+    pub in_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        constraint = if x_to_y { out_mint.key() == strategy.y_mint } else { out_mint.key() == strategy.x_mint }
+    )]
+    pub out_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+
+    /// CHECK: Instructions sysvar for validation
+    #[account(address = instructions::ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
+}
+
+pub fn end_swap_handler(ctx: Context<EndSwap>, _x_to_y: bool) -> Result<()> {
     let strategy = &mut ctx.accounts.strategy;
     let in_vault = &mut ctx.accounts.in_vault;
     let out_vault = &mut ctx.accounts.out_vault;
@@ -258,7 +323,6 @@ pub fn end_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool) -> Result<()> {
     let out_mint = &ctx.accounts.out_mint;
 
     // Check for residual tokens and transfer back to strategy vault
-    let mut amount_in = strategy.swap_amount_in;
     if in_admin_ata.amount > strategy.swap_initial_in_amount_admin {
         let residual = in_admin_ata
             .amount
@@ -272,13 +336,10 @@ pub fn end_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool) -> Result<()> {
             strategy,
             residual,
             &in_mint,
+            &ctx.accounts.authority,
         )?;
         in_admin_ata.reload()?;
         in_vault.reload()?;
-
-        amount_in = amount_in
-            .checked_sub(residual)
-            .ok_or(MaikerError::ArithmeticOverflow)?;
     }
 
     // Check the out amount and transfer back to strategy vault
@@ -296,18 +357,16 @@ pub fn end_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool) -> Result<()> {
             strategy,
             amount_out,
             &out_mint,
+            &ctx.accounts.authority,
         )?;
         out_admin_ata.reload()?;
         out_vault.reload()?;
     }
 
+    let amount_in = strategy.swap_amount_in;
     strategy.end_swap(amount_in, in_mint.key(), out_mint.key())?;
 
-    msg!(
-        "EndSwap: Completed swap. In: {} Out: {}",
-        amount_in,
-        amount_out,
-    );
+    msg!("EndSwap: Completed swap. In: {} Out: {}", amount_in, amount_out);
 
     Ok(())
 }

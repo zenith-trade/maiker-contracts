@@ -3,14 +3,15 @@ import { AnchorProvider, BN, Program, utils } from "@coral-xyz/anchor";
 import { MaikerContracts } from "../target/types/maiker_contracts";
 import { before, describe, test } from "node:test";
 import assert from "assert";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, SYSVAR_RENT_PUBKEY, Transaction, sendAndConfirmTransaction, TransactionInstruction, AccountMeta } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, SYSVAR_RENT_PUBKEY, Transaction, sendAndConfirmTransaction, TransactionInstruction, AccountMeta, SYSVAR_INSTRUCTIONS_PUBKEY } from "@solana/web3.js";
 import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition } from "../clients/js/src";
+import { PROGRAM_ID as dlmmProgramId } from "../clients/js/src/generated-dlmm/programId";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
-import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
 import { BinAndAmount, BinArrayAccount, binIdToBinArrayIndex, calculateBidAskDistribution, calculateNormalDistribution, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
@@ -1186,4 +1187,102 @@ describe("maiker-contracts", () => {
     assert.equal(globalConfigAccPost.treasury.toBase58(), newGlobalConfigArgs.treasury.toBase58(), "Treasury should be updated");
     assert.equal(globalConfigAccPost.admin.toBase58(), newGlobalConfigArgs.newAdmin.toBase58(), "Admin should be updated");
   })
+
+  test("Begin and End Swap", async () => {
+    const maikerSdk = await MaikerSDK.create(
+      bankrunProvider.connection,
+      strategy
+    );
+
+    await maikerSdk.refresh();
+
+    // Verify global config
+    const globalConfigAcc = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
+    console.log("Global config admin:", globalConfigAcc.admin.toBase58());
+    console.log("Admin pubkey:", admin.publicKey.toBase58());
+    
+    // Verify strategy creator
+    const strategyAccPre = maikerSdk.strategyAcc;
+    console.log("Strategy creator:", strategyAccPre.creator.toBase58());
+    console.log("Admin pubkey:", admin.publicKey.toBase58());
+
+    // Get admin ATAs
+    const [adminX, adminY] = await Promise.all([
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, admin.publicKey, admin.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, admin.publicKey, admin.publicKey, true),
+    ]);
+
+    // Create pre-instructions to create ATAs if they don't exist
+    const preIxs = [];
+    if (adminX.ix) preIxs.push(adminX.ix);
+    if (adminY.ix) preIxs.push(adminY.ix);
+
+    // Create begin swap instruction
+    const beginSwapIx = maikerInstructions.beginSwap(
+      {
+        xToY: true,
+        amountIn: new BN(1000000), // 1 token
+      },
+      {
+        authority: admin.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        inVault: strategyAccPre.xVault,
+        outVault: strategyAccPre.yVault,
+        inAdminAta: adminX.ataPubKey,
+        outAdminAta: adminY.ataPubKey,
+        inMint: xMint,
+        outMint: yMint,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+      }
+    );
+
+
+
+    // Create end swap instruction
+    const endSwapIx = maikerInstructions.endSwap(
+      {
+        xToY: true,
+      },
+      {
+        authority: admin.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        inVault: strategyAccPre.xVault,
+        outVault: strategyAccPre.yVault,
+        inAdminAta: adminX.ataPubKey,
+        outAdminAta: adminY.ataPubKey,
+        inMint: xMint,
+        outMint: yMint,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+      }
+    );
+
+    // Build and send transaction with all instructions
+    let blockhash = await getLatestBlockhash();
+    let builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: user.publicKey,
+      lookupTableAccounts: [],
+      ixs: [...preIxs, beginSwapIx, endSwapIx],
+      recentBlockhash: blockhash[0],
+    });
+
+    // Sign with admin since it's the authority
+    builtTx.tx.sign([admin]);
+
+    await processTransaction(builtTx.tx);
+
+    // Refresh SDK to get updated data
+    await maikerSdk.refresh();
+    const strategyAccPost = maikerSdk.strategyAcc;
+
+    // Verify swap state is cleared
+    assert(!strategyAccPost.isSwapping, "Swap should not be in progress");
+    assert.equal(Number(strategyAccPost.swapAmountIn), 0, "Swap amount should be cleared");
+    assert(strategyAccPost.swapSourceMint.equals(PublicKey.default), "Source mint should be cleared");
+    assert(strategyAccPost.swapDestinationMint.equals(PublicKey.default), "Destination mint should be cleared");
+  });
 });

@@ -36,6 +36,12 @@ import { MAIKER_CONTRACTS_PROGRAM_ADDRESS } from '../programs';
   export const MAIKER_CONTRACTS_ERROR__INVALID_WITHDRAWAL_INTERVAL = 0x177b, // 6011
   /** WithdrawalNotReady: Withdrawal is not ready yet */
   export const MAIKER_CONTRACTS_ERROR__WITHDRAWAL_NOT_READY = 0x177c, // 6012
+  /** PositionNotFound: Position not found */
+  export const MAIKER_CONTRACTS_ERROR__POSITION_NOT_FOUND = 0x177d, // 6013
+  /** InvalidSwap: Invalid swap instruction */
+  export const MAIKER_CONTRACTS_ERROR__INVALID_SWAP = 0x177e, // 6014
+  /** NonZeroTransferFee: Non-zero transfer fee */
+  export const MAIKER_CONTRACTS_ERROR__NON_ZERO_TRANSFER_FEE = 0x177f, // 6015
 
 export type MaikerContractsError =
       | typeof MAIKER_CONTRACTS_ERROR__ARITHMETIC_OVERFLOW
@@ -43,12 +49,15 @@ export type MaikerContractsError =
       | typeof MAIKER_CONTRACTS_ERROR__INVALID_DEPOSIT_AMOUNT
       | typeof MAIKER_CONTRACTS_ERROR__INVALID_FEE
       | typeof MAIKER_CONTRACTS_ERROR__INVALID_POSITION
+      | typeof MAIKER_CONTRACTS_ERROR__INVALID_SWAP
       | typeof MAIKER_CONTRACTS_ERROR__INVALID_WITHDRAWAL_AMOUNT
       | typeof MAIKER_CONTRACTS_ERROR__INVALID_WITHDRAWAL_INTERVAL
       | typeof MAIKER_CONTRACTS_ERROR__MAX_POSITIONS_REACHED
       | typeof MAIKER_CONTRACTS_ERROR__NO_FEES_TO_WITHDRAW
+      | typeof MAIKER_CONTRACTS_ERROR__NON_ZERO_TRANSFER_FEE
       | typeof MAIKER_CONTRACTS_ERROR__NO_SHARES
       | typeof MAIKER_CONTRACTS_ERROR__NOT_AUTHORIZED
+      | typeof MAIKER_CONTRACTS_ERROR__POSITION_NOT_FOUND
       | typeof MAIKER_CONTRACTS_ERROR__STALE_POSITION_VALUE
       | typeof MAIKER_CONTRACTS_ERROR__WITHDRAWAL_NOT_READY
   ;
@@ -61,12 +70,15 @@ if (process.env.NODE_ENV !== 'production') {
           [MAIKER_CONTRACTS_ERROR__INVALID_DEPOSIT_AMOUNT]: `Invalid deposit amount`,
           [MAIKER_CONTRACTS_ERROR__INVALID_FEE]: `Invalid fee (performance fee max 30%, withdrawal fee max 5%)`,
           [MAIKER_CONTRACTS_ERROR__INVALID_POSITION]: `Invalid position`,
+          [MAIKER_CONTRACTS_ERROR__INVALID_SWAP]: `Invalid swap instruction`,
           [MAIKER_CONTRACTS_ERROR__INVALID_WITHDRAWAL_AMOUNT]: `Invalid withdrawal amount`,
           [MAIKER_CONTRACTS_ERROR__INVALID_WITHDRAWAL_INTERVAL]: `Invalid withdrawal interval (minimum 5 minutes)`,
           [MAIKER_CONTRACTS_ERROR__MAX_POSITIONS_REACHED]: `Max positions reached`,
           [MAIKER_CONTRACTS_ERROR__NO_FEES_TO_WITHDRAW]: `No fees to withdraw`,
+          [MAIKER_CONTRACTS_ERROR__NON_ZERO_TRANSFER_FEE]: `Non-zero transfer fee`,
           [MAIKER_CONTRACTS_ERROR__NO_SHARES]: `No shares in strategy`,
           [MAIKER_CONTRACTS_ERROR__NOT_AUTHORIZED]: `Not authorized to perform this action`,
+          [MAIKER_CONTRACTS_ERROR__POSITION_NOT_FOUND]: `Position not found`,
           [MAIKER_CONTRACTS_ERROR__STALE_POSITION_VALUE]: `Position value is stale and must be updated in the current slot`,
           [MAIKER_CONTRACTS_ERROR__WITHDRAWAL_NOT_READY]: `Withdrawal is not ready yet`,
       };

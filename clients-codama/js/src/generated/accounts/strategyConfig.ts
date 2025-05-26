@@ -6,28 +6,28 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getArrayDecoder, getArrayEncoder, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type Codec, type Decoder, type EncodedAccount, type Encoder, type FetchAccountConfig, type FetchAccountsConfig, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
+import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getArrayDecoder, getArrayEncoder, getBooleanDecoder, getBooleanEncoder, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type Codec, type Decoder, type EncodedAccount, type Encoder, type FetchAccountConfig, type FetchAccountsConfig, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
 
 export const STRATEGY_CONFIG_DISCRIMINATOR = new Uint8Array([103, 12, 123, 61, 47, 87, 129, 57]);
 
 export function getStrategyConfigDiscriminatorBytes() { return fixEncoderSize(getBytesEncoder(), 8).encode(STRATEGY_CONFIG_DISCRIMINATOR); }
 
 
-export type StrategyConfig = { discriminator: ReadonlyUint8Array; creator: Address; xMint: Address; yMint: Address; xVault: Address; yVault: Address; strategyShares: bigint; feeShares: bigint; positionCount: number; positions: Array<Address>; positionsValues: Array<bigint>; lastPositionUpdate: Array<bigint>; lastRebalanceTime: bigint; bump: number;  };
+export type StrategyConfig = { discriminator: ReadonlyUint8Array; creator: Address; xMint: Address; yMint: Address; xVault: Address; yVault: Address; strategyShares: bigint; feeShares: bigint; positionCount: number; positions: Array<Address>; positionsValues: Array<bigint>; lastPositionUpdate: Array<bigint>; lastRebalanceTime: bigint; isSwapping: boolean; swapAmountIn: bigint; swapSourceMint: Address; swapDestinationMint: Address; swapInitialInAmountAdmin: bigint; swapInitialOutAmountAdmin: bigint; bump: number;  };
 
-export type StrategyConfigArgs = { creator: Address; xMint: Address; yMint: Address; xVault: Address; yVault: Address; strategyShares: number | bigint; feeShares: number | bigint; positionCount: number; positions: Array<Address>; positionsValues: Array<number | bigint>; lastPositionUpdate: Array<number | bigint>; lastRebalanceTime: number | bigint; bump: number;  };
+export type StrategyConfigArgs = { creator: Address; xMint: Address; yMint: Address; xVault: Address; yVault: Address; strategyShares: number | bigint; feeShares: number | bigint; positionCount: number; positions: Array<Address>; positionsValues: Array<number | bigint>; lastPositionUpdate: Array<number | bigint>; lastRebalanceTime: number | bigint; isSwapping: boolean; swapAmountIn: number | bigint; swapSourceMint: Address; swapDestinationMint: Address; swapInitialInAmountAdmin: number | bigint; swapInitialOutAmountAdmin: number | bigint; bump: number;  };
 
 
 
 
 export function getStrategyConfigEncoder(): Encoder<StrategyConfigArgs> {
-  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['creator', getAddressEncoder()], ['xMint', getAddressEncoder()], ['yMint', getAddressEncoder()], ['xVault', getAddressEncoder()], ['yVault', getAddressEncoder()], ['strategyShares', getU64Encoder()], ['feeShares', getU64Encoder()], ['positionCount', getU8Encoder()], ['positions', getArrayEncoder(getAddressEncoder(), { size: 10 })], ['positionsValues', getArrayEncoder(getU64Encoder(), { size: 10 })], ['lastPositionUpdate', getArrayEncoder(getI64Encoder(), { size: 10 })], ['lastRebalanceTime', getI64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: STRATEGY_CONFIG_DISCRIMINATOR }));
+  return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['creator', getAddressEncoder()], ['xMint', getAddressEncoder()], ['yMint', getAddressEncoder()], ['xVault', getAddressEncoder()], ['yVault', getAddressEncoder()], ['strategyShares', getU64Encoder()], ['feeShares', getU64Encoder()], ['positionCount', getU8Encoder()], ['positions', getArrayEncoder(getAddressEncoder(), { size: 10 })], ['positionsValues', getArrayEncoder(getU64Encoder(), { size: 10 })], ['lastPositionUpdate', getArrayEncoder(getU64Encoder(), { size: 10 })], ['lastRebalanceTime', getI64Encoder()], ['isSwapping', getBooleanEncoder()], ['swapAmountIn', getU64Encoder()], ['swapSourceMint', getAddressEncoder()], ['swapDestinationMint', getAddressEncoder()], ['swapInitialInAmountAdmin', getU64Encoder()], ['swapInitialOutAmountAdmin', getU64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: STRATEGY_CONFIG_DISCRIMINATOR }));
 }
 
 
 
 export function getStrategyConfigDecoder(): Decoder<StrategyConfig> {
-  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['creator', getAddressDecoder()], ['xMint', getAddressDecoder()], ['yMint', getAddressDecoder()], ['xVault', getAddressDecoder()], ['yVault', getAddressDecoder()], ['strategyShares', getU64Decoder()], ['feeShares', getU64Decoder()], ['positionCount', getU8Decoder()], ['positions', getArrayDecoder(getAddressDecoder(), { size: 10 })], ['positionsValues', getArrayDecoder(getU64Decoder(), { size: 10 })], ['lastPositionUpdate', getArrayDecoder(getI64Decoder(), { size: 10 })], ['lastRebalanceTime', getI64Decoder()], ['bump', getU8Decoder()]]);
+  return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['creator', getAddressDecoder()], ['xMint', getAddressDecoder()], ['yMint', getAddressDecoder()], ['xVault', getAddressDecoder()], ['yVault', getAddressDecoder()], ['strategyShares', getU64Decoder()], ['feeShares', getU64Decoder()], ['positionCount', getU8Decoder()], ['positions', getArrayDecoder(getAddressDecoder(), { size: 10 })], ['positionsValues', getArrayDecoder(getU64Decoder(), { size: 10 })], ['lastPositionUpdate', getArrayDecoder(getU64Decoder(), { size: 10 })], ['lastRebalanceTime', getI64Decoder()], ['isSwapping', getBooleanDecoder()], ['swapAmountIn', getU64Decoder()], ['swapSourceMint', getAddressDecoder()], ['swapDestinationMint', getAddressDecoder()], ['swapInitialInAmountAdmin', getU64Decoder()], ['swapInitialOutAmountAdmin', getU64Decoder()], ['bump', getU8Decoder()]]);
 }
 
 
@@ -82,7 +82,7 @@ export async function fetchAllMaybeStrategyConfig(
 }
 
 export function getStrategyConfigSize(): number {
-  return 674;
+  return 763;
 }
 
 

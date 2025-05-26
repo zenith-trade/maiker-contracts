@@ -54,7 +54,7 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for PendingWith
 #[cfg(feature = "fetch")]
 pub fn fetch_pending_withdrawal(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::DecodedAccount<PendingWithdrawal>, std::io::Error> {
     let accounts = fetch_all_pending_withdrawal(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -63,10 +63,10 @@ pub fn fetch_pending_withdrawal(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_pending_withdrawal(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::DecodedAccount<PendingWithdrawal>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<PendingWithdrawal>> = Vec::new();
     for i in 0..addresses.len() {
@@ -88,7 +88,7 @@ pub fn fetch_all_pending_withdrawal(
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_pending_withdrawal(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &Pubkey,
+    address: &solana_program::pubkey::Pubkey,
 ) -> Result<crate::shared::MaybeAccount<PendingWithdrawal>, std::io::Error> {
     let accounts = fetch_all_maybe_pending_withdrawal(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -97,10 +97,10 @@ pub fn fetch_maybe_pending_withdrawal(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_pending_withdrawal(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[Pubkey],
+    addresses: &[solana_program::pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::MaybeAccount<PendingWithdrawal>>, std::io::Error> {
     let accounts = rpc
-        .get_multiple_accounts(&addresses)
+        .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<PendingWithdrawal>> = Vec::new();
     for i in 0..addresses.len() {
