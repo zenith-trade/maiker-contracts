@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_lang::Discriminator;
@@ -6,7 +8,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::error::MaikerError;
 use crate::state::StrategyConfig;
-use crate::{controllers, jupiter_mainnet_6, lighthouse, validate, GlobalConfig};
+use crate::{controllers, jupiter_mainnet_6, lighthouse, validate, GlobalConfig, DLMM_PROGRAM_ID};
 
 #[derive(Accounts)]
 #[instruction(x_to_y: bool, amount_in: u64)]
@@ -217,7 +219,11 @@ pub fn begin_swap_handler(ctx: Context<FlashSwap>, _x_to_y: bool, amount_in: u64
                     )?;
                 }
             } else {
-                let whitelisted_programs = vec![AssociatedToken::id(), jupiter_mainnet_6::id()];
+                let whitelisted_programs = vec![
+                    AssociatedToken::id(), 
+                    jupiter_mainnet_6::id(),
+                    Pubkey::from_str(DLMM_PROGRAM_ID).unwrap()
+                ];
                  // if !delegate_is_signer {
                 //     whitelisted_programs.push(Token::id());
                 //     whitelisted_programs.push(Token2022::id());
@@ -322,12 +328,22 @@ pub fn end_swap_handler(ctx: Context<EndSwap>, _x_to_y: bool) -> Result<()> {
     let in_mint = &ctx.accounts.in_mint;
     let out_mint = &ctx.accounts.out_mint;
 
+    msg!("EndSwap: Starting swap completion");
+    msg!("Initial state - In admin balance: {}, Initial in amount: {}", 
+        in_admin_ata.amount, strategy.swap_initial_in_amount_admin);
+    msg!("Initial state - Out admin balance: {}, Initial out amount: {}", 
+        out_admin_ata.amount, strategy.swap_initial_out_amount_admin);
+
+    let mut amount_in = strategy.swap_amount_in;
     // Check for residual tokens and transfer back to strategy vault
     if in_admin_ata.amount > strategy.swap_initial_in_amount_admin {
         let residual = in_admin_ata
             .amount
             .checked_sub(strategy.swap_initial_in_amount_admin)
             .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        msg!("Found residual input tokens: {}", residual);
+        msg!("Transferring residual tokens back to strategy vault");
 
         controllers::token::receive(
             &ctx.accounts.token_program,
@@ -340,6 +356,18 @@ pub fn end_swap_handler(ctx: Context<EndSwap>, _x_to_y: bool) -> Result<()> {
         )?;
         in_admin_ata.reload()?;
         in_vault.reload()?;
+
+        amount_in = amount_in
+            .checked_sub(residual)
+            .ok_or(MaikerError::ArithmeticOverflow)?;
+        
+        // Update the strategy's swap amount to reflect the actual amount used
+        strategy.swap_amount_in = amount_in;
+        
+        msg!("After residual transfer - In admin balance: {}, In vault balance: {}", 
+            in_admin_ata.amount, in_vault.amount);
+    } else {
+        msg!("No residual input tokens found");
     }
 
     // Check the out amount and transfer back to strategy vault
@@ -349,6 +377,9 @@ pub fn end_swap_handler(ctx: Context<EndSwap>, _x_to_y: bool) -> Result<()> {
             .amount
             .checked_sub(strategy.swap_initial_out_amount_admin)
             .ok_or(MaikerError::ArithmeticOverflow)?;
+
+        msg!("Found output tokens: {}", amount_out);
+        msg!("Transferring output tokens to strategy vault");
 
         controllers::token::receive(
             &ctx.accounts.token_program,
@@ -361,12 +392,20 @@ pub fn end_swap_handler(ctx: Context<EndSwap>, _x_to_y: bool) -> Result<()> {
         )?;
         out_admin_ata.reload()?;
         out_vault.reload()?;
+        
+        msg!("After output transfer - Out admin balance: {}, Out vault balance: {}", 
+            out_admin_ata.amount, out_vault.amount);
+    } else {
+        msg!("No output tokens found");
     }
 
-    let amount_in = strategy.swap_amount_in;
+    msg!("Clearing swap state - Amount in: {}, Source mint: {}, Destination mint: {}", 
+        amount_in, in_mint.key(), out_mint.key());
+    
     strategy.end_swap(amount_in, in_mint.key(), out_mint.key())?;
 
-    msg!("EndSwap: Completed swap. In: {} Out: {}", amount_in, amount_out);
+    msg!("EndSwap: Completed swap. Final amounts - In: {} Out: {}", amount_in, amount_out);
+    msg!("Final vault balances - In vault: {} Out vault: {}", in_vault.amount, out_vault.amount);
 
     Ok(())
 }

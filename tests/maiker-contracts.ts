@@ -1238,7 +1238,78 @@ describe("maiker-contracts", () => {
       }
     );
 
+    // Get bin arrays for swap
+    const binArrays = await dlmmInstance.getBinArrayForSwap(true, 4); // true for Y to X swap
+    const binArraysPubkey = binArrays.map(bin => bin.publicKey);
+    console.log("binArraysPubkey:", binArraysPubkey.map(p => p.toBase58()));
 
+    // Derive the correct bin_array_bitmap_extension PDA
+    const [binArrayBitmapExtension] = deriveBinArrayBitmapExtension(lbPairPubkey, dlmmProgramId);
+    console.log("binArrayBitmapExtension PDA:", binArrayBitmapExtension.toBase58());
+    console.log("dlmmProgramId:", dlmmProgramId.toBase58());
+    console.log("lbPairPubkey:", lbPairPubkey.toBase58());
+
+    // Check if bin_array_bitmap_extension account exists
+    const binArrayBitmapExtensionAcc = await connection.getAccountInfo(binArrayBitmapExtension);
+    console.log("binArrayBitmapExtension account exists:", !!binArrayBitmapExtensionAcc);
+    if (binArrayBitmapExtensionAcc) {
+        console.log("binArrayBitmapExtension owner:", binArrayBitmapExtensionAcc.owner.toBase58());
+    }
+
+
+
+    // Initialize bin_array_bitmap_extension if it doesn't exist
+    const initBinArrayBitmapExtensionIx = dlmmInstructions.initializeBinArrayBitmapExtension(
+        {
+            lbPair: lbPairPubkey,
+            binArrayBitmapExtension,
+            funder: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY,
+        }
+    );
+
+    // Log bin arrays for debugging
+    console.log("Bin arrays for swap:", binArraysPubkey.map(p => p.toBase58()));
+
+    // Create Meteora swap instruction
+    const swapIx = dlmmInstructions.swap(
+      {
+        amountIn: new BN(1000000), // 1 token
+        minAmountOut: new BN(0), // No minimum output for testing
+      },
+      {
+        lbPair: lbPairPubkey,
+        binArrayBitmapExtension,
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        userTokenIn: adminX.ataPubKey,
+        userTokenOut: adminY.ataPubKey,
+        tokenXMint: xMint,
+        tokenYMint: yMint,
+        oracle: lbPairAcc.oracle,
+        hostFeeIn: lbPairAcc.reserveX, // Use reserveX as host fee account since we're not using host fees
+        user: admin.publicKey,
+        tokenXProgram: TOKEN_PROGRAM_ID,
+        tokenYProgram: TOKEN_PROGRAM_ID,
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        program: dlmmProgramId,
+      }
+    );
+
+    // Log swap instruction accounts for debugging
+    console.log("Swap instruction accounts:", swapIx.keys.map(k => ({
+      pubkey: k.pubkey.toBase58(),
+      isSigner: k.isSigner,
+      isWritable: k.isWritable
+    })));
+
+    // Add bin arrays as remaining accounts
+    const remainingAccounts = binArraysPubkey.map(pubkey => ({
+      pubkey,
+      isSigner: false,
+      isWritable: true,
+    }));
 
     // Create end swap instruction
     const endSwapIx = maikerInstructions.endSwap(
@@ -1264,13 +1335,26 @@ describe("maiker-contracts", () => {
     let blockhash = await getLatestBlockhash();
     let builtTx = await simulateAndGetTxWithCUs({
       connection: bankrunProvider.connection,
-      payerPublicKey: user.publicKey,
+      payerPublicKey: admin.publicKey,
       lookupTableAccounts: [],
-      ixs: [...preIxs, beginSwapIx, endSwapIx],
+      ixs: [
+        ...preIxs,
+        beginSwapIx,
+        initBinArrayBitmapExtensionIx,
+        new TransactionInstruction({
+          programId: dlmmProgramId,
+          keys: [
+            ...swapIx.keys,
+            ...remainingAccounts,
+          ],
+          data: swapIx.data,
+        }),
+        endSwapIx,
+      ],
       recentBlockhash: blockhash[0],
     });
 
-    // Sign with admin since it's the authority
+    // Sign with admin since they are the funder for initialization and authority for swap
     builtTx.tx.sign([admin]);
 
     await processTransaction(builtTx.tx);
@@ -1285,4 +1369,160 @@ describe("maiker-contracts", () => {
     assert(strategyAccPost.swapSourceMint.equals(PublicKey.default), "Source mint should be cleared");
     assert(strategyAccPost.swapDestinationMint.equals(PublicKey.default), "Destination mint should be cleared");
   });
+
+  test("Residual token handling in swap flow", async () => {
+    const maikerSdk = await MaikerSDK.create(bankrunProvider.connection, strategy);
+    await maikerSdk.refresh();
+
+    // Get initial balances
+    const initialXVault = await getTokenAcc(maikerSdk.strategyAcc.xVault);
+    const initialYVault = await getTokenAcc(maikerSdk.strategyAcc.yVault);
+    const [adminX, adminY] = await Promise.all([
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, admin.publicKey, admin.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, admin.publicKey, admin.publicKey, true),
+    ]);
+
+    // Get initial admin balances
+    const initialAdminX = await getTokenAcc(adminX.ataPubKey);
+    const initialAdminY = await getTokenAcc(adminY.ataPubKey);
+
+    // Create pre-instructions to create ATAs if they don't exist
+    const preIxs = [];
+    if (adminX.ix) preIxs.push(adminX.ix);
+    if (adminY.ix) preIxs.push(adminY.ix);
+
+    // Create begin swap instruction with amount larger than what will be used
+    const swapAmount = 1000000; // 1 token
+    const beginSwapIx = maikerInstructions.beginSwap(
+      {
+        xToY: true,
+        amountIn: new BN(swapAmount),
+      },
+      {
+        authority: admin.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        inVault: maikerSdk.strategyAcc.xVault,
+        outVault: maikerSdk.strategyAcc.yVault,
+        inAdminAta: adminX.ataPubKey,
+        outAdminAta: adminY.ataPubKey,
+        inMint: xMint,
+        outMint: yMint,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+      }
+    );
+
+    // Get bin arrays for swap
+    const binArrays = await dlmmInstance.getBinArrayForSwap(true, 4);
+    const binArraysPubkey = binArrays.map(bin => bin.publicKey);
+    const [binArrayBitmapExtension] = deriveBinArrayBitmapExtension(lbPairPubkey, dlmmProgramId);
+
+    // Create swap instruction that uses less than the provided amount
+    const actualSwapAmount = 500000;
+    const swapIx = dlmmInstructions.swap(
+      {
+        amountIn: new BN(actualSwapAmount),
+        minAmountOut: new BN(0),
+      },
+      {
+        lbPair: lbPairPubkey,
+        binArrayBitmapExtension,
+        reserveX: lbPairAcc.reserveX,
+        reserveY: lbPairAcc.reserveY,
+        userTokenIn: adminX.ataPubKey,
+        userTokenOut: adminY.ataPubKey,
+        tokenXMint: xMint,
+        tokenYMint: yMint,
+        oracle: lbPairAcc.oracle,
+        hostFeeIn: lbPairAcc.reserveX,
+        user: admin.publicKey,
+        tokenXProgram: TOKEN_PROGRAM_ID,
+        tokenYProgram: TOKEN_PROGRAM_ID,
+        eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
+        program: dlmmProgramId,
+      }
+    );
+
+    const endSwapIx = maikerInstructions.endSwap(
+      {
+        xToY: true,
+      },
+      {
+        authority: admin.publicKey,
+        globalConfig: globalConfig,
+        strategy: strategy,
+        inVault: maikerSdk.strategyAcc.xVault,
+        outVault: maikerSdk.strategyAcc.yVault,
+        inAdminAta: adminX.ataPubKey,
+        outAdminAta: adminY.ataPubKey,
+        inMint: xMint,
+        outMint: yMint,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+      }
+    );
+
+    // Execute the transaction
+    const blockhash = await getLatestBlockhash();
+    const builtTx = await simulateAndGetTxWithCUs({
+      connection: bankrunProvider.connection,
+      payerPublicKey: admin.publicKey,
+      lookupTableAccounts: [],
+      ixs: [
+        ...preIxs,
+        beginSwapIx,
+        new TransactionInstruction({
+          programId: dlmmProgramId,
+          keys: [
+            ...swapIx.keys,
+            ...binArraysPubkey.map(pubkey => ({
+              pubkey,
+              isSigner: false,
+              isWritable: true,
+            })),
+          ],
+          data: swapIx.data,
+        }),
+        endSwapIx,
+      ],
+      recentBlockhash: blockhash[0],
+    });
+
+    builtTx.tx.sign([admin]);
+    await processTransaction(builtTx.tx);
+
+    // Get final balances
+    const finalXVault = await getTokenAcc(maikerSdk.strategyAcc.xVault);
+    const finalYVault = await getTokenAcc(maikerSdk.strategyAcc.yVault);
+    const finalAdminX = await getTokenAcc(adminX.ataPubKey);
+    const finalAdminY = await getTokenAcc(adminY.ataPubKey);
+
+    // Calculate balance changes
+    const adminXChange = Number(finalAdminX.amount) - Number(initialAdminX.amount);
+    const vaultXChange = Number(finalXVault.amount) - Number(initialXVault.amount);
+    const vaultYChange = Number(finalYVault.amount) - Number(initialYVault.amount);
+
+    // Verify residual tokens were returned
+    assert.equal(
+      adminXChange,
+      0,
+      "Admin X balance should be 0 after returning residual tokens"
+    );
+    assert.equal(
+      vaultXChange,
+      -actualSwapAmount,
+      "X vault balance should only decrease by actual swap amount"
+    );
+
+    // Verify Y token amounts (accounting for exchange rate)
+    const expectedYAmount = Math.floor(actualSwapAmount * 286.05); // Using the actual exchange rate from logs
+    const allowedDeviation = expectedYAmount * 0.01; // Allow 1% deviation for slippage
+    assert.ok(
+      Math.abs(vaultYChange - expectedYAmount) <= allowedDeviation,
+      `Y vault balance should increase by expected amount based on exchange rate. Expected: ${expectedYAmount}, Got: ${vaultYChange}, Allowed deviation: ${allowedDeviation}`
+    );
+  });
+
+
 });

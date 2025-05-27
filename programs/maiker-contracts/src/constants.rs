@@ -14,3 +14,6 @@ pub const MAX_POSITIONS: usize = 10;
 
 #[constant]
 pub const SHARE_PRECISION: u64 = 1_000_000;
+
+#[constant]
+pub const DLMM_PROGRAM_ID: &str = "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo";
