@@ -371,7 +371,8 @@ describe("maiker-contracts", () => {
     const totalXAmount = new BN(500000000).mul(new BN(10 ** xMintDecimals));
     console.log("totalXAmount: ", totalXAmount.toString());
 
-    const calculatedYAmount = totalXAmount.div(new BN(Math.round(parseFloat(priceInYLamport))));
+    // X * price = Y / price
+    const calculatedYAmount = totalXAmount.mul(new BN(Math.round(parseFloat(priceInYLamport))));
     console.log("calculatedYAmount: ", calculatedYAmount.toString());
 
     const ixs = await initializePositionAndAddLiquidityByWeight({
