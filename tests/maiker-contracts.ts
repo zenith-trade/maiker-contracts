@@ -8,7 +8,7 @@ import { BanksClient, Clock } from "solana-bankrun";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, dlmmProgramId, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, getPricePerLamport } from "../clients/js/src";
+import { maiker, maikerProgramId, dlmm, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, getPricePerLamport } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
@@ -16,6 +16,7 @@ import { MintLayout } from "@solana/spl-token";
 // I import from the dlmm-ts-client to make it work with bankrun. We updated the getChunkedAccountInfos function as well as getOrCreateAta. -> Find in codebase with "IMPORTANT:"
 import { BinAndAmount, BinArrayAccount, binIdToBinArrayIndex, calculateBidAskDistribution, calculateNormalDistribution, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
+import { PROGRAM_ID as dlmmProgramId } from "../clients/js/src/generated-dlmm/programId";
 
 import { readFileSync } from "fs";
 import path from "path";
@@ -1234,8 +1235,8 @@ describe("maiker-contracts", () => {
 
     // Get admin ATAs
     const [adminX, adminY] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, admin.publicKey, admin.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, admin.publicKey, admin.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, admin.publicKey, undefined, admin.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, admin.publicKey, undefined, admin.publicKey, true),
     ]);
 
     // Create pre-instructions to create ATAs if they don't exist
@@ -1404,8 +1405,8 @@ describe("maiker-contracts", () => {
     const initialXVault = await getTokenAcc(maikerSdk.strategyAcc.xVault);
     const initialYVault = await getTokenAcc(maikerSdk.strategyAcc.yVault);
     const [adminX, adminY] = await Promise.all([
-      getOrCreateATAInstruction(bankrunProvider.connection, xMint, admin.publicKey, admin.publicKey, true),
-      getOrCreateATAInstruction(bankrunProvider.connection, yMint, admin.publicKey, admin.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, xMint, admin.publicKey, undefined, admin.publicKey, true),
+      getOrCreateATAInstruction(bankrunProvider.connection, yMint, admin.publicKey, undefined, admin.publicKey, true),
     ]);
 
     // Get initial admin balances
@@ -1416,6 +1417,13 @@ describe("maiker-contracts", () => {
     const preIxs = [];
     if (adminX.ix) preIxs.push(adminX.ix);
     if (adminY.ix) preIxs.push(adminY.ix);
+
+    // Get the current price from the active bin
+    const activeBin = lbPairAcc.activeId;
+    const price = getPriceOfBinByBinId(activeBin, lbPairAcc.binStep);
+    const pricePerLamport = getPricePerLamport(xMintDecimals, yMintDecimals, price.toNumber());
+    console.log("Current price:", price.toString());
+    console.log("Price per lamport:", pricePerLamport);
 
     // Create begin swap instruction with amount larger than what will be used
     const swapAmount = 1000000; // 1 token
@@ -1515,7 +1523,9 @@ describe("maiker-contracts", () => {
       recentBlockhash: blockhash[0],
     });
 
+    // Sign with admin since they are the funder for initialization and authority for swap
     builtTx.tx.sign([admin]);
+
     await processTransaction(builtTx.tx);
 
     // Get final balances
@@ -1524,30 +1534,54 @@ describe("maiker-contracts", () => {
     const finalAdminX = await getTokenAcc(adminX.ataPubKey);
     const finalAdminY = await getTokenAcc(adminY.ataPubKey);
 
-    // Calculate balance changes
-    const adminXChange = Number(finalAdminX.amount) - Number(initialAdminX.amount);
-    const vaultXChange = Number(finalXVault.amount) - Number(initialXVault.amount);
-    const vaultYChange = Number(finalYVault.amount) - Number(initialYVault.amount);
+    // Calculate actual amounts used in the swap
+    const actualResidualAmount = Number(finalAdminX.amount) - Number(initialAdminX.amount) - actualSwapAmount;
+    const actualOutputAmount = Number(finalYVault.amount) - Number(initialYVault.amount);
+    console.log("Actual residual amount:", actualResidualAmount);
+    console.log("Actual output amount:", actualOutputAmount);
 
-    // Verify residual tokens were returned
+    // Calculate expected output amount based on price
+    const expectedOutputAmount = Math.floor(actualSwapAmount * (1 - 0.001)); // 0.1% fee
+    console.log("Expected output amount:", expectedOutputAmount);
+
+    // Verify the output amount matches expected calculation
     assert.equal(
-      adminXChange,
+      actualOutputAmount,
+      expectedOutputAmount,
+      `Output amount should be ${expectedOutputAmount} tokens (input amount minus 0.1% fee)`
+    );
+
+    // Verify vault balances with actual amounts
+    assert.equal(
+      Number(finalXVault.amount),
+      Number(initialXVault.amount) - actualSwapAmount,
+      "X vault should be reduced by actual swap amount"
+    );
+    assert.equal(
+      Number(finalYVault.amount),
+      Number(initialYVault.amount) + expectedOutputAmount,
+      `Y vault should be increased by expected output amount (${expectedOutputAmount})`
+    );
+
+    // Verify admin balances with actual amounts
+    assert.equal(
+      Number(finalAdminX.amount),
       0,
-      "Admin X balance should be 0 after returning residual tokens"
+      "Admin X balance should be 0 after swap"
     );
     assert.equal(
-      vaultXChange,
-      -actualSwapAmount,
-      "X vault balance should only decrease by actual swap amount"
+      Number(finalAdminY.amount),
+      0,
+      "Admin Y balance should be 0 after swap"
     );
 
-    // Verify Y token amounts (accounting for exchange rate)
-    const expectedYAmount = Math.floor(actualSwapAmount * 286.05); // Using the actual exchange rate from logs
-    const allowedDeviation = expectedYAmount * 0.01; // Allow 1% deviation for slippage
-    assert.ok(
-      Math.abs(vaultYChange - expectedYAmount) <= allowedDeviation,
-      `Y vault balance should increase by expected amount based on exchange rate. Expected: ${expectedYAmount}, Got: ${vaultYChange}, Allowed deviation: ${allowedDeviation}`
-    );
+    // Verify swap state is cleared
+    await maikerSdk.refresh();
+    const strategyAccPost = maikerSdk.strategyAcc;
+    assert(!strategyAccPost.isSwapping, "Swap should not be in progress");
+    assert.equal(Number(strategyAccPost.swapAmountIn), 0, "Swap amount should be cleared");
+    assert(strategyAccPost.swapSourceMint.equals(PublicKey.default), "Source mint should be cleared");
+    assert(strategyAccPost.swapDestinationMint.equals(PublicKey.default), "Destination mint should be cleared");
   });
 
 
