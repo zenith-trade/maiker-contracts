@@ -1,10 +1,10 @@
 import { PublicKey } from "@solana/web3.js" // eslint-disable-line @typescript-eslint/no-unused-vars
 import BN from "bn.js" // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as types from "../types" // eslint-disable-line @typescript-eslint/no-unused-vars
 import * as borsh from "@coral-xyz/borsh"
-import * as types from "." // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface StaticParametersFields {
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   baseFactor: number
   /** Filter period determine high frequency trading time window. */
   filterPeriod: number
@@ -22,12 +22,14 @@ export interface StaticParametersFields {
   maxBinId: number
   /** Portion of swap fees retained by the protocol by controlling protocol_share parameter. protocol_swap_fee = protocol_share * total_swap_fee */
   protocolShare: number
+  /** Base fee power factor */
+  baseFeePowerFactor: number
   /** Padding for bytemuck safe alignment */
   padding: Array<number>
 }
 
 export interface StaticParametersJSON {
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   baseFactor: number
   /** Filter period determine high frequency trading time window. */
   filterPeriod: number
@@ -45,13 +47,15 @@ export interface StaticParametersJSON {
   maxBinId: number
   /** Portion of swap fees retained by the protocol by controlling protocol_share parameter. protocol_swap_fee = protocol_share * total_swap_fee */
   protocolShare: number
+  /** Base fee power factor */
+  baseFeePowerFactor: number
   /** Padding for bytemuck safe alignment */
   padding: Array<number>
 }
 
 /** Parameter that set by the protocol */
 export class StaticParameters {
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   readonly baseFactor: number
   /** Filter period determine high frequency trading time window. */
   readonly filterPeriod: number
@@ -69,6 +73,8 @@ export class StaticParameters {
   readonly maxBinId: number
   /** Portion of swap fees retained by the protocol by controlling protocol_share parameter. protocol_swap_fee = protocol_share * total_swap_fee */
   readonly protocolShare: number
+  /** Base fee power factor */
+  readonly baseFeePowerFactor: number
   /** Padding for bytemuck safe alignment */
   readonly padding: Array<number>
 
@@ -82,6 +88,7 @@ export class StaticParameters {
     this.minBinId = fields.minBinId
     this.maxBinId = fields.maxBinId
     this.protocolShare = fields.protocolShare
+    this.baseFeePowerFactor = fields.baseFeePowerFactor
     this.padding = fields.padding
   }
 
@@ -97,7 +104,8 @@ export class StaticParameters {
         borsh.i32("minBinId"),
         borsh.i32("maxBinId"),
         borsh.u16("protocolShare"),
-        borsh.array(borsh.u8(), 6, "padding"),
+        borsh.u8("baseFeePowerFactor"),
+        borsh.array(borsh.u8(), 5, "padding"),
       ],
       property
     )
@@ -115,6 +123,7 @@ export class StaticParameters {
       minBinId: obj.minBinId,
       maxBinId: obj.maxBinId,
       protocolShare: obj.protocolShare,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
       padding: obj.padding,
     })
   }
@@ -130,6 +139,7 @@ export class StaticParameters {
       minBinId: fields.minBinId,
       maxBinId: fields.maxBinId,
       protocolShare: fields.protocolShare,
+      baseFeePowerFactor: fields.baseFeePowerFactor,
       padding: fields.padding,
     }
   }
@@ -145,6 +155,7 @@ export class StaticParameters {
       minBinId: this.minBinId,
       maxBinId: this.maxBinId,
       protocolShare: this.protocolShare,
+      baseFeePowerFactor: this.baseFeePowerFactor,
       padding: this.padding,
     }
   }
@@ -160,6 +171,7 @@ export class StaticParameters {
       minBinId: obj.minBinId,
       maxBinId: obj.maxBinId,
       protocolShare: obj.protocolShare,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
       padding: obj.padding,
     })
   }

@@ -2,6 +2,15 @@
 
 Welcome to the Maiker Protocol documentation. This documentation provides a comprehensive overview of the protocol, its architecture, and how it works.
 
+As part of the Solana Colosseum Hackathon submission 
+The program is deployed on devnet right now and a working demo can be tried at https://app.maiker.fun
+
+- [X](https://x.com/maikerfun)
+- [Telegram](https://t.co/xPK9SafJeT)
+- [Pitch video](https://youtu.be/MHn3dD4GBIg)
+- [Technical video](https://youtu.be/FPF3FzMsdh0)
+- [Article about the changing game of LPing on Solana—and why managed vaults are winning](https://x.com/KultureElectric/status/1915860087232774368)
+
 ## Overview
 
 Maiker is a Solana protocol that allows users to deposit token X into strategies. These strategies manage positions in liquidity pools (using DLMM protocol) to generate yield. Users receive shares proportional to their contributions, and the protocol charges fees for performance gains and withdrawals.

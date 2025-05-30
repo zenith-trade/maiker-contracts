@@ -1,13 +1,15 @@
 import { PublicKey } from "@solana/web3.js" // eslint-disable-line @typescript-eslint/no-unused-vars
 import BN from "bn.js" // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as types from "../types" // eslint-disable-line @typescript-eslint/no-unused-vars
 import * as borsh from "@coral-xyz/borsh"
-import * as types from "." // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface BaseFeeParameterFields {
   /** Portion of swap fees retained by the protocol by controlling protocol_share parameter. protocol_swap_fee = protocol_share * total_swap_fee */
   protocolShare: number
   /** Base factor for base fee rate */
   baseFactor: number
+  /** Base fee power factor */
+  baseFeePowerFactor: number
 }
 
 export interface BaseFeeParameterJSON {
@@ -15,6 +17,8 @@ export interface BaseFeeParameterJSON {
   protocolShare: number
   /** Base factor for base fee rate */
   baseFactor: number
+  /** Base fee power factor */
+  baseFeePowerFactor: number
 }
 
 export class BaseFeeParameter {
@@ -22,15 +26,22 @@ export class BaseFeeParameter {
   readonly protocolShare: number
   /** Base factor for base fee rate */
   readonly baseFactor: number
+  /** Base fee power factor */
+  readonly baseFeePowerFactor: number
 
   constructor(fields: BaseFeeParameterFields) {
     this.protocolShare = fields.protocolShare
     this.baseFactor = fields.baseFactor
+    this.baseFeePowerFactor = fields.baseFeePowerFactor
   }
 
   static layout(property?: string) {
     return borsh.struct(
-      [borsh.u16("protocolShare"), borsh.u16("baseFactor")],
+      [
+        borsh.u16("protocolShare"),
+        borsh.u16("baseFactor"),
+        borsh.u8("baseFeePowerFactor"),
+      ],
       property
     )
   }
@@ -40,6 +51,7 @@ export class BaseFeeParameter {
     return new BaseFeeParameter({
       protocolShare: obj.protocolShare,
       baseFactor: obj.baseFactor,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
     })
   }
 
@@ -47,6 +59,7 @@ export class BaseFeeParameter {
     return {
       protocolShare: fields.protocolShare,
       baseFactor: fields.baseFactor,
+      baseFeePowerFactor: fields.baseFeePowerFactor,
     }
   }
 
@@ -54,6 +67,7 @@ export class BaseFeeParameter {
     return {
       protocolShare: this.protocolShare,
       baseFactor: this.baseFactor,
+      baseFeePowerFactor: this.baseFeePowerFactor,
     }
   }
 
@@ -61,6 +75,7 @@ export class BaseFeeParameter {
     return new BaseFeeParameter({
       protocolShare: obj.protocolShare,
       baseFactor: obj.baseFactor,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
     })
   }
 

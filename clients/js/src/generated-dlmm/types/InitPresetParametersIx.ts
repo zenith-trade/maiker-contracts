@@ -1,12 +1,12 @@
 import { PublicKey } from "@solana/web3.js" // eslint-disable-line @typescript-eslint/no-unused-vars
 import BN from "bn.js" // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as types from "../types" // eslint-disable-line @typescript-eslint/no-unused-vars
 import * as borsh from "@coral-xyz/borsh"
-import * as types from "." // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface InitPresetParametersIxFields {
   /** Bin step. Represent the price increment / decrement. */
   binStep: number
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   baseFactor: number
   /** Filter period determine high frequency trading time window. */
   filterPeriod: number
@@ -18,10 +18,6 @@ export interface InitPresetParametersIxFields {
   variableFeeControl: number
   /** Maximum number of bin crossed can be accumulated. Used to cap volatile fee rate. */
   maxVolatilityAccumulator: number
-  /** Min bin id supported by the pool based on the configured bin step. */
-  minBinId: number
-  /** Max bin id supported by the pool based on the configured bin step. */
-  maxBinId: number
   /** Portion of swap fees retained by the protocol by controlling protocol_share parameter. protocol_swap_fee = protocol_share * total_swap_fee */
   protocolShare: number
 }
@@ -29,7 +25,7 @@ export interface InitPresetParametersIxFields {
 export interface InitPresetParametersIxJSON {
   /** Bin step. Represent the price increment / decrement. */
   binStep: number
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   baseFactor: number
   /** Filter period determine high frequency trading time window. */
   filterPeriod: number
@@ -41,10 +37,6 @@ export interface InitPresetParametersIxJSON {
   variableFeeControl: number
   /** Maximum number of bin crossed can be accumulated. Used to cap volatile fee rate. */
   maxVolatilityAccumulator: number
-  /** Min bin id supported by the pool based on the configured bin step. */
-  minBinId: number
-  /** Max bin id supported by the pool based on the configured bin step. */
-  maxBinId: number
   /** Portion of swap fees retained by the protocol by controlling protocol_share parameter. protocol_swap_fee = protocol_share * total_swap_fee */
   protocolShare: number
 }
@@ -52,7 +44,7 @@ export interface InitPresetParametersIxJSON {
 export class InitPresetParametersIx {
   /** Bin step. Represent the price increment / decrement. */
   readonly binStep: number
-  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step */
+  /** Used for base fee calculation. base_fee_rate = base_factor * bin_step * 10 * 10^base_fee_power_factor */
   readonly baseFactor: number
   /** Filter period determine high frequency trading time window. */
   readonly filterPeriod: number
@@ -64,10 +56,6 @@ export class InitPresetParametersIx {
   readonly variableFeeControl: number
   /** Maximum number of bin crossed can be accumulated. Used to cap volatile fee rate. */
   readonly maxVolatilityAccumulator: number
-  /** Min bin id supported by the pool based on the configured bin step. */
-  readonly minBinId: number
-  /** Max bin id supported by the pool based on the configured bin step. */
-  readonly maxBinId: number
   /** Portion of swap fees retained by the protocol by controlling protocol_share parameter. protocol_swap_fee = protocol_share * total_swap_fee */
   readonly protocolShare: number
 
@@ -79,8 +67,6 @@ export class InitPresetParametersIx {
     this.reductionFactor = fields.reductionFactor
     this.variableFeeControl = fields.variableFeeControl
     this.maxVolatilityAccumulator = fields.maxVolatilityAccumulator
-    this.minBinId = fields.minBinId
-    this.maxBinId = fields.maxBinId
     this.protocolShare = fields.protocolShare
   }
 
@@ -94,8 +80,6 @@ export class InitPresetParametersIx {
         borsh.u16("reductionFactor"),
         borsh.u32("variableFeeControl"),
         borsh.u32("maxVolatilityAccumulator"),
-        borsh.i32("minBinId"),
-        borsh.i32("maxBinId"),
         borsh.u16("protocolShare"),
       ],
       property
@@ -112,8 +96,6 @@ export class InitPresetParametersIx {
       reductionFactor: obj.reductionFactor,
       variableFeeControl: obj.variableFeeControl,
       maxVolatilityAccumulator: obj.maxVolatilityAccumulator,
-      minBinId: obj.minBinId,
-      maxBinId: obj.maxBinId,
       protocolShare: obj.protocolShare,
     })
   }
@@ -127,8 +109,6 @@ export class InitPresetParametersIx {
       reductionFactor: fields.reductionFactor,
       variableFeeControl: fields.variableFeeControl,
       maxVolatilityAccumulator: fields.maxVolatilityAccumulator,
-      minBinId: fields.minBinId,
-      maxBinId: fields.maxBinId,
       protocolShare: fields.protocolShare,
     }
   }
@@ -142,8 +122,6 @@ export class InitPresetParametersIx {
       reductionFactor: this.reductionFactor,
       variableFeeControl: this.variableFeeControl,
       maxVolatilityAccumulator: this.maxVolatilityAccumulator,
-      minBinId: this.minBinId,
-      maxBinId: this.maxBinId,
       protocolShare: this.protocolShare,
     }
   }
@@ -157,8 +135,6 @@ export class InitPresetParametersIx {
       reductionFactor: obj.reductionFactor,
       variableFeeControl: obj.variableFeeControl,
       maxVolatilityAccumulator: obj.maxVolatilityAccumulator,
-      minBinId: obj.minBinId,
-      maxBinId: obj.maxBinId,
       protocolShare: obj.protocolShare,
     })
   }

@@ -18,7 +18,10 @@ export interface InitializePermissionLbPairAccounts {
   reserveY: PublicKey
   oracle: PublicKey
   admin: PublicKey
-  tokenProgram: PublicKey
+  tokenBadgeX: PublicKey
+  tokenBadgeY: PublicKey
+  tokenProgramX: PublicKey
+  tokenProgramY: PublicKey
   systemProgram: PublicKey
   rent: PublicKey
   eventAuthority: PublicKey
@@ -48,7 +51,10 @@ export function initializePermissionLbPair(
     { pubkey: accounts.reserveY, isSigner: false, isWritable: true },
     { pubkey: accounts.oracle, isSigner: false, isWritable: true },
     { pubkey: accounts.admin, isSigner: true, isWritable: true },
-    { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
+    { pubkey: accounts.tokenBadgeX, isSigner: false, isWritable: false },
+    { pubkey: accounts.tokenBadgeY, isSigner: false, isWritable: false },
+    { pubkey: accounts.tokenProgramX, isSigner: false, isWritable: false },
+    { pubkey: accounts.tokenProgramY, isSigner: false, isWritable: false },
     { pubkey: accounts.systemProgram, isSigner: false, isWritable: false },
     { pubkey: accounts.rent, isSigner: false, isWritable: false },
     { pubkey: accounts.eventAuthority, isSigner: false, isWritable: false },

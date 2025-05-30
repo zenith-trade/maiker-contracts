@@ -7,6 +7,7 @@ import { PROGRAM_ID } from "../programId"
 export interface WithdrawProtocolFeeArgs {
   amountX: BN
   amountY: BN
+  remainingAccountsInfo: types.RemainingAccountsInfoFields
 }
 
 export interface WithdrawProtocolFeeAccounts {
@@ -17,11 +18,19 @@ export interface WithdrawProtocolFeeAccounts {
   tokenYMint: PublicKey
   receiverTokenX: PublicKey
   receiverTokenY: PublicKey
+  claimFeeOperator: PublicKey
+  /** operator */
+  operator: PublicKey
   tokenXProgram: PublicKey
   tokenYProgram: PublicKey
+  memoProgram: PublicKey
 }
 
-export const layout = borsh.struct([borsh.u64("amountX"), borsh.u64("amountY")])
+export const layout = borsh.struct([
+  borsh.u64("amountX"),
+  borsh.u64("amountY"),
+  types.RemainingAccountsInfo.layout("remainingAccountsInfo"),
+])
 
 export function withdrawProtocolFee(
   args: WithdrawProtocolFeeArgs,
@@ -36,8 +45,11 @@ export function withdrawProtocolFee(
     { pubkey: accounts.tokenYMint, isSigner: false, isWritable: false },
     { pubkey: accounts.receiverTokenX, isSigner: false, isWritable: true },
     { pubkey: accounts.receiverTokenY, isSigner: false, isWritable: true },
+    { pubkey: accounts.claimFeeOperator, isSigner: false, isWritable: false },
+    { pubkey: accounts.operator, isSigner: true, isWritable: false },
     { pubkey: accounts.tokenXProgram, isSigner: false, isWritable: false },
     { pubkey: accounts.tokenYProgram, isSigner: false, isWritable: false },
+    { pubkey: accounts.memoProgram, isSigner: false, isWritable: false },
   ]
   const identifier = Buffer.from([158, 201, 158, 189, 33, 93, 162, 103])
   const buffer = Buffer.alloc(1000)
@@ -45,6 +57,9 @@ export function withdrawProtocolFee(
     {
       amountX: args.amountX,
       amountY: args.amountY,
+      remainingAccountsInfo: types.RemainingAccountsInfo.toEncodable(
+        args.remainingAccountsInfo
+      ),
     },
     buffer
   )

@@ -126,6 +126,8 @@ export type {
 } from "./initializePresetParameter"
 export { closePresetParameter } from "./closePresetParameter"
 export type { ClosePresetParameterAccounts } from "./closePresetParameter"
+export { closePresetParameter2 } from "./closePresetParameter2"
+export type { ClosePresetParameter2Accounts } from "./closePresetParameter2"
 export { removeAllLiquidity } from "./removeAllLiquidity"
 export type { RemoveAllLiquidityAccounts } from "./removeAllLiquidity"
 export { setPairStatus } from "./setPairStatus"
@@ -168,3 +170,73 @@ export type {
   SetPreActivationSwapAddressArgs,
   SetPreActivationSwapAddressAccounts,
 } from "./setPreActivationSwapAddress"
+export { setPairStatusPermissionless } from "./setPairStatusPermissionless"
+export type {
+  SetPairStatusPermissionlessArgs,
+  SetPairStatusPermissionlessAccounts,
+} from "./setPairStatusPermissionless"
+export { initializeTokenBadge } from "./initializeTokenBadge"
+export type { InitializeTokenBadgeAccounts } from "./initializeTokenBadge"
+export { createClaimProtocolFeeOperator } from "./createClaimProtocolFeeOperator"
+export type { CreateClaimProtocolFeeOperatorAccounts } from "./createClaimProtocolFeeOperator"
+export { closeClaimProtocolFeeOperator } from "./closeClaimProtocolFeeOperator"
+export type { CloseClaimProtocolFeeOperatorAccounts } from "./closeClaimProtocolFeeOperator"
+export { initializePresetParameter2 } from "./initializePresetParameter2"
+export type {
+  InitializePresetParameter2Args,
+  InitializePresetParameter2Accounts,
+} from "./initializePresetParameter2"
+export { initializeLbPair2 } from "./initializeLbPair2"
+export type {
+  InitializeLbPair2Args,
+  InitializeLbPair2Accounts,
+} from "./initializeLbPair2"
+export { initializeCustomizablePermissionlessLbPair2 } from "./initializeCustomizablePermissionlessLbPair2"
+export type {
+  InitializeCustomizablePermissionlessLbPair2Args,
+  InitializeCustomizablePermissionlessLbPair2Accounts,
+} from "./initializeCustomizablePermissionlessLbPair2"
+export { claimFee2 } from "./claimFee2"
+export type { ClaimFee2Args, ClaimFee2Accounts } from "./claimFee2"
+export { claimReward2 } from "./claimReward2"
+export type { ClaimReward2Args, ClaimReward2Accounts } from "./claimReward2"
+export { addLiquidity2 } from "./addLiquidity2"
+export type { AddLiquidity2Args, AddLiquidity2Accounts } from "./addLiquidity2"
+export { addLiquidityByStrategy2 } from "./addLiquidityByStrategy2"
+export type {
+  AddLiquidityByStrategy2Args,
+  AddLiquidityByStrategy2Accounts,
+} from "./addLiquidityByStrategy2"
+export { addLiquidityOneSidePrecise2 } from "./addLiquidityOneSidePrecise2"
+export type {
+  AddLiquidityOneSidePrecise2Args,
+  AddLiquidityOneSidePrecise2Accounts,
+} from "./addLiquidityOneSidePrecise2"
+export { removeLiquidity2 } from "./removeLiquidity2"
+export type {
+  RemoveLiquidity2Args,
+  RemoveLiquidity2Accounts,
+} from "./removeLiquidity2"
+export { removeLiquidityByRange2 } from "./removeLiquidityByRange2"
+export type {
+  RemoveLiquidityByRange2Args,
+  RemoveLiquidityByRange2Accounts,
+} from "./removeLiquidityByRange2"
+export { swap2 } from "./swap2"
+export type { Swap2Args, Swap2Accounts } from "./swap2"
+export { swapExactOut2 } from "./swapExactOut2"
+export type { SwapExactOut2Args, SwapExactOut2Accounts } from "./swapExactOut2"
+export { swapWithPriceImpact2 } from "./swapWithPriceImpact2"
+export type {
+  SwapWithPriceImpact2Args,
+  SwapWithPriceImpact2Accounts,
+} from "./swapWithPriceImpact2"
+export { closePosition2 } from "./closePosition2"
+export type { ClosePosition2Accounts } from "./closePosition2"
+export { updateFeesAndReward2 } from "./updateFeesAndReward2"
+export type {
+  UpdateFeesAndReward2Args,
+  UpdateFeesAndReward2Accounts,
+} from "./updateFeesAndReward2"
+export { closePositionIfEmpty } from "./closePositionIfEmpty"
+export type { ClosePositionIfEmptyAccounts } from "./closePositionIfEmpty"

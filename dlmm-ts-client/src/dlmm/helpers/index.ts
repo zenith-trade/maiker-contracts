@@ -1,11 +1,11 @@
 import { BN, EventParser } from "@coral-xyz/anchor";
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   NATIVE_MINT,
   TOKEN_PROGRAM_ID,
   TokenAccountNotFoundError,
   TokenInvalidAccountOwnerError,
   createAssociatedTokenAccountIdempotentInstruction,
-  createAssociatedTokenAccountInstruction,
   createCloseAccountInstruction,
   getAccount,
   getAssociatedTokenAddressSync,
@@ -37,11 +37,7 @@ export function chunks<T>(array: T[], size: number): T[][] {
   );
 }
 
-export function range<T>(
-  min: number,
-  max: number,
-  mapfn: (i: number) => T
-) {
+export function range<T>(min: number, max: number, mapfn: (i: number) => T) {
   const length = max - min + 1;
   return Array.from({ length }, (_, i) => mapfn(min + i));
 }
@@ -93,30 +89,37 @@ export const getOrCreateATAInstruction = async (
   connection: Connection,
   tokenMint: PublicKey,
   owner: PublicKey,
+  programId?: PublicKey,
   payer: PublicKey = owner,
   allowOwnerOffCurve = true
 ): Promise<GetOrCreateATAResponse> => {
+  programId = programId ?? TOKEN_PROGRAM_ID;
   const toAccount = getAssociatedTokenAddressSync(
     tokenMint,
     owner,
-    allowOwnerOffCurve
+    allowOwnerOffCurve,
+    programId,
+    ASSOCIATED_TOKEN_PROGRAM_ID
   );
 
   try {
-    await getAccount(connection, toAccount);
+    await getAccount(connection, toAccount, connection.commitment, programId);
 
     return { ataPubKey: toAccount, ix: undefined };
   } catch (e) {
     if (
+      // IMPORTANT: Had to rewrite this function for testing because bankrun doesn't implement getMultipleAccountsInfo
+      e.message.includes("Could not find") ||
       e instanceof TokenAccountNotFoundError ||
-      e instanceof TokenInvalidAccountOwnerError ||
-      e.message.includes("Could not find")
+      e instanceof TokenInvalidAccountOwnerError
     ) {
       const ix = createAssociatedTokenAccountIdempotentInstruction(
         payer,
         toAccount,
         owner,
-        tokenMint
+        tokenMint,
+        programId,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
 
       return { ataPubKey: toAccount, ix };

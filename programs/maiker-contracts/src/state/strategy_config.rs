@@ -41,11 +41,19 @@ pub struct StrategyConfig {
 impl StrategyConfig {
     pub const SEED_PREFIX: &'static str = "strategy-config";
 
-    pub fn get_pda_signer<'a>(self: &'a Self) -> [&'a [u8]; 3] {
+    pub fn get_pda_signer<'a>(self: &'a Self) -> [&'a [u8]; 5] {
         let prefix_bytes = Self::SEED_PREFIX.as_bytes();
         let creator_bytes = self.creator.as_ref();
+        let x_mint_bytes = self.x_mint.as_ref();
+        let y_mint_bytes = self.y_mint.as_ref();
         let bump_slice: &'a [u8] = std::slice::from_ref(&self.bump);
-        [prefix_bytes, creator_bytes, bump_slice]
+        [
+            prefix_bytes,
+            creator_bytes,
+            x_mint_bytes,
+            y_mint_bytes,
+            bump_slice,
+        ]
     }
 
     pub fn initialize_strategy(

@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js" // eslint-disable-line @typescript-eslint/no-unused-vars
 import BN from "bn.js" // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as types from "../types" // eslint-disable-line @typescript-eslint/no-unused-vars
 import * as borsh from "@coral-xyz/borsh"
-import * as types from "." // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface CustomizableParamsFields {
   /** Pool price */
@@ -16,6 +16,10 @@ export interface CustomizableParamsFields {
   hasAlphaVault: boolean
   /** Decide when does the pool start trade. None = Now */
   activationPoint: BN | null
+  /** Pool creator have permission to enable/disable pool with restricted program validation. Only applicable for customizable permissionless pool. */
+  creatorPoolOnOffControl: boolean
+  /** Base fee power factor */
+  baseFeePowerFactor: number
   /** Padding, for future use */
   padding: Array<number>
 }
@@ -33,6 +37,10 @@ export interface CustomizableParamsJSON {
   hasAlphaVault: boolean
   /** Decide when does the pool start trade. None = Now */
   activationPoint: string | null
+  /** Pool creator have permission to enable/disable pool with restricted program validation. Only applicable for customizable permissionless pool. */
+  creatorPoolOnOffControl: boolean
+  /** Base fee power factor */
+  baseFeePowerFactor: number
   /** Padding, for future use */
   padding: Array<number>
 }
@@ -50,6 +58,10 @@ export class CustomizableParams {
   readonly hasAlphaVault: boolean
   /** Decide when does the pool start trade. None = Now */
   readonly activationPoint: BN | null
+  /** Pool creator have permission to enable/disable pool with restricted program validation. Only applicable for customizable permissionless pool. */
+  readonly creatorPoolOnOffControl: boolean
+  /** Base fee power factor */
+  readonly baseFeePowerFactor: number
   /** Padding, for future use */
   readonly padding: Array<number>
 
@@ -60,6 +72,8 @@ export class CustomizableParams {
     this.activationType = fields.activationType
     this.hasAlphaVault = fields.hasAlphaVault
     this.activationPoint = fields.activationPoint
+    this.creatorPoolOnOffControl = fields.creatorPoolOnOffControl
+    this.baseFeePowerFactor = fields.baseFeePowerFactor
     this.padding = fields.padding
   }
 
@@ -72,7 +86,9 @@ export class CustomizableParams {
         borsh.u8("activationType"),
         borsh.bool("hasAlphaVault"),
         borsh.option(borsh.u64(), "activationPoint"),
-        borsh.array(borsh.u8(), 64, "padding"),
+        borsh.bool("creatorPoolOnOffControl"),
+        borsh.u8("baseFeePowerFactor"),
+        borsh.array(borsh.u8(), 62, "padding"),
       ],
       property
     )
@@ -87,6 +103,8 @@ export class CustomizableParams {
       activationType: obj.activationType,
       hasAlphaVault: obj.hasAlphaVault,
       activationPoint: obj.activationPoint,
+      creatorPoolOnOffControl: obj.creatorPoolOnOffControl,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
       padding: obj.padding,
     })
   }
@@ -99,6 +117,8 @@ export class CustomizableParams {
       activationType: fields.activationType,
       hasAlphaVault: fields.hasAlphaVault,
       activationPoint: fields.activationPoint,
+      creatorPoolOnOffControl: fields.creatorPoolOnOffControl,
+      baseFeePowerFactor: fields.baseFeePowerFactor,
       padding: fields.padding,
     }
   }
@@ -112,6 +132,8 @@ export class CustomizableParams {
       hasAlphaVault: this.hasAlphaVault,
       activationPoint:
         (this.activationPoint && this.activationPoint.toString()) || null,
+      creatorPoolOnOffControl: this.creatorPoolOnOffControl,
+      baseFeePowerFactor: this.baseFeePowerFactor,
       padding: this.padding,
     }
   }
@@ -125,6 +147,8 @@ export class CustomizableParams {
       hasAlphaVault: obj.hasAlphaVault,
       activationPoint:
         (obj.activationPoint && new BN(obj.activationPoint)) || null,
+      creatorPoolOnOffControl: obj.creatorPoolOnOffControl,
+      baseFeePowerFactor: obj.baseFeePowerFactor,
       padding: obj.padding,
     })
   }

@@ -8,14 +8,11 @@ import DLMM, {
   isOverflowDefaultBinArrayBitmap,
   deriveBinArrayBitmapExtension,
   toWeightDistribution,
-  PositionData,
   PositionVersion,
   getBinArrayLowerUpperBinId,
   getPriceOfBinByBinId,
-  BinLiquidity,
   BinArray,
   Position,
-  PositionBinData,
   SwapFee,
   getBinFromBinArray,
   SCALE_OFFSET,
@@ -38,10 +35,13 @@ import {
   WithdrawParams,
   PositionLiquidityParams,
   StrategySetupParams,
-  PositionInfo
+  PositionInfo,
+  PositionBinData,
+  PositionData,
+  BinLiquidity
 } from './types';
 import { deriveGlobalConfig, derivePendingWithdrawal, deriveStrategy, deriveUserPosition } from './utils';
-import { chunkedGetMultipleAccountInfos, getOrCreateATAInstruction, mulShr, Rounding } from './helpers';
+import { chunkedGetMultipleAccountInfos, getOrCreateATAInstruction, getPricePerLamport, mulShr, Rounding } from './helpers';
 
 /**
  * Main SDK class for the Maiker strategy contracts
@@ -163,7 +163,7 @@ export class MaikerSDK {
     const { creator, xMint, yMint } = params;
 
     // Find strategy PDA
-    const strategy = deriveStrategy(creator);
+    const strategy = deriveStrategy(creator, xMint, yMint);
 
     const preIxs: TransactionInstruction[] = [];
 
@@ -942,7 +942,7 @@ export class MaikerSDK {
         lbPair: positionInfo.lbPair,
         binArrayLower: lowerBinArrayPubKey,
         binArrayUpper: upperBinArrayPubKey,
-        rentReceiver: this.strategyAcc.xVault,
+        rentReceiver: authority,
         lbClmmProgram: dlmmProgramId,
         eventAuthority: DLMM_EVENT_AUTHORITY_PDA,
       }
@@ -1170,7 +1170,7 @@ export class MaikerSDK {
       return {
         xTokenAmount: xBalance,
         yTokenAmount: yBalance,
-        yTokenValueInX: 0, // No positions, so we don't have a price
+        yTokenValueInX: 0, // No positions, so we don't have a price; TODO: Get price elsewhere
         totalValue: xBalance,
         positionValues: []
       };
@@ -1195,6 +1195,7 @@ export class MaikerSDK {
       throw new Error(`Missing data for positions: ${missingPositions.map(p => p.toString()).join(', ')}`);
     }
 
+    // TODO: This is a hack to get the average price of all the lb_pairs. Should be improved
     let priceAccumulator = 0;
 
     // Calculate value for each position
@@ -1207,22 +1208,19 @@ export class MaikerSDK {
 
       const activeBin = lbPair.activeId;
       const price = getPriceOfBinByBinId(activeBin, lbPair.binStep);
+      const pricePerLamport = getPricePerLamport(this.xMint.decimals, this.yMint.decimals, price.toNumber());
       priceAccumulator += Number(price);
-
-      // console.log("Price: ", price);
-      // console.log("Total X Amount: ", position.positionData?.totalXAmount);
-      // console.log("Total Y Amount: ", position.positionData?.totalYAmount);
 
       const xAmount = parseFloat(position.positionData?.totalXAmount || "0");
       const yAmount = parseFloat(position.positionData?.totalYAmount || "0");
 
       // Add fees in the calculation
-      const feeX = position.positionData?.feeX ? position.positionData.feeX.toNumber() / (10 ** this.xMint.decimals) : 0;
-      const feeY = position.positionData?.feeY ? position.positionData.feeY.toNumber() / (10 ** this.yMint.decimals) : 0;
+      const feeX = position.positionData?.feeX ? position.positionData.feeX.toNumber() : 0;
+      const feeY = position.positionData?.feeY ? position.positionData.feeY.toNumber() : 0;
 
       const totalXAmount = xAmount + feeX;
       const totalYAmount = yAmount + feeY;
-      const yValueInX = totalYAmount / Number(price);
+      const yValueInX = totalYAmount * Number(pricePerLamport);
       const totalValue = totalXAmount + yValueInX;
 
       return {

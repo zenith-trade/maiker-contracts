@@ -1,4 +1,5 @@
 import { BN } from "@coral-xyz/anchor";
+import Decimal from "decimal.js";
 
 export enum Rounding {
   Up,
@@ -22,4 +23,14 @@ export function mulDiv(x: BN, y: BN, denominator: BN, rounding: Rounding) {
     return div.add(new BN(1));
   }
   return div;
+}
+
+export function getPricePerLamport(
+  tokenXDecimal: number,
+  tokenYDecimal: number,
+  price: number
+): string {
+  return new Decimal(price)
+    .mul(new Decimal(10 ** (tokenYDecimal - tokenXDecimal)))
+    .toString();
 }

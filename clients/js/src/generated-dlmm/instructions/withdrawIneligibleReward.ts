@@ -6,6 +6,7 @@ import { PROGRAM_ID } from "../programId"
 
 export interface WithdrawIneligibleRewardArgs {
   rewardIndex: BN
+  remainingAccountsInfo: types.RemainingAccountsInfoFields
 }
 
 export interface WithdrawIneligibleRewardAccounts {
@@ -16,11 +17,15 @@ export interface WithdrawIneligibleRewardAccounts {
   funder: PublicKey
   binArray: PublicKey
   tokenProgram: PublicKey
+  memoProgram: PublicKey
   eventAuthority: PublicKey
   program: PublicKey
 }
 
-export const layout = borsh.struct([borsh.u64("rewardIndex")])
+export const layout = borsh.struct([
+  borsh.u64("rewardIndex"),
+  types.RemainingAccountsInfo.layout("remainingAccountsInfo"),
+])
 
 export function withdrawIneligibleReward(
   args: WithdrawIneligibleRewardArgs,
@@ -35,6 +40,7 @@ export function withdrawIneligibleReward(
     { pubkey: accounts.funder, isSigner: true, isWritable: false },
     { pubkey: accounts.binArray, isSigner: false, isWritable: true },
     { pubkey: accounts.tokenProgram, isSigner: false, isWritable: false },
+    { pubkey: accounts.memoProgram, isSigner: false, isWritable: false },
     { pubkey: accounts.eventAuthority, isSigner: false, isWritable: false },
     { pubkey: accounts.program, isSigner: false, isWritable: false },
   ]
@@ -43,6 +49,9 @@ export function withdrawIneligibleReward(
   const len = layout.encode(
     {
       rewardIndex: args.rewardIndex,
+      remainingAccountsInfo: types.RemainingAccountsInfo.toEncodable(
+        args.remainingAccountsInfo
+      ),
     },
     buffer
   )
