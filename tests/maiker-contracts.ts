@@ -1,20 +1,18 @@
-import * as anchor from "@coral-xyz/anchor";
-import { AnchorProvider, BN, Program, utils } from "@coral-xyz/anchor";
-import { MaikerContracts } from "../target/types/maiker_contracts";
+import { BN } from "@coral-xyz/anchor";
 import { before, describe, test } from "node:test";
 import assert from "assert";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Connection, VersionedTransaction, SYSVAR_RENT_PUBKEY, Transaction, sendAndConfirmTransaction, TransactionInstruction, AccountMeta, SYSVAR_INSTRUCTIONS_PUBKEY } from "@solana/web3.js";
-import { BanksClient, Clock } from "solana-bankrun";
-import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, createMintToInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { Clock } from "solana-bankrun";
+import { AccountLayout, createMintToInstruction } from "@solana/spl-token";
 import { startAnchor } from "solana-bankrun";
 import { BankrunProvider } from "anchor-bankrun";
-import { maiker, maikerProgramId, dlmm, maikerErrors, dlmmErrors, maikerInstructions, dlmmInstructions, maikerTypes, dlmmTypes, SHARE_PRECISION, getOrCreateBinArraysInstructions, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, getPricePerLamport } from "../clients/js/src";
+import { maiker, dlmm, maikerInstructions, dlmmInstructions, SHARE_PRECISION, DLMM_EVENT_AUTHORITY_PDA, initializePositionAndAddLiquidityByWeight, deriveGlobalConfig, deriveStrategy, derivePendingWithdrawal, deriveUserPosition, getPricePerLamport } from "../clients/js/src";
 import { simulateAndGetTxWithCUs } from "../clients/js/src/utils/buildTxAndCheckCu";
-import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID, createInitializeMintInstruction } from "@solana/spl-token";
 import { MintLayout } from "@solana/spl-token";
 
 // I import from the dlmm-ts-client to make it work with bankrun. We updated the getChunkedAccountInfos function as well as getOrCreateAta. -> Find in codebase with "IMPORTANT:"
-import { BinAndAmount, BinArrayAccount, binIdToBinArrayIndex, calculateBidAskDistribution, calculateNormalDistribution, calculateSpotDistribution, deriveBinArray, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, isOverflowDefaultBinArrayBitmap, LBCLMM_PROGRAM_IDS, LiquidityParameterByWeight, MAX_BIN_ARRAY_SIZE, toWeightDistribution } from "../dlmm-ts-client/src";
+import { BinAndAmount, calculateSpotDistribution, deriveBinArrayBitmapExtension, getPriceOfBinByBinId, LBCLMM_PROGRAM_IDS, MAX_BIN_ARRAY_SIZE } from "../dlmm-ts-client/src";
 import DLMM, { deriveLbPair2, derivePresetParameter2, getOrCreateATAInstruction } from "../dlmm-ts-client/src";
 import { PROGRAM_ID as dlmmProgramId } from "../clients/js/src/generated-dlmm/programId";
 
@@ -1227,7 +1225,7 @@ describe("maiker-contracts", () => {
     const globalConfigAcc = await maiker.GlobalConfig.fetch(bankrunProvider.connection, globalConfig);
     console.log("Global config admin:", globalConfigAcc.admin.toBase58());
     console.log("Admin pubkey:", admin.publicKey.toBase58());
-    
+
     // Verify strategy creator
     const strategyAccPre = maikerSdk.strategyAcc;
     console.log("Strategy creator:", strategyAccPre.creator.toBase58());
@@ -1280,20 +1278,20 @@ describe("maiker-contracts", () => {
     const binArrayBitmapExtensionAcc = await connection.getAccountInfo(binArrayBitmapExtension);
     console.log("binArrayBitmapExtension account exists:", !!binArrayBitmapExtensionAcc);
     if (binArrayBitmapExtensionAcc) {
-        console.log("binArrayBitmapExtension owner:", binArrayBitmapExtensionAcc.owner.toBase58());
+      console.log("binArrayBitmapExtension owner:", binArrayBitmapExtensionAcc.owner.toBase58());
     }
 
 
 
     // Initialize bin_array_bitmap_extension if it doesn't exist
     const initBinArrayBitmapExtensionIx = dlmmInstructions.initializeBinArrayBitmapExtension(
-        {
-            lbPair: lbPairPubkey,
-            binArrayBitmapExtension,
-            funder: admin.publicKey,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
-        }
+      {
+        lbPair: lbPairPubkey,
+        binArrayBitmapExtension,
+        funder: admin.publicKey,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      }
     );
 
     // Log bin arrays for debugging
